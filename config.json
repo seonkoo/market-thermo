@@ -1,0 +1,180 @@
+{
+  "_说明": "所有可调参数都在这里，改策略不必动 thermo.py。缺失字段自动回落到 thermo.py 内的 DEFAULT_CFG。",
+  "net": {
+    "timeout": 25,
+    "retries": 3,
+    "workers": 10,
+    "retry_sleep": 1.2
+  },
+  "width": {
+    "top_n": 800,
+    "groups": 20,
+    "ma_days": 20,
+    "kline_days": 25,
+    "sample_ratio": 1.0
+  },
+  "emotion": {
+    "weights": {
+      "advance": 0.3,
+      "ma_breadth": 0.25,
+      "limit_net": 0.2,
+      "volume": 0.15,
+      "margin": 0.1
+    },
+    "hot": 70,
+    "cold": 30,
+    "limit_up_pct_main": 9.8,
+    "limit_up_pct_gem": 19.8,
+    "limit_up_pct_st": 4.8
+  },
+  "liquidity": {
+    "top_pct": 0.05,
+    "top_ratio_warn": 0.4,
+    "hhi_warn": 0.002,
+    "gini_warn": 0.65,
+    "risk_weights": {
+      "top_ratio": 0.5,
+      "hhi": 0.3,
+      "gini": 0.2
+    }
+  },
+  "margin": {
+    "page_size": 500,
+    "max_pages": 12,
+    "lookback_days": 40
+  },
+  "sector": {
+    "top_n": 12,
+    "bottom_n": 8
+  },
+  "judgement": {
+    "margin_fast_in": 3.0,
+    "margin_fast_out": -3.0,
+    "vol_shrink": 0.85,
+    "vol_expand": 1.30,
+    "emotion": {"fear": 30, "cool": 42, "warm": 58, "euphoria": 70},
+    "liquidity": {"high": 70, "mid": 50, "low": 30},
+    "breadth": {"weak": 40, "strong": 60}
+  },
+  "capital_read": {
+    "thresholds": {
+      "main_net_in_billion": 50,
+      "main_net_out_billion": -50,
+      "xlarge_in_billion": 30,
+      "xlarge_out_billion": -30,
+      "small_in_billion": 30,
+      "small_out_billion": -30,
+      "advance_high_pct": 60,
+      "advance_low_pct": 40,
+      "limit_up_many": 50,
+      "limit_down_many": 20,
+      "basis_premium_pct": 0.10,
+      "basis_discount_pct": -0.30,
+      "etf_net_yi": 20
+    },
+    "retail": {
+      "诱多派发": {
+        "posture": "不追高，管住手",
+        "actions": ["停止追涨、不开新仓", "持仓标的设好止盈、主动减高估值仓位", "把注意力放回核心资产（等回踩）"],
+        "cautions": ["此时最易被「假突破」诱多接盘", "量价背离时要舍得卖，不恋战"]
+      },
+      "出货撤退": {
+        "posture": "降仓避险",
+        "actions": ["降低总仓位、回收现金", "回避高位题材与微盘股", "核心底仓可留，但减弹性仓位"],
+        "cautions": ["指数可能滞后于个股走弱，别被指数骗"]
+      },
+      "吸筹布局": {
+        "posture": "分批低吸，别恐慌",
+        "actions": ["别人恐惧时按计划分批低吸核心", "越跌越买需有纪律、控节奏", "优先景气蓝筹与宽基ETF"],
+        "cautions": ["吸筹期常磨底较久，别一把梭"]
+      },
+      "洗盘震仓": {
+        "posture": "持有不动，忽略噪音",
+        "actions": ["持仓不动，不被震仓洗出", "不追涨杀跌", "关注洗盘结束后的方向选择"],
+        "cautions": ["洗盘与下跌初期难区分，设好止损线"]
+      },
+      "共振拉升": {
+        "posture": "顺势持有，不折腾",
+        "actions": ["持有核心、享受 beta", "可沿趋势小仓加核心资产", "不频繁换股"],
+        "cautions": ["趋势中也要设移动止盈，防反转"]
+      },
+      "弱势阴跌": {
+        "posture": "空仓等待，保住本金",
+        "actions": ["空仓或极轻仓观望", "不抄「便宜」的底", "等宽度与情绪共振企稳信号"],
+        "cautions": ["阴跌最杀抄底者，宁可错过"]
+      },
+      "震荡观望": {
+        "posture": "少动多看，等信号",
+        "actions": ["维持现有仓位，不追不割", "观察主力资金流向何时明朗", "复盘持仓结构、汰弱留强"],
+        "cautions": ["信号混杂时强行操作胜率最低"]
+      }
+    }
+  },
+  "indices": [
+    {
+      "secid": "1.000001",
+      "name": "上证指数",
+      "group": "A股"
+    },
+    {
+      "secid": "0.399001",
+      "name": "深证成指",
+      "group": "A股"
+    },
+    {
+      "secid": "0.399006",
+      "name": "创业板指",
+      "group": "A股"
+    },
+    {
+      "secid": "1.000688",
+      "name": "科创50",
+      "group": "A股"
+    },
+    {
+      "secid": "0.899050",
+      "name": "北证50",
+      "group": "A股"
+    },
+    {
+      "secid": "100.HSI",
+      "name": "恒生指数",
+      "group": "亚太"
+    },
+    {
+      "secid": "100.HSCEI",
+      "name": "国企指数",
+      "group": "亚太"
+    },
+    {
+      "secid": "100.N225",
+      "name": "日经225",
+      "group": "亚太"
+    },
+    {
+      "secid": "100.KS11",
+      "name": "韩国KOSPI",
+      "group": "亚太"
+    },
+    {
+      "secid": "100.DJIA",
+      "name": "道琼斯",
+      "group": "欧美"
+    },
+    {
+      "secid": "100.NDX",
+      "name": "纳斯达克100",
+      "group": "欧美"
+    },
+    {
+      "secid": "100.SPX",
+      "name": "标普500",
+      "group": "欧美"
+    },
+    {
+      "secid": "100.UDI",
+      "name": "美元指数",
+      "group": "欧美"
+    }
+  ]
+}
