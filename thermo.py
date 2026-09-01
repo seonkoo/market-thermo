@@ -1278,6 +1278,25 @@ def calc_capital_read(cfg, indices, breadth, emotion, liquidity, margin, sector,
     }
 
 
+# ---------------------------------------------------------------- 数据时效标签
+def build_freshness():
+    # 时效分类：实时=盘中有效；T-1=前一交易日收盘(两融)；unset=依赖当日K线、收盘才定论
+    return {
+        "capital_read":  {"label": "盘中未定·收盘定论", "cls": "unset"},
+        "judgement":     {"label": "盘中未定·收盘定论", "cls": "unset"},
+        "indices":       {"label": "实时", "cls": "live"},
+        "breadth":       {"label": "实时", "cls": "live"},
+        "emotion":       {"label": "实时", "cls": "live"},
+        "liquidity":     {"label": "实时", "cls": "live"},
+        "sector":        {"label": "实时", "cls": "live"},
+        "futures_basis": {"label": "实时", "cls": "live"},
+        "etf_flow":      {"label": "实时", "cls": "live"},
+        "flow":          {"label": "实时", "cls": "live"},
+        "breadth_count": {"label": "实时", "cls": "live"},
+        "margin":        {"label": "T-1·昨日", "cls": "stale"},
+    }
+
+
 # ---------------------------------------------------------------- main
 def main():
     t0 = time.time()
@@ -1389,6 +1408,7 @@ def main():
         warn("主力视角研判失败: %s" % str(e)[:90])
         data["capital_read"] = None
 
+    data["freshness"] = build_freshness()
     data["elapsed"] = round(time.time() - t0, 1)
     data["warnings"] = WARN
 
