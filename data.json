@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-01 15:46:44",
+ "generated_at": "2026-09-01 16:42:35",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [],
  "indices": [
@@ -47,17 +47,17 @@
    "name": "恒生指数",
    "group": "亚太",
    "code": "HSI",
-   "price": 25327.67,
-   "pct": -0.94,
-   "change": -239.32
+   "price": 25329.73,
+   "pct": -0.93,
+   "change": -237.26
   },
   {
    "name": "国企指数",
    "group": "亚太",
    "code": "HSCEI",
-   "price": 8462.14,
-   "pct": -0.6,
-   "change": -51.04
+   "price": 8462.64,
+   "pct": -0.59,
+   "change": -50.54
   },
   {
    "name": "日经225",
@@ -607,5 +607,55 @@
    "弱势阴跌": 40
   }
  },
- "elapsed": 18.8
+ "freshness": {
+  "capital_read": {
+   "label": "盘中未定·收盘定论",
+   "cls": "unset"
+  },
+  "judgement": {
+   "label": "盘中未定·收盘定论",
+   "cls": "unset"
+  },
+  "indices": {
+   "label": "实时",
+   "cls": "live"
+  },
+  "breadth": {
+   "label": "实时",
+   "cls": "live"
+  },
+  "emotion": {
+   "label": "实时",
+   "cls": "live"
+  },
+  "liquidity": {
+   "label": "实时",
+   "cls": "live"
+  },
+  "sector": {
+   "label": "实时",
+   "cls": "live"
+  },
+  "futures_basis": {
+   "label": "实时",
+   "cls": "live"
+  },
+  "etf_flow": {
+   "label": "实时",
+   "cls": "live"
+  },
+  "flow": {
+   "label": "实时",
+   "cls": "live"
+  },
+  "breadth_count": {
+   "label": "实时",
+   "cls": "live"
+  },
+  "margin": {
+   "label": "T-1·昨日",
+   "cls": "stale"
+  }
+ },
+ "elapsed": 21.2
 }
