@@ -62,6 +62,11 @@
   .b-ok { background: rgba(20,160,90,.14); color: var(--ok); }
   .b-bad { background: rgba(226,59,59,.14); color: var(--bad); }
   .b-neutral { background: var(--chip); color: var(--sub); }
+  /* 数据时效角标 */
+  .ftag { display:inline-block; padding:2px 9px; border-radius:999px; font-size:10px; font-weight:700; margin-left:6px; vertical-align:middle; letter-spacing:.3px; }
+  .f-live { background: rgba(20,160,90,.14); color: var(--ok); }
+  .f-stale { background: rgba(224,138,0,.16); color: var(--warn); }
+  .f-unset { background: rgba(226,59,59,.15); color: var(--bad); }
   .kv { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
   .kv .k { color: var(--sub); }
   .kv .v { font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -140,6 +145,7 @@
   <footer>
     <div id="footnote"></div>
     <div style="margin-top:6px;">数据来源：东方财富（延时行情）、腾讯财经。指标为自定义算法，仅供研究参考，<b>不构成任何投资建议</b>。</div>
+    <div style="margin-top:4px;">角标说明：<span class="ftag f-live" style="margin:0 2px">实时</span>盘中有效 · <span class="ftag f-stale" style="margin:0 2px">T-1·昨日</span>前一交易日收盘 · <span class="ftag f-unset" style="margin:0 2px">盘中未定·收盘定论</span>依赖当日K线、收盘才算数。</div>
   </footer>
 </div>
 
@@ -193,8 +199,15 @@ const sign = v => v==null ? "" : (v > 0 ? "+" : "");
 const pctTxt = v => v==null ? "—" : `${sign(v)}${fmt(v,2)}%`;
 
 /* ---------- 渲染 ---------- */
-function card(title, tag, inner) {
-  return `<div class="card"><h2>${title}${tag?`<span class="tag">${tag}</span>`:""}</h2>${inner}</div>`;
+let FRESH = {};
+function freshTag(key) {
+  const f = FRESH[key];
+  if (!f) return "";
+  return `<span class="ftag f-${f.cls}">${f.label}</span>`;
+}
+function card(title, tag, inner, freshKey) {
+  const ftag = freshKey ? freshTag(freshKey) : "";
+  return `<div class="card"><h2>${title}${ftag}${tag?`<span class="tag">${tag}</span>`:""}</h2>${inner}</div>`;
 }
 
 function judgeTone(label) {
@@ -221,7 +234,7 @@ function renderJudgement(d) {
       <div class="ev">${obj.evidence.map(e => `<div>· ${e}</div>`).join("")}</div>
     </div>`;
   return `<div class="card judge">
-    <h2>🎯 操作指引 <span class="tag">综合研判 · 非投资建议</span></h2>
+    <h2>🎯 操作指引 <span class="tag">综合研判 · 非投资建议</span>${freshTag("judgement")}</h2>
     <div class="posture" style="color:${judgeTone(j.position.label)}">${j.posture}</div>
     <div class="score-line">进攻倾向 <b style="color:${scColor}">${sc}</b> / 100
       <div class="score-track"><div class="score-fill" style="width:${sc}%;background:${scColor}"></div></div>
@@ -245,7 +258,7 @@ function renderIndices(d) {
        </div>`).join("");
     return `<div class="grp-title">${g}</div>${rows}`;
   }).join("");
-  return card("① 指数全景", "实时", html);
+  return card("① 指数全景", "主要指数", html, "indices");
 }
 
 function renderBreadth(d) {
@@ -265,7 +278,7 @@ function renderBreadth(d) {
      <div class="note">头部(大票) ${b.head_pct}% ｜ 尾部(微盘) ${b.tail_pct}% 站上20日线 · 样本 ${b.sample} 只</div>
      <div class="bars">${bars}</div>
      <div class="axis"><span>尾 · 微盘</span><span>头部 · 大票</span></div>
-     <div class="note">${b.note}</div>`);
+     <div class="note">${b.note}</div>`, "breadth");
 }
 
 function renderEmotion(d) {
@@ -289,7 +302,7 @@ function renderEmotion(d) {
      </div>
      <div class="note">上涨 ${e.up||0} ｜ 下跌 ${e.down||0} ｜ 涨停 ${e.limit_up||0} ｜ 跌停 ${e.limit_down||0}</div>
      <div class="sub">${subs}</div>
-     <div class="note">${e.note}</div>`);
+     <div class="note">${e.note}</div>`, "emotion");
 }
 
 function renderLiquidity(d) {
@@ -304,7 +317,7 @@ function renderLiquidity(d) {
      <div class="kv"><span class="k">资金集中度 TopRatio</span><span class="v">${fmt(l.top_ratio,1)}%</span></div>
      <div class="kv"><span class="k">HHI 赫芬达尔指数</span><span class="v">${fmt(l.hhi,5)}</span></div>
      <div class="kv"><span class="k">Gini 基尼系数</span><span class="v">${fmt(l.gini,4)}</span></div>
-     <div class="note">${l.note}</div>`);
+     <div class="note">${l.note}</div>`, "liquidity");
 }
 
 function renderMargin(d) {
@@ -318,7 +331,7 @@ function renderMargin(d) {
      <div class="kv"><span class="k">当日买入额</span><span class="v">${fmt(m.buy,1)} 亿</span></div>
      <div class="kv"><span class="k">5日净买入变动</span><span class="v ${chgCls(m.chg5)}">${m.chg5==null?"—":sign(m.chg5)+fmt(m.chg5,2)+"%"}</span></div>
      <div class="kv"><span class="k">10日净买入变动</span><span class="v ${chgCls(m.chg10)}">${m.chg10==null?"—":sign(m.chg10)+fmt(m.chg10,2)+"%"}</span></div>
-     <div class="note">${m.note}</div>`);
+     <div class="note">${m.note}</div>`, "margin");
 }
 
 function renderSector(d) {
@@ -331,7 +344,7 @@ function renderSector(d) {
   return card("⑥ 行业资金流", `共 ${s.n} 板块`,
     `<div class="sec-h">资金净流入 Top</div><div class="flow">${top}</div>
      <div class="sec-h">资金净流出 Bottom</div><div class="flow">${bot}</div>
-     <div class="note">${s.note}</div>`);
+     <div class="note">${s.note}</div>`, "sector");
 }
 
 /* ---------- 主力视角 hero 卡 ---------- */
@@ -349,7 +362,7 @@ function renderCapitalRead(d) {
   const acts = (c.actions || []).map(a => `<div>· ${a}</div>`).join("");
   const caus = (c.cautions || []).map(a => `<div>· ${a}</div>`).join("");
   return `<div class="card capital">
-    <h2>🧭 主力视角 · 散户应对 <span class="tag">订单流状态机 · 非点位预测</span></h2>
+    <h2>🧭 主力视角 · 散户应对 <span class="tag">订单流状态机 · 非点位预测</span>${freshTag("capital_read")}</h2>
     <div class="regime" style="color:${t.c}">${c.regime}</div>
     <div><span class="posture-pill ${t.b}">${c.posture}</span></div>
     <div class="chip-line" style="margin-top:8px">
@@ -386,7 +399,7 @@ function renderFlow(d) {
        ${row("中单(中户)", f.mid_net)}
        ${row("小单(散户)", f.small_net)}
      </div>
-     <div class="note">解读：${read}</div>`);
+     <div class="note">解读：${read}</div>`, "flow");
 }
 
 /* ---------- 市场广度（涨跌家数/涨跌停） ---------- */
@@ -402,7 +415,7 @@ function renderBreadthCount(d) {
      </div>
      <div class="kv"><span class="k">上涨 / 下跌 / 平</span><span class="v">${b.up} / ${b.down} / ${b.flat}</span></div>
      <div class="kv"><span class="k">涨停 / 跌停</span><span class="v"><span class="up">${b.limit_up}</span> / <span class="down">${b.limit_down}</span></span></div>
-     <div class="note">涨跌停净额 ${b.limit_net >= 0 ? '+' : ''}${b.limit_net} 家</div>`);
+     <div class="note">涨跌停净额 ${b.limit_net >= 0 ? '+' : ''}${b.limit_net} 家</div>`, "breadth_count");
 }
 
 /* ---------- 期指升贴水（主力后市态度） ---------- */
@@ -427,7 +440,7 @@ function renderFuturesBasis(d) {
        <span class="badge ${attCls}">${f.attitude}</span>
      </div>
      <div class="basis-rows">${rows}</div>
-     <div class="note">升贴水 = 期货 − 现货。升水(期货>现货)=主力看多后市；贴水=主力避险/谨慎。红涨绿跌按 A 股习惯。</div>`);
+     <div class="note">升贴水 = 期货 − 现货。升水(期货>现货)=主力看多后市；贴水=主力避险/谨慎。红涨绿跌按 A 股习惯。</div>`, "futures_basis");
 }
 
 /* ---------- ETF 净流向（机构借道进出） ---------- */
@@ -451,10 +464,11 @@ function renderEtfFlow(d) {
        <div class="sec-h">净流入 Top</div><div class="flow">${inList || '<div class="note">—</div>'}</div>
        ${outList ? `<div class="sec-h">净流出 Bottom</div><div class="flow">${outList}</div>` : ''}
      </div>
-     <div class="note">机构借道 ETF 申购/赎回，是观察大资金态度的一面镜子。</div>`);
+     <div class="note">机构借道 ETF 申购/赎回，是观察大资金态度的一面镜子。</div>`, "etf_flow");
 }
 
 function render(d) {
+  FRESH = d.freshness || {};
   // 把权重透传给情绪分项显示
   d._w = (d.__cfg_w) || undefined;
   const grid = document.getElementById("app");
