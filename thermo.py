@@ -929,7 +929,7 @@ def compute_etf_flow(cfg):
 
 
 # ---------------------------------------------------------------- 7. 综合研判（操作指引）
-def calc_judgement(cfg, emotion, breadth, liquidity, margin, ratio):
+def calc_judgement(cfg, emotion, breadth, liquidity, margin, ratio, sector=None, capital_read=None):
     """把前面 6 个模块的信号，用可验证的规则融合成
        仓位 / 风格 / 节奏 三个操作维度 + 总览一句话。
        不预测点位、不荐股，只给「现在该怎么盯盘决策」的框架，
@@ -1091,11 +1091,39 @@ def calc_judgement(cfg, emotion, breadth, liquidity, margin, ratio):
                   posture, pos_label, sty_label, tim_label))
 
     log("   仓位[%s] 风格[%s] 节奏[%s] 进攻分%.0f" % (pos_label, sty_label, tim_label, score))
+
+    # =========================================================  主线
+    # 主线 = 行业资金净流入 Top 行业（描述性，不荐股），质量由主力视角状态机判定
+    ml_ev = []
+    top3 = (sector.get("top") or [])[:3] if isinstance(sector, dict) else []
+    if top3:
+        nf = "、".join("%s(+%.1f亿)" % (x.get("name", "?"), float(x.get("flow", 0))) for x in top3)
+        ml_ev.append("行业净流入 Top3：%s" % nf)
+        regime = (capital_read or {}).get("regime", "")
+        posture = (capital_read or {}).get("posture", "")
+        if regime in ("吸筹布局", "共振拉升"):
+            ml_label = "增量主线·可跟随"
+            ml_advice = "资金合力净流入、主力整体偏多（%s），当前主线可信，可沿主线核心标的分批低吸，不追高。" % posture
+        elif regime in ("诱多派发", "出货撤退", "弱势阴跌"):
+            ml_label = "存量轮动·不追"
+            ml_advice = ("资金在「%s」等板块零散流入，但主力整体净流出、散户接盘，属板块间打游击的存量轮动，不是增量合力主线。"
+                         "操作上：① 不追这些行业；② 仓位锚定核心资产/宽基ETF；③ 等主线确认（主力翻多+期指转升水）再动。") % nf
+        else:
+            ml_label = "主线不明·等确认"
+            ml_advice = "主力态度混杂（%s）、方向未明，主线尚不可信，维持现有结构、不强行切换赛道。" % (posture or "震荡观望")
+        if regime:
+            ml_ev.append("主力视角：%s（%s）" % (regime, posture))
+    else:
+        ml_label = "主线不明"
+        ml_advice = "行业资金流数据缺失，无法判定主线，维持现有持仓结构、不强行切换。"
+        ml_ev.append("行业资金流数据缺失")
+
     return {
         "posture": posture, "summary": summary,
         "position": {"label": pos_label, "score": score, "advice": pos_advice, "evidence": pos_ev},
         "style": {"label": sty_label, "advice": sty_advice, "evidence": sty_ev},
         "timing": {"label": tim_label, "advice": tim_advice, "evidence": tim_ev},
+        "mainline": {"label": ml_label, "advice": ml_advice, "evidence": ml_ev},
     }
 
 
@@ -1376,14 +1404,6 @@ def main():
         warn("情绪计算失败: %s" % str(e)[:90])
         data["emotion"] = None
 
-    try:
-        data["judgement"] = calc_judgement(
-            cfg, data.get("emotion"), data.get("breadth"),
-            data.get("liquidity"), data.get("margin"), data.get("volume_ratio"))
-    except Exception as e:
-        warn("综合研判失败: %s" % str(e)[:90])
-        data["judgement"] = None
-
     flow = None
     mb = None
     futures = None
@@ -1421,6 +1441,16 @@ def main():
     except Exception as e:
         warn("主力视角研判失败: %s" % str(e)[:90])
         data["capital_read"] = None
+
+    # 综合研判放最后：需汇总 sector + capital_read 等全部模块
+    try:
+        data["judgement"] = calc_judgement(
+            cfg, data.get("emotion"), data.get("breadth"),
+            data.get("liquidity"), data.get("margin"), data.get("volume_ratio"),
+            data.get("sector"), data.get("capital_read"))
+    except Exception as e:
+        warn("综合研判失败: %s" % str(e)[:90])
+        data["judgement"] = None
 
     data["freshness"] = build_freshness()
     data["elapsed"] = round(time.time() - t0, 1)
