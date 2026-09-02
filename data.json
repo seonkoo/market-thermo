@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-02 10:49:32",
+ "generated_at": "2026-09-02 11:27:04",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [],
  "indices": [
@@ -7,57 +7,57 @@
    "name": "上证指数",
    "group": "A股",
    "code": "000001",
-   "price": 3943.45,
-   "pct": -0.92,
-   "change": -36.44
+   "price": 3949.2,
+   "pct": -0.77,
+   "change": -30.69
   },
   {
    "name": "深证成指",
    "group": "A股",
    "code": "399001",
-   "price": 13621.76,
-   "pct": -1.81,
-   "change": -250.62
+   "price": 13653.15,
+   "pct": -1.58,
+   "change": -219.23
   },
   {
    "name": "创业板指",
    "group": "A股",
    "code": "399006",
-   "price": 3315.43,
-   "pct": -2.3,
-   "change": -78.0
+   "price": 3324.99,
+   "pct": -2.02,
+   "change": -68.44
   },
   {
    "name": "科创50",
    "group": "A股",
    "code": "000688",
-   "price": 1616.76,
-   "pct": -1.87,
-   "change": -30.77
+   "price": 1629.34,
+   "pct": -1.1,
+   "change": -18.19
   },
   {
    "name": "北证50",
    "group": "A股",
    "code": "899050",
-   "price": 1123.8,
-   "pct": 4.1,
-   "change": 44.21
+   "price": 1129.61,
+   "pct": 4.63,
+   "change": 50.02
   },
   {
    "name": "恒生指数",
    "group": "亚太",
    "code": "HSI",
-   "price": 25046.81,
-   "pct": -1.12,
-   "change": -282.92
+   "price": 25064.13,
+   "pct": -1.05,
+   "change": -265.6
   },
   {
    "name": "国企指数",
    "group": "亚太",
    "code": "HSCEI",
-   "price": 8358.5,
-   "pct": -1.23,
-   "change": -104.14
+   "price": 8364.09,
+   "pct": -1.16,
+   "change": -98.55
   },
   {
    "name": "日经225",
@@ -71,9 +71,9 @@
    "name": "韩国KOSPI",
    "group": "亚太",
    "code": "KS11",
-   "price": 6634.75,
-   "pct": -2.94,
-   "change": -201.05
+   "price": 6615.53,
+   "pct": -3.22,
+   "change": -220.27
   },
   {
    "name": "道琼斯",
@@ -103,13 +103,13 @@
    "name": "美元指数",
    "group": "欧美",
    "code": "UDI",
-   "price": 99.75,
-   "pct": 0.09,
-   "change": 0.09
+   "price": 99.76,
+   "pct": 0.1,
+   "change": 0.1
   }
  ],
  "breadth": {
-  "width": 62.9,
+  "width": 61.7,
   "trend": "尾部领涨",
   "note": "微盘股在冲，注意投机情绪",
   "grid": [
@@ -117,73 +117,73 @@
     "g": 1,
     "n": 39,
     "pct_above": 92.3,
-    "avg_amt": 1.3
+    "avg_amt": 1.46
    },
    {
     "g": 2,
     "n": 39,
-    "pct_above": 87.2,
-    "avg_amt": 2.38
+    "pct_above": 89.7,
+    "avg_amt": 2.62
    },
    {
     "g": 3,
     "n": 39,
-    "pct_above": 97.4,
-    "avg_amt": 3.38
+    "pct_above": 94.9,
+    "avg_amt": 3.72
    },
    {
     "g": 4,
     "n": 39,
     "pct_above": 84.6,
-    "avg_amt": 4.37
+    "avg_amt": 4.64
    },
    {
     "g": 5,
     "n": 39,
-    "pct_above": 82.1,
-    "avg_amt": 5.22
+    "pct_above": 71.8,
+    "avg_amt": 5.48
    },
    {
     "g": 6,
     "n": 39,
-    "pct_above": 82.1,
-    "avg_amt": 5.99
+    "pct_above": 89.7,
+    "avg_amt": 6.29
    },
    {
     "g": 7,
     "n": 39,
     "pct_above": 89.7,
-    "avg_amt": 6.97
+    "avg_amt": 7.21
    },
    {
     "g": 8,
     "n": 39,
-    "pct_above": 76.9,
-    "avg_amt": 7.8
+    "pct_above": 71.8,
+    "avg_amt": 8.06
    },
    {
     "g": 9,
     "n": 39,
-    "pct_above": 71.8,
-    "avg_amt": 8.9
+    "pct_above": 64.1,
+    "avg_amt": 9.08
    },
    {
     "g": 10,
     "n": 39,
-    "pct_above": 53.8,
-    "avg_amt": 10.0
+    "pct_above": 51.3,
+    "avg_amt": 10.14
    },
    {
     "g": 11,
     "n": 39,
-    "pct_above": 51.3,
-    "avg_amt": 11.42
+    "pct_above": 48.7,
+    "avg_amt": 11.5
    },
    {
     "g": 12,
     "n": 39,
-    "pct_above": 46.2,
-    "avg_amt": 12.68
+    "pct_above": 43.6,
+    "avg_amt": 12.69
    },
    {
     "g": 13,
@@ -195,55 +195,55 @@
     "g": 14,
     "n": 39,
     "pct_above": 43.6,
-    "avg_amt": 16.01
+    "avg_amt": 15.95
    },
    {
     "g": 15,
     "n": 39,
-    "pct_above": 43.6,
-    "avg_amt": 18.42
+    "pct_above": 41.0,
+    "avg_amt": 18.36
    },
    {
     "g": 16,
     "n": 39,
-    "pct_above": 38.5,
-    "avg_amt": 21.27
+    "pct_above": 41.0,
+    "avg_amt": 21.18
    },
    {
     "g": 17,
     "n": 39,
     "pct_above": 56.4,
-    "avg_amt": 25.66
+    "avg_amt": 25.52
    },
    {
     "g": 18,
     "n": 39,
-    "pct_above": 56.4,
-    "avg_amt": 31.98
+    "pct_above": 53.8,
+    "avg_amt": 31.8
    },
    {
     "g": 19,
     "n": 39,
     "pct_above": 43.6,
-    "avg_amt": 42.07
+    "avg_amt": 41.63
    },
    {
     "g": 20,
-    "n": 51,
-    "pct_above": 27.5,
-    "avg_amt": 91.36
+    "n": 52,
+    "pct_above": 28.8,
+    "avg_amt": 90.61
    }
   ],
-  "sample": 792,
-  "head_pct": 42.5,
+  "sample": 793,
+  "head_pct": 42.1,
   "tail_pct": 92.3,
   "scope": "成交额Top800"
  },
  "liquidity": {
-  "top_ratio": 43.5,
-  "hhi": 0.00131,
-  "gini": 0.6993,
-  "risk": 57.3,
+  "top_ratio": 43.3,
+  "hhi": 0.0013,
+  "gini": 0.6971,
+  "risk": 57.1,
   "level": "中风险",
   "note": "资金中度集中，赚钱效应收敛，控制追高",
   "sample": 5208,
@@ -263,106 +263,106 @@
  "sector": {
   "top": [
    {
-    "name": "线缆部件及其他",
-    "flow": 13.83,
-    "pct": 1.66
-   },
-   {
     "name": "国防军工",
-    "flow": 12.13,
-    "pct": 1.19
+    "flow": 26.4,
+    "pct": 2.01
    },
    {
-    "name": "玻纤制造",
-    "flow": 11.57,
-    "pct": 3.17
+    "name": "线缆部件及其他",
+    "flow": 17.8,
+    "pct": 1.97
    },
    {
     "name": "电网设备",
-    "flow": 11.38,
-    "pct": 0.51
+    "flow": 14.88,
+    "pct": 0.83
    },
    {
-    "name": "玻璃玻纤",
-    "flow": 11.37,
-    "pct": 1.08
+    "name": "航空装备Ⅲ",
+    "flow": 12.25,
+    "pct": 2.25
+   },
+   {
+    "name": "航空装备Ⅱ",
+    "flow": 12.25,
+    "pct": 2.25
    },
    {
     "name": "地面兵装Ⅲ",
-    "flow": 10.17,
-    "pct": 5.84
+    "flow": 11.64,
+    "pct": 6.8
    },
    {
     "name": "地面兵装Ⅱ",
-    "flow": 10.17,
-    "pct": 5.84
+    "flow": 11.64,
+    "pct": 6.8
+   },
+   {
+    "name": "玻纤制造",
+    "flow": 11.45,
+    "pct": 3.34
+   },
+   {
+    "name": "玻璃玻纤",
+    "flow": 11.32,
+    "pct": 1.14
    },
    {
     "name": "建筑材料",
-    "flow": 8.81,
-    "pct": -0.28
+    "flow": 8.57,
+    "pct": -0.21
    },
    {
     "name": "医疗研发外包",
-    "flow": 7.33,
-    "pct": -0.2
+    "flow": 8.31,
+    "pct": -0.89
    },
    {
     "name": "医疗服务",
-    "flow": 6.36,
-    "pct": -0.49
-   },
-   {
-    "name": "底盘与发动机系统",
-    "flow": 5.0,
-    "pct": 0.46
-   },
-   {
-    "name": "汽车零部件",
-    "flow": 4.62,
-    "pct": 0.05
+    "flow": 7.1,
+    "pct": -0.99
    }
   ],
   "bottom": [
    {
-    "name": "其他纺织",
-    "flow": 0.05,
-    "pct": -0.1
+    "name": "熟食",
+    "flow": 0.11,
+    "pct": -1.69
    },
    {
-    "name": "纸包装",
-    "flow": 0.05,
-    "pct": 0.21
+    "name": "汽车服务",
+    "flow": 0.11,
+    "pct": -0.29
    },
    {
-    "name": "品牌消费电子",
-    "flow": 0.05,
-    "pct": 2.65
-   },
-   {
-    "name": "其他医疗服务",
-    "flow": 0.05,
-    "pct": -0.34
+    "name": "其他化学纤维",
+    "flow": 0.11,
+    "pct": 0.55
    },
    {
     "name": "印刷包装机械",
-    "flow": 0.06,
-    "pct": 0.71
+    "flow": 0.11,
+    "pct": 0.99
    },
    {
-    "name": "仓储物流",
-    "flow": 0.06,
-    "pct": -1.17
+    "name": "其他专业工程",
+    "flow": 0.11,
+    "pct": -0.25
    },
    {
-    "name": "公路货运",
-    "flow": 0.06,
-    "pct": -1.27
+    "name": "汽车综合服务",
+    "flow": 0.13,
+    "pct": -0.13
    },
    {
-    "name": "铁路运输",
-    "flow": 0.07,
-    "pct": -0.56
+    "name": "其他酒类",
+    "flow": 0.16,
+    "pct": -0.47
+   },
+   {
+    "name": "端到端供应链服务",
+    "flow": 0.17,
+    "pct": -0.62
    }
   ],
   "note": "资金集中涌入少数板块，主线清晰",
@@ -370,20 +370,20 @@
  },
  "volume_ratio": 1.092,
  "emotion": {
-  "score": 53.5,
+  "score": 54.2,
   "level": "中性",
   "note": "情绪中性，跟随主线即可",
   "parts": {
-   "advance": 20.0,
-   "ma_breadth": 62.9,
+   "advance": 23.3,
+   "ma_breadth": 61.7,
    "limit_net": 100.0,
    "volume": 55.0,
    "margin": 35.0
   },
   "why": {
-   "advance": "上涨家数占比 20.0%",
-   "ma_breadth": "站上20日均线 62.9%",
-   "limit_net": "涨停 43 / 跌停 10",
+   "advance": "上涨家数占比 23.3%",
+   "ma_breadth": "站上20日均线 61.7%",
+   "limit_net": "涨停 45 / 跌停 12",
    "volume": "沪市量能比 1.09（相对20日均值）",
    "margin": "两融10日变动 -1.29%"
   },
@@ -391,95 +391,66 @@
    "hot": 70.0,
    "cold": 30.0
   },
-  "up": 1040,
-  "down": 4168,
-  "limit_up": 43,
-  "limit_down": 10
- },
- "judgement": {
-  "posture": "中性应对、不追不慌",
-  "summary": "情绪中性(54)、流动性中风险(57)、尾部领涨(宽度63)：当前中性应对、不追不慌；仓位中性，维持仓位，风格小微盘/题材活跃（不追），节奏持有观察，等信号。以上为数据框架，非投资建议。",
-  "position": {
-   "label": "中性，维持仓位",
-   "score": 42,
-   "advice": "维持现有仓位，跟随主线即可。",
-   "evidence": [
-    "情绪中性 54",
-    "流动性中风险 57 → 控制追高",
-    "杠杆平稳(10日 -1.29%)"
-   ]
-  },
-  "style": {
-   "label": "小微盘/题材活跃（不追）",
-   "advice": "题材热闹但持续性差，长线账户不追、只看核心。",
-   "evidence": [
-    "尾部 92% 强于头部 42% → 微盘在冲，投机性高",
-    "资金集中度 44% 偏高 → 抱团核心，宜跟随头部"
-   ]
-  },
-  "timing": {
-   "label": "持有观察，等信号",
-   "advice": "无明确信号，持有等待。",
-   "evidence": [
-    "量能比 1.09 中性"
-   ]
-  }
+  "up": 1211,
+  "down": 3997,
+  "limit_up": 45,
+  "limit_down": 12
  },
  "flow": {
-  "main_net": -441.7,
-  "xlarge_net": -219.3,
-  "large_net": -222.4,
-  "mid_net": 106.0,
-  "small_net": 335.7,
-  "main_pct": -4.25,
+  "main_net": -453.5,
+  "xlarge_net": -227.3,
+  "large_net": -226.3,
+  "mid_net": 115.6,
+  "small_net": 337.9,
+  "main_pct": -3.79,
   "main_in": false,
   "retail_in": true
  },
  "breadth_count": {
-  "up": 1040,
-  "down": 4089,
-  "flat": 79,
-  "limit_up": 43,
-  "limit_down": 10,
-  "advance_pct": 20.0,
+  "up": 1211,
+  "down": 3922,
+  "flat": 75,
+  "limit_up": 45,
+  "limit_down": 12,
+  "advance_pct": 23.3,
   "limit_net": 33
  },
  "futures_basis": {
   "items": [
    {
     "name": "沪深300",
-    "fut": 4513.4,
-    "spot": 4549.33,
-    "basis": -35.93,
-    "basis_pct": -0.79,
+    "fut": 4522.4,
+    "spot": 4557.09,
+    "basis": -34.69,
+    "basis_pct": -0.761,
     "stance": "贴水"
    },
    {
     "name": "中证500",
-    "fut": 7647.6,
-    "spot": 7739.7,
-    "basis": -92.1,
-    "basis_pct": -1.19,
+    "fut": 7668.4,
+    "spot": 7759.64,
+    "basis": -91.24,
+    "basis_pct": -1.176,
     "stance": "贴水"
    },
    {
     "name": "上证50",
-    "fut": 2890.4,
-    "spot": 2914.42,
-    "basis": -24.02,
-    "basis_pct": -0.824,
+    "fut": 2898.8,
+    "spot": 2919.66,
+    "basis": -20.86,
+    "basis_pct": -0.714,
     "stance": "贴水"
    },
    {
     "name": "中证1000",
-    "fut": 7518.8,
-    "spot": 7582.82,
-    "basis": -64.02,
-    "basis_pct": -0.844,
+    "fut": 7538.2,
+    "spot": 7605.68,
+    "basis": -67.48,
+    "basis_pct": -0.887,
     "stance": "贴水"
    }
   ],
-  "avg_basis_pct": -0.912,
+  "avg_basis_pct": -0.884,
   "stance": "贴水",
   "attitude": "主力偏空/避险",
   "note": "四大期指整体贴水，主力对后市谨慎、偏向对冲/避险"
@@ -489,91 +460,91 @@
    {
     "code": "515220",
     "name": "煤炭ETF国泰",
-    "pct": -2.61,
-    "net_yi": 1.83,
-    "net_pct": 21.74
+    "pct": -2.53,
+    "net_yi": 2.09,
+    "net_pct": 19.77
+   },
+   {
+    "code": "510500",
+    "name": "中证500ETF南方",
+    "pct": -1.38,
+    "net_yi": 0.66,
+    "net_pct": 3.2
+   },
+   {
+    "code": "563300",
+    "name": "中证2000ETF华泰柏瑞",
+    "pct": -0.55,
+    "net_yi": 0.48,
+    "net_pct": 6.45
    },
    {
     "code": "511880",
     "name": "银华日利ETF",
     "pct": 0.01,
-    "net_yi": 0.45,
-    "net_pct": 0.73
+    "net_yi": 0.47,
+    "net_pct": 0.61
    },
    {
-    "code": "510500",
-    "name": "中证500ETF南方",
-    "pct": -1.62,
+    "code": "512500",
+    "name": "中证500ETF华夏",
+    "pct": -1.52,
     "net_yi": 0.4,
-    "net_pct": 2.13
+    "net_pct": 6.86
    },
    {
     "code": "520660",
     "name": "港股通央企红利ETF南方",
-    "pct": -1.58,
+    "pct": -1.29,
     "net_yi": 0.39,
-    "net_pct": 37.36
+    "net_pct": 33.15
    },
    {
-    "code": "563300",
-    "name": "中证2000ETF华泰柏瑞",
-    "pct": -0.69,
-    "net_yi": 0.39,
-    "net_pct": 6.26
-   },
-   {
-    "code": "511090",
-    "name": "30年国债ETF鹏扬",
-    "pct": -0.12,
-    "net_yi": 0.28,
-    "net_pct": 2.39
+    "code": "512710",
+    "name": "军工龙头ETF富国",
+    "pct": 1.58,
+    "net_yi": 0.27,
+    "net_pct": 7.01
    },
    {
     "code": "512040",
     "name": "价值ETF富国",
-    "pct": -1.22,
-    "net_yi": 0.2,
-    "net_pct": 14.65
-   },
-   {
-    "code": "520500",
-    "name": "恒生创新药ETF华泰柏瑞",
-    "pct": 0.57,
-    "net_yi": 0.19,
-    "net_pct": 2.94
+    "pct": -1.46,
+    "net_yi": 0.24,
+    "net_pct": 16.13
    },
    {
     "code": "513350",
     "name": "标普油气ETF富国",
-    "pct": 4.4,
-    "net_yi": 0.17,
-    "net_pct": 2.28
+    "pct": 4.48,
+    "net_yi": 0.24,
+    "net_pct": 2.99
    },
    {
-    "code": "588780",
-    "name": "科创芯片设计ETF国联安",
-    "pct": -2.12,
-    "net_yi": 0.14,
-    "net_pct": 14.36
+    "code": "511990",
+    "name": "华宝添益ETF",
+    "pct": 0.0,
+    "net_yi": 0.2,
+    "net_pct": 0.35
    },
    {
-    "code": "501018",
-    "name": "南方原油LOF",
-    "pct": 4.03,
-    "net_yi": 0.11,
-    "net_pct": 3.49
+    "code": "511070",
+    "name": "公司债ETF南方",
+    "pct": 0.0,
+    "net_yi": 0.19,
+    "net_pct": 0.23
    },
    {
     "code": "515300",
     "name": "300红利低波ETF嘉实",
     "pct": -0.23,
-    "net_yi": 0.09,
-    "net_pct": 15.97
+    "net_yi": 0.17,
+    "net_pct": 19.53
    }
   ],
   "top_out": [],
-  "net_sum_yi": 6.6,
-  "broad_in_yi": 0.4,
+  "net_sum_yi": 8.4,
+  "broad_in_yi": 1.1,
   "signal": "ETF 资金流向中性"
  },
  "capital_read": {
@@ -601,6 +572,43 @@
    "洗盘震仓": 33,
    "吸筹布局": 12,
    "弱势阴跌": 48
+  }
+ },
+ "judgement": {
+  "posture": "降仓避险",
+  "summary": "情绪中性(54)、流动性中风险(57)、尾部领涨(宽度62)：当前中性应对、不追不慌；仓位中性，维持仓位，风格小微盘/题材活跃（不追），节奏持有观察，等信号。以上为数据框架，非投资建议。",
+  "position": {
+   "label": "中性，维持仓位",
+   "score": 42,
+   "advice": "维持现有仓位，跟随主线即可。",
+   "evidence": [
+    "情绪中性 54",
+    "流动性中风险 57 → 控制追高",
+    "杠杆平稳(10日 -1.29%)"
+   ]
+  },
+  "style": {
+   "label": "小微盘/题材活跃（不追）",
+   "advice": "题材热闹但持续性差，长线账户不追、只看核心。",
+   "evidence": [
+    "尾部 92% 强于头部 42% → 微盘在冲，投机性高",
+    "资金集中度 43% 偏高 → 抱团核心，宜跟随头部"
+   ]
+  },
+  "timing": {
+   "label": "持有观察，等信号",
+   "advice": "无明确信号，持有等待。",
+   "evidence": [
+    "量能比 1.09 中性"
+   ]
+  },
+  "mainline": {
+   "label": "存量轮动·不追",
+   "advice": "资金在「国防军工(+26.4亿)、线缆部件及其他(+17.8亿)、电网设备(+14.9亿)」等板块零散流入，但主力整体净流出、散户接盘，属板块间打游击的存量轮动，不是增量合力主线。操作上：① 不追这些行业；② 仓位锚定核心资产/宽基ETF；③ 等主线确认（主力翻多+期指转升水）再动。",
+   "evidence": [
+    "行业净流入 Top3：国防军工(+26.4亿)、线缆部件及其他(+17.8亿)、电网设备(+14.9亿)",
+    "主力视角：出货撤退（降仓避险）"
+   ]
   }
  },
  "freshness": {
@@ -653,5 +661,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 19.6
+ "elapsed": 19.9
 }
