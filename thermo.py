@@ -20,7 +20,7 @@ import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -1348,7 +1348,7 @@ def main():
     log("A股市场温度计 · 开始计算")
 
     data = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S GMT+8"),
         "scope_note": "宽度为成交额Top%d口径；流动性为全市场口径" % int(cfg["width"]["top_n"]),
         "warnings": WARN,
     }
