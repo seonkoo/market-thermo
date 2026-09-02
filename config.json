@@ -70,7 +70,8 @@
       "limit_down_many": 20,
       "basis_premium_pct": 0.10,
       "basis_discount_pct": -0.30,
-      "etf_net_yi": 20
+      "etf_net_yi": 20,
+      "no_trap_when_sh_pct": -0.5
     },
     "retail": {
       "诱多派发": {
