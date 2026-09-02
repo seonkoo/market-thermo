@@ -1212,20 +1212,6 @@ def calc_capital_read(cfg, indices, breadth, emotion, liquidity, margin, sector,
     etf_out = ef_sum is not None and ef_sum < -etf_th
 
     # ============ 状态机：6 种主力 regime，每条证据 (条件, 权重, 文字)
-    # 硬约束：上证指数明显下跌时，"诱多派发"语义前提破缺（"诱多"要求指数稳定）
-    # 即使其他证据再强也不该判诱多——避免指数已跌-1%仍被归为"诱多派发"的笑话
-    no_trap_th = float(T.get("no_trap_when_sh_pct", -0.5))
-    if sh_pct < no_trap_th:
-        regimes = [(n, items) for n, items in [
-            ("共振拉升", []),
-            ("诱多派发", []),
-            ("出货撤退", []),
-            ("洗盘震仓", []),
-            ("吸筹布局", []),
-            ("弱势阴跌", []),
-        ] if n != "诱多派发"]
-        log("   [硬约束] 上证 %.2f%% < %.2f%% → 剔除「诱多派发」" % (sh_pct, no_trap_th))
-
     regimes = [
         ("共振拉升", [
             (idx_up, 2, "指数红盘"),
@@ -1290,6 +1276,13 @@ def calc_capital_read(cfg, indices, breadth, emotion, liquidity, margin, sector,
             (etf_out, 1, "ETF 净赎回"),
         ]),
     ]
+
+    # 硬约束：上证指数明显下跌时，"诱多派发"语义前提破缺（"诱多"要求指数稳定）
+    # 必须放在 regimes 定义「之后」，否则会被上面的原列表赋值覆盖成死代码
+    no_trap_th = float(T.get("no_trap_when_sh_pct", -0.5))
+    if sh_pct < no_trap_th:
+        regimes = [(n, items) for n, items in regimes if n != "诱多派发"]
+        log("   [硬约束] 上证 %.2f%% < %.2f%% → 剔除「诱多派发」" % (sh_pct, no_trap_th))
 
     scores = {}
     best, best_conf, best_fw, best_tw, best_ev = None, -1, 0, 0, []
