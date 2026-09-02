@@ -1212,6 +1212,20 @@ def calc_capital_read(cfg, indices, breadth, emotion, liquidity, margin, sector,
     etf_out = ef_sum is not None and ef_sum < -etf_th
 
     # ============ 状态机：6 种主力 regime，每条证据 (条件, 权重, 文字)
+    # 硬约束：上证指数明显下跌时，"诱多派发"语义前提破缺（"诱多"要求指数稳定）
+    # 即使其他证据再强也不该判诱多——避免指数已跌-1%仍被归为"诱多派发"的笑话
+    no_trap_th = float(T.get("no_trap_when_sh_pct", -0.5))
+    if sh_pct < no_trap_th:
+        regimes = [(n, items) for n, items in [
+            ("共振拉升", []),
+            ("诱多派发", []),
+            ("出货撤退", []),
+            ("洗盘震仓", []),
+            ("吸筹布局", []),
+            ("弱势阴跌", []),
+        ] if n != "诱多派发"]
+        log("   [硬约束] 上证 %.2f%% < %.2f%% → 剔除「诱多派发」" % (sh_pct, no_trap_th))
+
     regimes = [
         ("共振拉升", [
             (idx_up, 2, "指数红盘"),
@@ -1226,7 +1240,7 @@ def calc_capital_read(cfg, indices, breadth, emotion, liquidity, margin, sector,
             (etf_in, 1, "ETF 净申购（机构借道布局）"),
         ]),
         ("诱多派发", [
-            (idx_up or idx_flat, 1, "指数不弱（红或平）"),
+            (idx_up or idx_flat, 3, "指数不弱（红或平）"),
             (width_low or width_mid, 1, "宽度未同步放大（分化）"),
             (main_out, 1.5, "主力净流出"),
             (sm_in, 1.5, "小单(散户)净买入（接盘）"),
