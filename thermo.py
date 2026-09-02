@@ -171,13 +171,26 @@ def http_get(url, cfg, enc="utf-8", headers=None, retries=None):
     def via_curl():
         # 沙箱对部分东财域名的 python urllib 做了连接层拦截，
         # 但 curl 能通；真实部署(本机/Actions) urllib 优先，curl 仅兜底。
-        import subprocess
-        cmd = ["curl", "-s", "--max-time", str(net["timeout"]), "-A", UA]
-        for k, v in h.items():
-            cmd += ["-H", "%s: %s" % (k, v)]
-        cmd.append(url)
-        p = subprocess.run(cmd, capture_output=True, timeout=net["timeout"] + 8)
-        return p.stdout.decode(enc, "ignore")
+        # 注意：沙箱 curl 偶发 exit 23（stdout 管道写入小毛病），
+        # capture_output 读 p.stdout 会拿到空串 -> 解析失败。
+        # 改成写临时文件再读，彻底避开该坑。
+        import subprocess, tempfile, os
+        fd, tmppath = tempfile.mkstemp(suffix=".curl")
+        os.close(fd)
+        try:
+            cmd = ["curl", "-s", "--max-time", str(net["timeout"]), "-A", UA,
+                   "-o", tmppath]
+            for k, v in h.items():
+                cmd += ["-H", "%s: %s" % (k, v)]
+            cmd.append(url)
+            subprocess.run(cmd, capture_output=True, timeout=net["timeout"] + 8)
+            with open(tmppath, "rb") as f:
+                return f.read().decode(enc, "ignore")
+        finally:
+            try:
+                os.remove(tmppath)
+            except OSError:
+                pass
 
     last = None
     for i in range(tries):
@@ -804,9 +817,10 @@ def fetch_sina_futures(cfg):
         if not m:
             continue
         parts = m.group(1).split(",")
-        # 新浪期货格式：买盘,买价,卖盘,卖价,成交量,持仓,仓差,现价(最新),...
-        if len(parts) > 7:
-            p = num(parts[7])
+        # 新浪内盘期货(nf_)格式：今开,最高,最低,最新价,买价,卖价,成交量,持仓,仓差,...
+        # 最新价在 parts[3]（parts[7] 是买价一档，该 feed 恒为 0.000，不能当价格）。
+        if len(parts) > 4:
+            p = num(parts[3])
             if p:
                 out[s] = p
     return out
