@@ -139,6 +139,7 @@
     <span class="meta" id="meta"></span>
     <span class="spacer"></span>
     <button class="tbtn" id="themeBtn">🌗 主题</button>
+    <button class="tbtn" id="modeBtn">⚡ 实时</button>
     <button class="tbtn" id="refreshBtn">↻ 刷新</button>
   </header>
   <div id="app"><div class="loading">数据加载中…</div></div>
@@ -190,6 +191,189 @@ async function loadData() {
     if (window.THERMO_DATA) return window.THERMO_DATA;
     throw e;
   }
+}
+
+/* ================= 实时增强层（方案C：前端直连行情源）=================
+   设计原则（避免双引擎、避免手机卡死）：
+   1) 只实时化「一次请求就能拿到」的指标：指数/资金流/涨跌家数/行业/期指/ETF
+   2) 宽度/流动性/两融/主力视角/操作指引 仍用快照 —— 前三者需 5209 只 K 线
+      （手机必卡死），后两者本就是"收盘定论"，实时化反而误导
+   3) 回退途径三条：
+      ① index-snapshot.html 完整旧版（独立 URL）
+      ② ?mode=snapshot 强制快照模式
+      ③ 页面「实时/快照」按钮随时切换（记在 localStorage）
+====================================================================== */
+const EM_ULIST_RT = "https://push2delay.eastmoney.com/api/qt/ulist.np/get";
+const EM_CLIST_RT = "https://push2delay.eastmoney.com/api/qt/clist/get";
+const SINA_FUT_RT = "https://hq.sinajs.cn/list=";
+const RT_IDX_SECIDS = "1.000001,0.399001,0.399006,1.000688,0.899050,100.HSI,100.HSCEI,100.N225,100.KS11,100.DJIA,100.NDX,100.SPX,100.UDI";
+const RT_FUT_SPOT = { IF0:"1.000300", IC0:"1.000905", IH0:"1.000016", IM0:"1.000852" };
+const RT_FUT_NAME = { IF0:"沪深300", IC0:"中证500", IH0:"上证50", IM0:"中证1000" };
+const RT_REFRESH_MS = 30000;
+
+const MODE_KEY = "thermo-mode";
+function getMode() {
+  const q = new URLSearchParams(location.search).get("mode");
+  if (q === "snapshot") return "snapshot";
+  if (q === "realtime") return "realtime";
+  return localStorage.getItem(MODE_KEY) || "realtime";
+}
+function setMode(m) {
+  localStorage.setItem(MODE_KEY, m);
+  location.href = location.pathname + (m === "snapshot" ? "?mode=snapshot" : "");
+}
+
+let _cbSeq = 0;
+function jsonp(url) {
+  const cb = "__tcb_" + (++_cbSeq) + "_" + Date.now();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    let done = false;
+    const timer = setTimeout(() => finish(new Error("timeout")), 9000);
+    window[cb] = (data) => { if (!done) { done = true; clearTimeout(timer); finish(null, data); } };
+    s.onerror = () => { if (!done) { done = true; clearTimeout(timer); finish(new Error("network")); } };
+    function finish(err, data) {
+      try { delete window[cb]; s.remove(); } catch (e) {}
+      err ? reject(err) : resolve(data);
+    }
+    s.src = url + (url.indexOf("?") >= 0 ? "&" : "?") + "cb=" + cb;
+    document.head.appendChild(s);
+  });
+}
+
+/* 新浪期指：返回 var hq_str_nf_IF0="..."，script 标签跨域后读全局变量 */
+function sinaFutures() {
+  return new Promise((resolve) => {
+    const syms = Object.keys(RT_FUT_NAME);
+    const s = document.createElement("script");
+    let done = false;
+    const timer = setTimeout(() => finish(null), 9000);
+    s.onload = () => {
+      if (done) return;
+      const out = {};
+      syms.forEach(sym => {
+        const v = window["hq_str_nf_" + sym];
+        if (typeof v === "string" && v) {
+          const p = v.split(",");
+          const px = parseFloat(p[3]);   // 新浪 nf_ 格式：今开,最高,最低,最新 → 最新价在 [3]
+          if (px) out[sym] = px;
+        }
+      });
+      finish(out);
+    };
+    s.onerror = () => finish(null);
+    function finish(v) { if (done) return; done = true; clearTimeout(timer); try { s.remove(); } catch(e){} resolve(v); }
+    s.src = SINA_FUT_RT + syms.map(x => "nf_" + x).join(",");
+    document.head.appendChild(s);
+  });
+}
+
+async function fetchRealtime() {
+  const rt = { ts: new Date() };
+  const E = 1e8;
+  const jobs = [];
+
+  jobs.push(jsonp(`${EM_ULIST_RT}?fltt=2&secids=${RT_IDX_SECIDS}&fields=f1,f2,f3,f4,f12,f13,f14`)
+    .then(j => {
+      const diff = (((j || {}).data) || {}).diff || [];
+      rt.indices = {};
+      diff.forEach(d => { if (d.f2) rt.indices[d.f12] = { price: d.f2, pct: d.f3, change: d.f4 }; });
+    }).catch(e => { rt.e1 = e.message; }));
+
+  // 沪深资金流 + 涨跌家数（沪+深相加≈全市场，不含北交所，约差1.5%）
+  jobs.push(jsonp(`${EM_ULIST_RT}?fltt=2&secids=1.000001,0.399001&fields=f12,f14,f62,f66,f72,f78,f84,f104,f105,f106`)
+    .then(j => {
+      const diff = (((j || {}).data) || {}).diff || [];
+      let m=0, xl=0, lg=0, md=0, sm=0, up=0, dn=0, fl=0;
+      diff.forEach(d => {
+        m+=d.f62||0; xl+=d.f66||0; lg+=d.f72||0; md+=d.f78||0; sm+=d.f84||0;
+        up+=d.f104||0; dn+=d.f105||0; fl+=d.f106||0;
+      });
+      rt.flow = { main_net:+(m/E).toFixed(1), xlarge_net:+(xl/E).toFixed(1),
+                  large_net:+(lg/E).toFixed(1), mid_net:+(md/E).toFixed(1), small_net:+(sm/E).toFixed(1) };
+      rt.breadth = { up, down: dn, flat: fl };
+    }).catch(e => { rt.e2 = e.message; }));
+
+  jobs.push(jsonp(`${EM_ULIST_RT}?fltt=2&secids=${Object.values(RT_FUT_SPOT).join(",")}&fields=f12,f2`)
+    .then(j => {
+      const diff = (((j || {}).data) || {}).diff || [];
+      rt.spots = {};
+      diff.forEach(d => { if (d.f2) rt.spots[d.f12] = d.f2; });
+    }).catch(e => { rt.e3 = e.message; }));
+
+  jobs.push(jsonp(`${EM_CLIST_RT}?fid=f62&po=1&pz=200&pn=1&np=1&fltt=2&invt=2&fs=${encodeURIComponent("m:90+t:2")}&fields=f12,f14,f62,f184,f3`)
+    .then(j => {
+      const raw = (((j || {}).data) || {}).diff || [];
+      const arr = (Array.isArray(raw) ? raw : Object.values(raw))
+        .map(d => ({ name: d.f14, flow: +((d.f62||0)/E).toFixed(1), pct: d.f3 }))
+        .filter(x => x.name).sort((a,b) => b.flow - a.flow);
+      rt.sector = { n: arr.length, top: arr.slice(0,12), bottom: arr.slice(-12).reverse() };
+    }).catch(e => { rt.e4 = e.message; }));
+
+  jobs.push(jsonp(`${EM_CLIST_RT}?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fid=f62&fs=${encodeURIComponent("m:1+t:9")}&fields=f12,f14,f2,f3,f62,f184`)
+    .then(j => {
+      const raw = (((j || {}).data) || {}).diff || [];
+      const arr = Array.isArray(raw) ? raw : Object.values(raw);
+      let sum = 0;
+      arr.forEach(d => { sum += (d.f62||0); });
+      rt.etf = { net_sum_yi: +(sum/E).toFixed(1) };
+    }).catch(e => { rt.e5 = e.message; }));
+
+  jobs.push(sinaFutures().then(v => { rt.fut = v; }).catch(() => { rt.fut = null; }));
+
+  await Promise.all(jobs);
+  return rt;
+}
+
+/* 用实时数据覆盖快照字段（只覆盖能实时的部分，其余原样保留） */
+function applyRealtime(d, rt) {
+  if (rt.indices) {
+    d.indices.forEach(x => {
+      const r = rt.indices[x.code];
+      if (r && r.price) { x.price = r.price; x.pct = r.pct; x.change = r.change; }
+    });
+  }
+  if (rt.flow) d.flow = Object.assign({}, d.flow, rt.flow);
+  if (rt.breadth) {
+    const t = rt.breadth.up + rt.breadth.down + rt.breadth.flat;
+    d.breadth_count = Object.assign({}, d.breadth_count, {
+      up: rt.breadth.up, down: rt.breadth.down, flat: rt.breadth.flat,
+      advance_pct: t ? +(rt.breadth.up / t * 100).toFixed(1) : 0
+    });
+  }
+  if (rt.sector && rt.sector.top && rt.sector.top.length) {
+    d.sector = Object.assign({}, d.sector, rt.sector);
+  }
+  if (rt.etf && rt.etf.net_sum_yi != null) {
+    d.etf_flow = Object.assign({}, d.etf_flow, { net_sum_yi: rt.etf.net_sum_yi });
+  }
+  if (rt.fut && rt.spots) {
+    const items = [], bps = [];
+    Object.keys(RT_FUT_NAME).forEach(sym => {
+      const fut = rt.fut[sym], sec = RT_FUT_SPOT[sym], code = sec.split(".")[1];
+      const spot = rt.spots[code];
+      if (!fut || !spot) return;
+      const basis = +(fut - spot).toFixed(2);
+      const bp = +(basis / spot * 100).toFixed(3);
+      bps.push(bp);
+      items.push({ name: RT_FUT_NAME[sym], fut: +fut.toFixed(2), spot: +spot.toFixed(2),
+                   basis, basis_pct: bp,
+                   stance: bp > 0.10 ? "升水" : (bp < -0.30 ? "贴水" : "持平") });
+    });
+    if (items.length) {
+      const avg = +(bps.reduce((a,b)=>a+b,0) / bps.length).toFixed(3);
+      d.futures_basis = Object.assign({}, d.futures_basis, {
+        items, avg_basis_pct: avg,
+        attitude: avg > 0.10 ? "主力偏多/看涨" : (avg < -0.30 ? "主力偏空/避险" : "中性")
+      });
+    }
+  }
+  if (!d.freshness) d.freshness = {};
+  ["indices","flow","breadth_count","sector","etf_flow","futures_basis"].forEach(k => {
+    d.freshness[k] = { label: "秒级实时", cls: "live" };
+  });
+  d._rt_ts = rt.ts;
+  d._rt = true;
 }
 
 /* ---------- 工具 ---------- */
@@ -479,8 +663,17 @@ function render(d) {
     renderFuturesBasis(d) + renderEtfFlow(d) + renderFlow(d) +
     renderBreadthCount(d) + renderEmotion(d) +
     renderLiquidity(d) + renderMargin(d) + renderSector(d);
-  document.getElementById("meta").textContent =
-    `${d.generated_at || ""} · ${d.scope_note || SCOPE_NOTE} · 耗时 ${d.elapsed||"?"}s`;
+  const metaEl = document.getElementById("meta");
+  if (d._rt && d._rt_ts) {
+    const p2 = n => String(n).padStart(2, "0");
+    const t = d._rt_ts;
+    metaEl.textContent =
+      `⚡ 实时 ${p2(t.getHours())}:${p2(t.getMinutes())}:${p2(t.getSeconds())}` +
+      ` · ${d.scope_note || SCOPE_NOTE} · 快照基线 ${d.generated_at || ""}`;
+  } else {
+    metaEl.textContent =
+      `${d.generated_at || ""} · ${d.scope_note || SCOPE_NOTE} · 耗时 ${d.elapsed||"?"}s`;
+  }
   const fw = document.getElementById("footnote");
   if (d.warnings && d.warnings.length) {
     fw.innerHTML = `<div class="warn-box">⚠ 本次计算提示：<br>` +
@@ -490,7 +683,34 @@ function render(d) {
 
 document.getElementById("refreshBtn").onclick = () => location.reload();
 
-loadData().then(render).catch(err => {
+/* ---------- 模式切换按钮（回退途径③：随时切回纯快照）---------- */
+const MODE = getMode();
+const modeBtn = document.getElementById("modeBtn");
+modeBtn.textContent = MODE === "realtime" ? "⚡ 实时" : "📷 快照";
+modeBtn.title = MODE === "realtime"
+  ? "当前：秒级实时（点击切回纯快照模式）"
+  : "当前：纯快照（点击开启秒级实时）";
+modeBtn.onclick = () => setMode(MODE === "realtime" ? "snapshot" : "realtime");
+
+loadData().then(async d => {
+  render(d);                       // ① 先用快照秒开，不白屏
+  if (MODE !== "realtime") return; // 快照模式到此为止
+  try {
+    applyRealtime(d, await fetchRealtime());
+    render(d);                     // ② 实时数据到位后重渲染
+    setInterval(async () => {      // ③ 每 30 秒自动刷新
+      try {
+        applyRealtime(d, await fetchRealtime());
+        render(d);
+      } catch (e) { /* 单次失败静默，下轮自动重试 */ }
+    }, RT_REFRESH_MS);
+  } catch (e) {
+    // 实时失败不影响快照显示，仅提示（用户可一键切回快照）
+    document.getElementById("footnote").innerHTML =
+      `<div class="warn-box">⚠ 实时行情拉取失败（${e.message}），当前显示快照数据。` +
+      `可点击顶部「⚡ 实时 / 📷 快照」按钮切到纯快照模式。</div>`;
+  }
+}).catch(err => {
   document.getElementById("app").innerHTML =
     `<div class="loading">数据加载失败：${err.message}<br><br>请确认 data.json / data.js 与本页面在同一目录。</div>`;
 });
