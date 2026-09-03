@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股市场温度计</title>
+<style>
+  :root {
+    --bg: #f4f6f9; --card: #ffffff; --txt: #1a2330; --sub: #6b7785;
+    --line: #e6eaf0; --accent: #2f6fed; --up: #e23b3b; --down: #14a05a;
+    --bad: #e23b3b; --warn: #e08a00; --ok: #14a05a; --chip: #eef2f8;
+  }
+  [data-theme="dark"] {
+    --bg: #11151c; --card: #1a212c; --txt: #e6ebf2; --sub: #8a97a8;
+    --line: #2a3340; --accent: #5b8cff; --up: #ff5b5b; --down: #2ecc71;
+    --bad: #ff5b5b; --warn: #ffb23d; --ok: #2ecc71; --chip: #232c39;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--txt); -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 16px; }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+    padding: 18px 4px 14px;
+  }
+  header h1 { font-size: 21px; margin: 0; letter-spacing: 1px; }
+  header .meta { font-size: 12px; color: var(--sub); }
+  .spacer { flex: 1; }
+  .tbtn {
+    cursor: pointer; border: 1px solid var(--line); background: var(--card);
+    color: var(--txt); border-radius: 8px; padding: 6px 12px; font-size: 13px;
+  }
+  .tbtn:hover { border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px; min-height: 120px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .tag { font-size: 11px; color: var(--sub); font-weight: 400; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  /* 指数 */
+  .grp-title { font-size: 12px; color: var(--sub); margin: 8px 0 4px; }
+  .idx-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .idx-row:last-child { border-bottom: none; }
+  .idx-name { font-size: 13px; }
+  .idx-val { font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+  .idx-pct { font-size: 12px; font-variant-numeric: tabular-nums; width: 64px; text-align: right; }
+  /* 宽度 bar */
+  .bars { display: flex; align-items: flex-end; gap: 2px; height: 96px; margin: 6px 0 2px; }
+  .bar { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 2px; position: relative; }
+  .axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--sub); }
+  .big { font-size: 38px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .b-up { background: rgba(226,59,59,.12); color: var(--up); }
+  .b-down { background: rgba(20,160,90,.12); color: var(--down); }
+  .b-warn { background: rgba(224,138,0,.14); color: var(--warn); }
+  .b-ok { background: rgba(20,160,90,.14); color: var(--ok); }
+  .b-bad { background: rgba(226,59,59,.14); color: var(--bad); }
+  .b-neutral { background: var(--chip); color: var(--sub); }
+  /* 数据时效角标 */
+  .ftag { display:inline-block; padding:2px 9px; border-radius:999px; font-size:10px; font-weight:700; margin-left:6px; vertical-align:middle; letter-spacing:.3px; }
+  .f-live { background: rgba(20,160,90,.14); color: var(--ok); }
+  .f-stale { background: rgba(224,138,0,.16); color: var(--warn); }
+  .f-unset { background: rgba(226,59,59,.15); color: var(--bad); }
+  .kv { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
+  .kv .k { color: var(--sub); }
+  .kv .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .note { font-size: 12px; color: var(--sub); margin-top: 8px; line-height: 1.5; }
+  /* 情绪分项 */
+  .sub { margin-top: 10px; }
+  .sub-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; }
+  .sub-name { width: 76px; color: var(--sub); flex-shrink: 0; }
+  .sub-track { flex: 1; height: 8px; background: var(--chip); border-radius: 4px; overflow: hidden; }
+  .sub-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .sub-val { width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+  .sub-w { width: 34px; text-align: right; color: var(--sub); font-size: 11px; }
+  /* 资金流列表 */
+  .flow { columns: 2; column-gap: 18px; }
+  @media (max-width: 520px) { .flow { columns: 1; } }
+  .flow-item { break-inside: avoid; display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; border-bottom: 1px dashed var(--line); }
+  .flow-item .nm { color: var(--txt); }
+  .flow-item .fl { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .sec-h { font-size: 12px; color: var(--sub); margin: 6px 0 2px; font-weight: 600; }
+  .pill { display:inline-block; padding:2px 7px; border-radius:6px; font-size:11px; background:var(--chip); color:var(--sub); margin-right:5px; }
+  footer { color: var(--sub); font-size: 11px; line-height: 1.7; margin: 16px 4px 30px; }
+  .warn-box { background: rgba(224,138,0,.08); border: 1px solid rgba(224,138,0,.3); border-radius: 8px; padding: 8px 12px; margin-top: 8px; font-size: 12px; color: var(--warn); }
+  .loading { text-align: center; padding: 60px 0; color: var(--sub); }
+  /* 操作指引卡（综合研判，区别于纯数据卡） */
+  .card.judge { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .judge .posture { font-size: 18px; font-weight: 700; line-height: 1.4; margin-bottom: 8px; }
+  .judge .score-line { font-size: 12px; color: var(--sub); margin-bottom: 6px; }
+  .judge .score-track { height: 8px; background: var(--chip); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .judge .score-fill { height: 100%; border-radius: 4px; }
+  .judge .dim { border-top: 1px dashed var(--line); padding-top: 10px; margin-top: 10px; }
+  .judge .dim-h { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .judge .dim-h .lbl { color: var(--sub); font-weight: 400; }
+  .judge .dim-advice { font-size: 12.5px; color: var(--txt); line-height: 1.5; margin: 2px 0 4px; }
+  .judge .ev { font-size: 11.5px; color: var(--sub); line-height: 1.65; }
+  .judge .ev div { margin: 1px 0; }
+  /* 主力视角 hero 卡 */
+  .card.capital { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .capital .regime { font-size: 26px; font-weight: 800; line-height: 1.2; margin-bottom: 6px; }
+  .capital .posture-pill { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 700; }
+  .capital .conf { font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+  .capital .conf-track { height: 8px; background: var(--chip); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .capital .conf-fill { height: 100%; border-radius: 4px; }
+  .capital .sec-h { margin-top: 8px; color: var(--sub); }
+  .capital .evi { font-size: 11.5px; color: var(--sub); line-height: 1.65; }
+  .capital .evi div { margin: 1px 0; }
+  .capital .act { font-size: 12.5px; line-height: 1.6; }
+  .capital .act div { margin: 1px 0; }
+  .capital .cau { font-size: 11.5px; color: var(--warn); line-height: 1.6; }
+  .capital .cau div { margin: 1px 0; }
+  /* 期指升贴水 */
+  .basis-rows { margin: 4px 0 2px; }
+  .basis-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+  .basis-row:last-child { border-bottom: none; }
+  .basis-name { font-weight: 600; min-width: 64px; }
+  .basis-num { font-variant-numeric: tabular-nums; text-align: right; color: var(--sub); }
+  .basis-pct { font-variant-numeric: tabular-nums; width: 72px; text-align: right; font-weight: 600; }
+  /* ETF 净流向 */
+  .etf-sum { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .etf-sum .big { font-size: 30px; }
+  .etf-list .flow-item .fl.up { color: var(--up); }
+  .etf-list .flow-item .fl.down { color: var(--down); }
+  .chip-line { margin-top: 6px; }
+  .chip-line .pill { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📊 A股市场温度计</h1>
+    <span class="meta" id="meta"></span>
+    <span class="spacer"></span>
+    <button class="tbtn" id="themeBtn">🌗 主题</button>
+    <button class="tbtn" id="refreshBtn">↻ 刷新</button>
+  </header>
+  <div id="app"><div class="loading">数据加载中…</div></div>
+  <footer>
+    <div id="footnote"></div>
+    <div style="margin-top:6px;">数据来源：东方财富（延时行情）、腾讯财经。指标为自定义算法，仅供研究参考，<b>不构成任何投资建议</b>。</div>
+    <div style="margin-top:4px;">角标说明：<span class="ftag f-live" style="margin:0 2px">实时</span>盘中有效 · <span class="ftag f-stale" style="margin:0 2px">T-1·昨日</span>前一交易日收盘 · <span class="ftag f-unset" style="margin:0 2px">盘中未定·收盘定论</span>依赖当日K线、收盘才算数。</div>
+  </footer>
+</div>
+
+<!-- file:// 双击打开时的 JSONP 兜底；Pages 上优先用 fetch(data.json) -->
+<script src="data.js"></script>
+<script>
+const SCOPE_NOTE = "宽度为成交额Top800口径；流动性为全市场口径";
+
+/* ---------- 主题 ---------- */
+function applyTheme(t) {
+  const theme = t === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : t;
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("thermo-theme", t);
+}
+(function initTheme(){
+  const saved = localStorage.getItem("thermo-theme") || "auto";
+  applyTheme(saved);
+  const btn = document.getElementById("themeBtn");
+  const cycle = { auto:"light", light:"dark", dark:"auto" };
+  const label = { auto:"🌗 自动", light:"☀ 日间", dark:"🌙 夜间" };
+  btn.textContent = label[saved];
+  btn.onclick = () => {
+    const cur = localStorage.getItem("thermo-theme") || "auto";
+    const nx = cycle[cur];
+    applyTheme(nx);
+    btn.textContent = label[nx];
+  };
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if ((localStorage.getItem("thermo-theme")||"auto") === "auto") applyTheme("auto");
+  });
+})();
+
+/* ---------- 数据加载 ---------- */
+async function loadData() {
+  try {
+    const r = await fetch("data.json", { cache: "no-store" });
+    if (r.ok) return await r.json();
+    throw new Error("fetch json failed");
+  } catch (e) {
+    if (window.THERMO_DATA) return window.THERMO_DATA;
+    throw e;
+  }
+}
+
+/* ---------- 工具 ---------- */
+const fmt = (v, d=2) => v==null ? "—" : Number(v).toLocaleString("zh-CN", {minimumFractionDigits:d, maximumFractionDigits:d});
+const cls = v => v==null ? "" : (v > 0 ? "up" : (v < 0 ? "down" : ""));
+const sign = v => v==null ? "" : (v > 0 ? "+" : "");
+const pctTxt = v => v==null ? "—" : `${sign(v)}${fmt(v,2)}%`;
+
+/* ---------- 渲染 ---------- */
+let FRESH = {};
+function freshTag(key) {
+  const f = FRESH[key];
+  if (!f) return "";
+  return `<span class="ftag f-${f.cls}">${f.label}</span>`;
+}
+function card(title, tag, inner, freshKey) {
+  const ftag = freshKey ? freshTag(freshKey) : "";
+  return `<div class="card"><h2>${title}${ftag}${tag?`<span class="tag">${tag}</span>`:""}</h2>${inner}</div>`;
+}
+
+function judgeTone(label) {
+  if (/防御|降仓|不追|分歧|撤离|收缩/.test(label)) return "var(--bad)";
+  if (/加仓|低吸|偏多|扩张/.test(label)) return "var(--ok)";
+  if (/题材|微盘/.test(label)) return "var(--warn)";
+  return "var(--sub)";
+}
+function judgeBadge(label) {
+  if (/防御|降仓|不追|分歧|撤离|收缩/.test(label)) return "b-bad";
+  if (/加仓|低吸|偏多|扩张/.test(label)) return "b-ok";
+  if (/题材|微盘/.test(label)) return "b-warn";
+  return "b-neutral";
+}
+function renderJudgement(d) {
+  const j = d.judgement;
+  if (!j) return "";
+  const sc = j.position.score;
+  const scColor = sc >= 60 ? "var(--ok)" : sc >= 40 ? "var(--warn)" : "var(--bad)";
+  const dim = (title, obj) => `
+    <div class="dim">
+      <div class="dim-h"><span class="lbl">${title}</span><span class="badge ${judgeBadge(obj.label)}">${obj.label}</span></div>
+      <div class="dim-advice">${obj.advice}</div>
+      <div class="ev">${obj.evidence.map(e => `<div>· ${e}</div>`).join("")}</div>
+    </div>`;
+  return `<div class="card judge">
+    <h2>🎯 操作指引 <span class="tag">综合研判 · 非投资建议</span>${freshTag("judgement")}</h2>
+    <div class="posture" style="color:${judgeTone(j.position.label)}">${j.posture}</div>
+    <div class="score-line">进攻倾向 <b style="color:${scColor}">${sc}</b> / 100
+      <div class="score-track"><div class="score-fill" style="width:${sc}%;background:${scColor}"></div></div>
+    </div>
+    ${dim("仓位", j.position)}
+    ${dim("风格", j.style)}
+    ${dim("节奏", j.timing)}
+    ${dim("主线", j.mainline)}
+    <div class="note" style="margin-top:10px">${j.summary}</div>
+  </div>`;
+}
+
+function renderIndices(d) {
+  const groups = {};
+  (d.indices||[]).forEach(x => (groups[x.group] = groups[x.group]||[]).push(x));
+  const html = Object.keys(groups).map(g => {
+    const rows = groups[g].map(x =>
+      `<div class="idx-row">
+         <span class="idx-name">${x.name}</span>
+         <span class="idx-val">${fmt(x.price)}</span>
+         <span class="idx-pct ${cls(x.pct)}">${pctTxt(x.pct)}</span>
+       </div>`).join("");
+    return `<div class="grp-title">${g}</div>${rows}`;
+  }).join("");
+  return card("① 指数全景", "主要指数", html, "indices");
+}
+
+function renderBreadth(d) {
+  const b = d.breadth;
+  if (!b) return card("② 成交额宽度", "Top800", `<div class="note">本日宽度数据缺失（K线未计算）。</div>`);
+  const maxV = Math.max(...b.grid.map(g => g.pct_above), 1);
+  const bars = b.grid.map(g => {
+    const c = g.pct_above >= 60 ? "var(--up)" : (g.pct_above <= 40 ? "var(--down)" : "var(--accent)");
+    return `<div class="bar" style="height:${(g.pct_above/maxV*100).toFixed(1)}%;background:${c}" title="组${g.g}｜${g.n}只｜${g.pct_above}%站上均线"></div>`;
+  }).join("");
+  const trendCls = b.trend.includes("领涨")||b.trend.includes("扩张") ? "b-up" : (b.trend.includes("收缩")?"b-down":"b-warn");
+  return card("② 成交额宽度", b.scope,
+    `<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+       <span class="big ${cls(b.width-50)}">${b.width}%</span>
+       <span class="badge ${trendCls}">${b.trend}</span>
+     </div>
+     <div class="note">头部(大票) ${b.head_pct}% ｜ 尾部(微盘) ${b.tail_pct}% 站上20日线 · 样本 ${b.sample} 只</div>
+     <div class="bars">${bars}</div>
+     <div class="axis"><span>尾 · 微盘</span><span>头部 · 大票</span></div>
+     <div class="note">${b.note}</div>`, "breadth");
+}
+
+function renderEmotion(d) {
+  const e = d.emotion;
+  if (!e) return card("③ 情绪指数", "综合", `<div class="note">情绪数据缺失。</div>`);
+  const lvCls = e.level==="狂热"||e.level==="偏热" ? "b-bad" : (e.level==="恐惧"||e.level==="偏冷" ? "b-ok" : "b-neutral");
+  const p = e.parts || {};
+  const w = d._w || {advance:0.30,ma_breadth:0.25,limit_net:0.20,volume:0.15,margin:0.10};
+  const names = {advance:"上涨家数", ma_breadth:"站上均线", limit_net:"涨跌停净额", volume:"量能比", margin:"两融变动"};
+  const subs = Object.keys(p).map(k =>
+    `<div class="sub-row">
+       <span class="sub-name">${names[k]||k}</span>
+       <span class="sub-track"><span class="sub-fill" style="width:${p[k]}%"></span></span>
+       <span class="sub-val">${p[k]}</span>
+       <span class="sub-w">×${w[k]||""}</span>
+     </div>`).join("");
+  return card("③ 情绪指数", "综合评分",
+    `<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+       <span class="big ${cls(e.score-50)}">${e.score}</span>
+       <span class="badge ${lvCls}">${e.level}</span>
+     </div>
+     <div class="note">上涨 ${e.up||0} ｜ 下跌 ${e.down||0} ｜ 涨停 ${e.limit_up||0} ｜ 跌停 ${e.limit_down||0}</div>
+     <div class="sub">${subs}</div>
+     <div class="note">${e.note}</div>`, "emotion");
+}
+
+function renderLiquidity(d) {
+  const l = d.liquidity;
+  if (!l) return card("④ 流动性集中度", "全市场", `<div class="note">流动性数据缺失。</div>`);
+  const lvCls = l.risk>=70?"b-bad":(l.risk>=50?"b-warn":(l.risk>=30?"b-ok":"b-neutral"));
+  return card("④ 流动性集中度", `样本 ${l.sample} 只 · Top${l.top_pct}%`,
+    `<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+       <span class="big ${cls(50-l.risk)}">${l.risk}</span>
+       <span class="badge ${lvCls}">${l.level}</span>
+     </div>
+     <div class="kv"><span class="k">资金集中度 TopRatio</span><span class="v">${fmt(l.top_ratio,1)}%</span></div>
+     <div class="kv"><span class="k">HHI 赫芬达尔指数</span><span class="v">${fmt(l.hhi,5)}</span></div>
+     <div class="kv"><span class="k">Gini 基尼系数</span><span class="v">${fmt(l.gini,4)}</span></div>
+     <div class="note">${l.note}</div>`, "liquidity");
+}
+
+function renderMargin(d) {
+  const m = d.margin;
+  if (!m) return card("⑤ 融资融券", "杠杆资金", `<div class="note">两融数据缺失。</div>`);
+  const chgCls = v => v==null? "" : (v>=3?"up":(v<=-3?"down":""));
+  return card("⑤ 融资融券", `截至 ${m.date}`,
+    `<div class="kv"><span class="k">融资余额</span><span class="v">${fmt(m.rz,1)} 亿</span></div>
+     <div class="kv"><span class="k">融券余额</span><span class="v">${fmt(m.rq,1)} 亿</span></div>
+     <div class="kv"><span class="k">两融合计</span><span class="v">${fmt(m.total,1)} 亿</span></div>
+     <div class="kv"><span class="k">当日买入额</span><span class="v">${fmt(m.buy,1)} 亿</span></div>
+     <div class="kv"><span class="k">5日净买入变动</span><span class="v ${chgCls(m.chg5)}">${m.chg5==null?"—":sign(m.chg5)+fmt(m.chg5,2)+"%"}</span></div>
+     <div class="kv"><span class="k">10日净买入变动</span><span class="v ${chgCls(m.chg10)}">${m.chg10==null?"—":sign(m.chg10)+fmt(m.chg10,2)+"%"}</span></div>
+     <div class="note">${m.note}</div>`, "margin");
+}
+
+function renderSector(d) {
+  const s = d.sector;
+  if (!s) return card("⑥ 行业资金流", "板块", `<div class="note">行业资金流缺失。</div>`);
+  const top = (s.top||[]).map(x =>
+    `<div class="flow-item"><span class="nm">${x.name}</span><span class="fl up">+${fmt(x.flow,1)}亿 · ${fmt(x.pct,2)}%</span></div>`).join("");
+  const bot = (s.bottom||[]).map(x =>
+    `<div class="flow-item"><span class="nm">${x.name}</span><span class="fl down">${fmt(x.flow,1)}亿 · ${fmt(x.pct,2)}%</span></div>`).join("");
+  return card("⑥ 行业资金流", `共 ${s.n} 板块`,
+    `<div class="sec-h">资金净流入 Top</div><div class="flow">${top}</div>
+     <div class="sec-h">资金净流出 Bottom</div><div class="flow">${bot}</div>
+     <div class="note">${s.note}</div>`, "sector");
+}
+
+/* ---------- 主力视角 hero 卡 ---------- */
+function regimeTone(r) {
+  if (/共振|吸筹/.test(r)) return { c: "var(--ok)", b: "b-ok" };
+  if (/诱多|出货|阴跌/.test(r)) return { c: "var(--bad)", b: "b-bad" };
+  return { c: "var(--warn)", b: "b-warn" };
+}
+function renderCapitalRead(d) {
+  const c = d.capital_read;
+  if (!c) return "";
+  const t = regimeTone(c.regime);
+  const confColor = c.confidence >= 60 ? "var(--ok)" : c.confidence >= 40 ? "var(--warn)" : "var(--bad)";
+  const evs = (c.evidence || []).map(e => `<div>· ${e}</div>`).join("");
+  const acts = (c.actions || []).map(a => `<div>· ${a}</div>`).join("");
+  const caus = (c.cautions || []).map(a => `<div>· ${a}</div>`).join("");
+  return `<div class="card capital">
+    <h2>🧭 主力视角 · 散户应对 <span class="tag">订单流状态机 · 非点位预测</span>${freshTag("capital_read")}</h2>
+    <div class="regime" style="color:${t.c}">${c.regime}</div>
+    <div><span class="posture-pill ${t.b}">${c.posture}</span></div>
+    <div class="chip-line" style="margin-top:8px">
+      ${d.futures_basis ? `<span class="pill" style="color:${d.futures_basis.attitude.indexOf('偏多')>=0?'var(--up)':(d.futures_basis.attitude.indexOf('偏空')>=0?'var(--down)':'var(--sub)')}">期指 ${d.futures_basis.attitude}（${sign(d.futures_basis.avg_basis_pct)}${fmt(d.futures_basis.avg_basis_pct,2)}%）</span>` : ''}
+      ${d.etf_flow ? `<span class="pill" style="color:${d.etf_flow.signal.indexOf('布局')>=0?'var(--up)':(d.etf_flow.signal.indexOf('撤离')>=0?'var(--down)':'var(--sub)')}">ETF ${d.etf_flow.signal}</span>` : ''}
+    </div>
+    <div class="conf">判断置信度 <b style="color:${confColor}">${c.confidence}%</b>
+      <div class="conf-track"><div class="conf-fill" style="width:${c.confidence}%;background:${confColor}"></div></div>
+    </div>
+    <div class="sec-h" style="color:var(--sub)">主力在干什么（证据）</div>
+    <div class="evi">${evs || "<div>—</div>"}</div>
+    <div class="sec-h" style="color:var(--ok)">散户怎么应对</div>
+    <div class="act">${acts || "<div>—</div>"}</div>
+    <div class="sec-h" style="color:var(--warn)">警惕</div>
+    <div class="cau">${caus || "<div>—</div>"}</div>
+  </div>`;
+}
+
+/* ---------- 主力资金构成（订单流） ---------- */
+function renderFlow(d) {
+  const f = d.flow;
+  if (!f) return card("主力资金构成", "订单流", `<div class="note">主力资金数据缺失。</div>`);
+  const row = (nm, v) =>
+    `<div class="flow-item"><span class="nm">${nm}</span><span class="fl ${v > 0 ? 'up' : 'down'}">${v > 0 ? '+' : ''}${fmt(v, 1)}亿</span></div>`;
+  const read = (f.xlarge_net > 0 && f.small_net < 0) ? "机构买、散户卖 → 主力吸筹/承接"
+            : (f.xlarge_net < 0 && f.small_net > 0) ? "机构卖、散户买 → 派发/接盘"
+            : "多空均衡或同步进出";
+  return card("主力资金构成", "超大单/大单/中单/小单",
+    `<div class="kv"><span class="k">主力净流入(超大+大单)</span><span class="v ${f.main_net > 0 ? 'up' : 'down'}">${f.main_net > 0 ? '+' : ''}${fmt(f.main_net, 1)}亿</span></div>
+     <div class="note">占全市场成交额 ${fmt(f.main_pct, 1)}% · 红=净流入(买) 绿=净流出(卖)</div>
+     <div class="flow">
+       ${row("超大单(机构)", f.xlarge_net)}
+       ${row("大单(大户)", f.large_net)}
+       ${row("中单(中户)", f.mid_net)}
+       ${row("小单(散户)", f.small_net)}
+     </div>
+     <div class="note">解读：${read}</div>`, "flow");
+}
+
+/* ---------- 市场广度（涨跌家数/涨跌停） ---------- */
+function renderBreadthCount(d) {
+  const b = d.breadth_count;
+  if (!b) return card("市场广度", "涨跌家数", `<div class="note">广度数据缺失。</div>`);
+  const advCls = b.advance_pct >= 60 ? "b-up" : (b.advance_pct <= 40 ? "b-down" : "b-warn");
+  const advColor = b.advance_pct >= 60 ? "var(--up)" : (b.advance_pct <= 40 ? "var(--down)" : "var(--sub)");
+  return card("市场广度", "涨跌家数 / 涨跌停",
+    `<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+       <span class="big" style="color:${advColor}">${b.advance_pct}%</span>
+       <span class="badge ${advCls}">${b.advance_pct >= 60 ? '普涨' : (b.advance_pct <= 40 ? '普跌' : '分化')}</span>
+     </div>
+     <div class="kv"><span class="k">上涨 / 下跌 / 平</span><span class="v">${b.up} / ${b.down} / ${b.flat}</span></div>
+     <div class="kv"><span class="k">涨停 / 跌停</span><span class="v"><span class="up">${b.limit_up}</span> / <span class="down">${b.limit_down}</span></span></div>
+     <div class="note">涨跌停净额 ${b.limit_net >= 0 ? '+' : ''}${b.limit_net} 家</div>`, "breadth_count");
+}
+
+/* ---------- 期指升贴水（主力后市态度） ---------- */
+function renderFuturesBasis(d) {
+  const f = d.futures_basis;
+  if (!f) return card("期指升贴水", "主力后市态度", `<div class="note">期指数据缺失。</div>`);
+  const attCls = f.attitude.indexOf("偏多") >= 0 ? "b-up"
+              : (f.attitude.indexOf("偏空") >= 0 ? "b-down" : "b-neutral");
+  const rows = (f.items || []).map(it => {
+    const c = it.stance === "升水" ? "up" : (it.stance === "贴水" ? "down" : "");
+    const badge = it.stance === "升水" ? "b-up" : (it.stance === "贴水" ? "b-down" : "b-neutral");
+    return `<div class="basis-row">
+      <span class="basis-name">${it.name}</span>
+      <span class="basis-num">期 ${fmt(it.fut,1)} / 现 ${fmt(it.spot,1)}</span>
+      <span class="basis-pct ${c}">${sign(it.basis_pct)}${fmt(it.basis_pct,2)}%</span>
+      <span class="badge ${badge}">${it.stance}</span>
+    </div>`;
+  }).join("");
+  return card("期指升贴水", "IF/IC/IH/IM 连续",
+    `<div class="etf-sum">
+       <span class="big ${f.avg_basis_pct >= 0 ? 'up' : 'down'}">${sign(f.avg_basis_pct)}${fmt(f.avg_basis_pct,2)}%</span>
+       <span class="badge ${attCls}">${f.attitude}</span>
+     </div>
+     <div class="basis-rows">${rows}</div>
+     <div class="note">升贴水 = 期货 − 现货。升水(期货>现货)=主力看多后市；贴水=主力避险/谨慎。红涨绿跌按 A 股习惯。</div>`, "futures_basis");
+}
+
+/* ---------- ETF 净流向（机构借道进出） ---------- */
+function renderEtfFlow(d) {
+  const e = d.etf_flow;
+  if (!e) return card("ETF 净流向", "机构借道", `<div class="note">ETF 数据缺失。</div>`);
+  const item = x =>
+    `<div class="flow-item"><span class="nm">${x.name}</span><span class="fl ${x.net_yi >= 0 ? 'up' : 'down'}">${x.net_yi > 0 ? '+' : ''}${fmt(x.net_yi,2)}亿 · ${fmt(x.net_pct,1)}%</span></div>`;
+  const inList = (e.top_in || []).map(item).join("");
+  const outList = (e.top_out || []).map(item).join("");
+  const sumCls = e.net_sum_yi >= 0 ? "up" : "down";
+  const sigCls = e.signal.indexOf("布局") >= 0 ? "b-up"
+              : (e.signal.indexOf("撤离") >= 0 ? "b-down" : "b-neutral");
+  return card("ETF 净流向", "主力借道进出",
+    `<div class="etf-sum">
+       <span class="big ${sumCls}">${e.net_sum_yi > 0 ? '+' : ''}${fmt(e.net_sum_yi,1)}亿</span>
+       <span class="badge ${sigCls}">${e.signal}</span>
+     </div>
+     <div class="note">宽基/指数 ETF 合计净流入 ${fmt(e.broad_in_yi,1)} 亿</div>
+     <div class="etf-list">
+       <div class="sec-h">净流入 Top</div><div class="flow">${inList || '<div class="note">—</div>'}</div>
+       ${outList ? `<div class="sec-h">净流出 Bottom</div><div class="flow">${outList}</div>` : ''}
+     </div>
+     <div class="note">机构借道 ETF 申购/赎回，是观察大资金态度的一面镜子。</div>`, "etf_flow");
+}
+
+function render(d) {
+  FRESH = d.freshness || {};
+  // 把权重透传给情绪分项显示
+  d._w = (d.__cfg_w) || undefined;
+  const grid = document.getElementById("app");
+  grid.className = "grid";
+  grid.innerHTML =
+    renderCapitalRead(d) + renderJudgement(d) + renderIndices(d) + renderBreadth(d) +
+    renderFuturesBasis(d) + renderEtfFlow(d) + renderFlow(d) +
+    renderBreadthCount(d) + renderEmotion(d) +
+    renderLiquidity(d) + renderMargin(d) + renderSector(d);
+  document.getElementById("meta").textContent =
+    `${d.generated_at || ""} · ${d.scope_note || SCOPE_NOTE} · 耗时 ${d.elapsed||"?"}s`;
+  const fw = document.getElementById("footnote");
+  if (d.warnings && d.warnings.length) {
+    fw.innerHTML = `<div class="warn-box">⚠ 本次计算提示：<br>` +
+      d.warnings.map(w => "· " + w).join("<br>") + `</div>`;
+  } else { fw.innerHTML = ""; }
+}
+
+document.getElementById("refreshBtn").onclick = () => location.reload();
+
+loadData().then(render).catch(err => {
+  document.getElementById("app").innerHTML =
+    `<div class="loading">数据加载失败：${err.message}<br><br>请确认 data.json / data.js 与本页面在同一目录。</div>`;
+});
+</script>
+</body>
+</html>
