@@ -549,6 +549,10 @@ function jsonpCb(url, timeout){
     // 东财抽风时常返回空 body（非 JSONP），脚本加载成功但回调不被调用 → 快速判失败，避免白等超时
     s.onload = function(){ if(done) return; done = true; clean(); rej(new Error('EMPTY')); };
     timer = setTimeout(function(){ if(done) return; done = true; clean(); rej(new Error('TIMEOUT')); }, timeout || 9000);
+    // no-referrer 试验(2026-09-04)：东财历史资金流(fflow)网关对"带第三方 Referer 的浏览器请求"拒连，
+    // 而服务端/裸请求放行。给 script 设 referrerPolicy=no-referrer 后不再携带本站域名 → 尝试绕墙。
+    // 若仍失败走原有降级链，本行对其它东财接口亦无害。
+    try{ s.referrerPolicy = 'no-referrer'; }catch(e){}
     document.head.appendChild(s);
   });
 }
@@ -572,6 +576,10 @@ function jsonpVar(url, timeout){
     };
     s.onerror = function(){ if(done) return; done = true; clean(); rej(new Error('NETWORK')); };
     timer = setTimeout(function(){ if(done) return; done = true; clean(); rej(new Error('TIMEOUT')); }, timeout || 9000);
+    // no-referrer 试验(2026-09-04)：东财历史资金流(fflow)网关对"带第三方 Referer 的浏览器请求"拒连，
+    // 而服务端/裸请求放行。给 script 设 referrerPolicy=no-referrer 后不再携带本站域名 → 尝试绕墙。
+    // 若仍失败走原有降级链，本行对其它东财接口亦无害。
+    try{ s.referrerPolicy = 'no-referrer'; }catch(e){}
     document.head.appendChild(s);
   });
 }
