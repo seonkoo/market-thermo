@@ -1,0 +1,2605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>量能做T雷达</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --line:#e5e7eb; --line2:#f1f3f5;
+  --txt:#1f2937; --txt2:#4b5563; --txt3:#9ca3af;
+  --up:#d92b2b; --down:#0f9d58; --warn:#e08700; --info:#2563eb;
+  --okbg:#e8f5ee; --warnbg:#fdf3e3; --badbg:#fdecec; --na:#eef1f4;
+  --ylw:#f59e0b; --wht:#1f2937;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  padding:12px 12px 40px;}
+.wrap{max-width:1080px;margin:0 auto}
+h1{font-size:19px;margin:0 0 2px}
+.sub{color:var(--txt3);font-size:12px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.card h2{font-size:14px;margin:0 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h2 .tag{font-size:11px;font-weight:400;color:var(--txt3);border:1px solid var(--line);border-radius:20px;padding:1px 8px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1 1 240px;min-width:220px}
+.pill{display:inline-block;font-size:11px;border-radius:20px;padding:2px 9px;border:1px solid var(--line);color:var(--txt2);background:#fafbfc}
+.pill.ok{background:var(--okbg);border-color:#bfe3ce;color:#0b7a43}
+.pill.warn{background:var(--warnbg);border-color:#f2d9ab;color:#9a6200}
+.pill.bad{background:var(--badbg);border-color:#f3c2c2;color:#b3261e}
+.pill.na{background:var(--na);border-color:var(--line);color:var(--txt3)}
+.big{font-size:32px;font-weight:600;line-height:1.15;font-variant-numeric:tabular-nums}
+.bigsub{font-size:13px;color:var(--txt2);font-variant-numeric:tabular-nums}
+.kv{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line2);font-size:13px}
+.kv:last-child{border-bottom:none}
+.kv b{font-weight:600;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line2);vertical-align:top}
+th{color:var(--txt3);font-weight:500;font-size:12px}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--txt2)}
+.ylwc{color:var(--ylw)} .whtc{color:var(--wht)}
+.bar{height:9px;background:#eef1f4;border-radius:5px;overflow:hidden;position:relative}
+.bar > i{display:block;height:100%;border-radius:5px}
+.bar .mid{position:absolute;top:-3px;bottom:-3px;width:2px;background:#9aa4b2;left:50%}
+input[type=text],select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--txt);outline:none}
+input[type=text]:focus{border-color:var(--info)}
+button{font:inherit;padding:7px 12px;border:1px solid var(--line);background:#fff;border-radius:7px;cursor:pointer;color:var(--txt)}
+button:hover{background:#f4f6f8}
+button.primary{background:var(--info);border-color:var(--info);color:#fff}
+button.primary:hover{filter:brightness(1.05)}
+.hint{font-size:12px;color:var(--txt3);margin-top:6px}
+.err{background:var(--badbg);border:1px solid #f3c2c2;color:#b3261e;border-radius:8px;padding:8px 10px;font-size:12px;margin-top:8px}
+details{background:#fafbfc;border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-top:10px}
+details summary{cursor:pointer;font-size:13px;font-weight:600;outline:none}
+details .body{font-size:13px;color:var(--txt2);padding-top:8px}
+details .body p{margin:6px 0}
+details .body code{background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-size:12px;border-radius:7px;padding:4px 9px;border:1px solid var(--line);background:#fff;color:var(--txt2)}
+.chip.hot{border-color:#f3c2c2;background:var(--badbg);color:#b3261e}
+.chip.good{border-color:#bfe3ce;background:var(--okbg);color:#0b7a43}
+.chip.mid{border-color:#f2d9ab;background:var(--warnbg);color:#9a6200}
+svg{display:block;width:100%;height:auto}
+.foot{font-size:11.5px;color:var(--txt3);line-height:1.7;margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.ml{display:flex;align-items:center;gap:10px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;flex:0 0 auto}
+.seg button{border:0;background:transparent;font-size:12px;padding:3px 11px;cursor:pointer;color:var(--txt3)}
+.seg button.on{background:var(--info);color:#fff;font-weight:600}
+button.etfbtn{font-size:11px;padding:4px 9px;border:1px solid var(--line);background:#fff;color:var(--txt2);border-radius:6px;cursor:pointer;line-height:1.4}
+button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info)}
+/* 观察池卡片（移动友好：flex-wrap 自动换行，窄屏自然成卡片） */
+.wcards{display:flex;flex-direction:column;gap:6px}
+.wcard{display:flex;flex-wrap:wrap;gap:6px 14px;padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:#fff;align-items:center;margin-top:10px}
+.wcode{flex:0 0 auto;min-width:80px}
+.wcode small{display:block;font-size:11px;color:var(--txt3);font-weight:normal;line-height:1.25;margin-top:2px}
+.wprice{flex:0 0 auto;min-width:96px;text-align:right}
+.wprice b{font-size:18px;line-height:1.1}
+.wchg{font-size:12px;margin-left:4px}
+.wstate{flex:1 1 auto;display:flex;align-items:center;min-width:120px}
+.wline{flex:0 0 100%;font-size:11px;color:var(--txt2);display:flex;flex-wrap:wrap;gap:2px 12px;border-top:1px dashed var(--line);padding-top:6px;margin-top:2px;line-height:1.7}
+.wline b{color:var(--txt1);font-weight:600}
+.wline .sep{color:var(--txt3)}
+.wact{flex:0 0 auto;display:flex;gap:4px}
+@media (max-width:640px){ .big{font-size:27px} body{padding:10px 9px 30px} .col{min-width:100%} .wprice b{font-size:16px} .wcard{padding:8px 10px;gap:4px 10px} .wstate{min-width:0} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>量能做T雷达</h1>
+  <div class="sub">上证指数实时量能（成交额/成交量口径可切）· 做T环境判定 · 个股量价关系识别　|　浏览器直连 东方财富(主) + 腾讯(兜底)，GitHub Pages 托管，随时可开</div>
+  <div style="margin:-6px 0 10px"><a href="index.html" style="color:#4da3ff;text-decoration:none">📊 回到市场温度计（环境层）</a></div>
+
+  <div class="card">
+    <div class="row" style="align-items:flex-end">
+      <div class="col" style="flex:0 0 auto">
+        <label class="hint" style="margin:0 0 4px;display:block">刷新频率</label>
+        <select id="freq">
+          <option value="30000">30 秒</option>
+          <option value="60000" selected>60 秒</option>
+          <option value="120000">2 分钟</option>
+          <option value="0">手动</option>
+        </select>
+      </div>
+      <div class="col" style="flex:0 0 auto">
+        <button class="primary" id="btnRefresh">立即刷新</button>
+      </div>
+      <div class="col" style="flex:1 1 240px;text-align:right">
+        <span id="status" class="pill na">等待加载</span>
+        <div class="hint" id="lastTime">—</div>
+      </div>
+    </div>
+    <div id="globalErr" class="err" style="display:none"></div>
+  </div>
+
+  <!-- 大盘 -->
+  <div class="card">
+    <h2>① 大盘量能 <span class="tag">上证指数 000001</span> <span id="mktTag" class="pill na">—</span></h2>
+    <div class="row" style="align-items:center;margin:0 0 6px">
+      <div class="seg" id="metSeg">
+        <button type="button" data-m="amt" class="on">成交额口径</button>
+        <button type="button" data-m="vol">成交量口径</button>
+      </div>
+      <span class="hint" id="metHint" style="flex:1">软件默认多报成交额：今日/昨日同期/全天投影均按所选口径，放量缩量判定同步；下方分时量柱与日K成交量图仍按手数</span>
+    </div>
+    <div class="row">
+      <div class="col" style="flex:0 0 210px">
+        <div class="big" id="ixPrice">—</div>
+        <div class="bigsub" id="ixChg">—</div>
+        <div class="hint" id="ixTime">—</div>
+      </div>
+      <div class="col">
+        <div class="kv"><span>白线（加权指数）</span><b id="ixWht" class="whtc">—</b></div>
+        <div class="kv"><span>黄线（领先/不加权）</span><b id="ixYlw" class="ylwc">—</b></div>
+        <div class="kv"><span>黄白差</span><b id="ixDiff">—</b></div>
+        <div class="kv"><span>黄白状态</span><b id="ixYwState">—</b></div>
+        <div class="kv"><span>箱体位置（20日）</span><b id="ixBox">—</b></div>
+      </div>
+      <div class="col">
+        <div class="kv"><span>今日累计量</span><b id="vNow">—</b></div>
+        <div class="kv"><span>昨日同期量</span><b id="vSame">—</b></div>
+        <div class="kv"><span>同期比</span><b id="vRatio">—</b></div>
+        <div class="kv"><span>全天投影</span><b id="vProj">—</b></div>
+      </div>
+      <div class="col">
+        <div class="kv"><span>近5分钟 / 前15分钟</span><b id="vSlope">—</b></div>
+        <div class="kv"><span>开盘</span><b id="ixOpen">—</b></div>
+        <div class="kv"><span>距昨收基准</span><b id="ixVsPre">—</b></div>
+        <div class="kv"><span>昨日最高（缺口下沿）</span><b id="ixYHigh">—</b></div>
+        <div class="kv"><span>昨日振幅</span><b id="ixPrevAmp">—</b></div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="hint" style="margin-bottom:5px">量能进度：今日累计 vs 昨日同期（100% 刻度 = 与昨日同期持平）</div>
+      <div class="bar"><i id="vBar" style="width:0%;background:var(--info)"></i><span class="mid"></span></div>
+      <div class="hint" id="vBarTxt">—</div>
+    </div>
+    <div style="margin-top:10px" id="ixChart"></div>
+    <div class="ml" style="margin-top:6px;font-size:12px;color:var(--txt3)">
+      <span><i class="dot" style="background:var(--wht)"></i>白线</span>
+      <span><i class="dot" style="background:var(--ylw)"></i>黄线（领先）</span>
+      <span><i class="dot" style="background:#cbd5e1"></i>昨日同期量（折线）</span>
+      <span><i class="dot" style="background:var(--up)"></i>量柱涨</span>
+      <span><i class="dot" style="background:var(--down)"></i>量柱跌</span>
+    </div>
+    <div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:10px">
+      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <b style="font-size:13px">上证指数 · 日K线（近90个交易日）</b>
+        <span id="ixKMeta" class="hint" style="font-size:11px">—</span>
+      </div>
+      <div id="ixKline"></div>
+      <div class="ml" style="margin-top:6px;font-size:12px;color:var(--txt3)">
+        <span><i class="dot" style="background:var(--up)"></i>阳线(收涨)</span>
+        <span><i class="dot" style="background:var(--down)"></i>阴线(收跌)</span>
+        <span><i class="dot" style="background:#f59e0b"></i>MA5</span>
+        <span><i class="dot" style="background:#ec4899"></i>MA10</span>
+        <span><i class="dot" style="background:#7c3aed"></i>MA20</span>
+        <span><i class="dot" style="background:#cbd5e1"></i>成交量</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 做T环境 -->
+  <div class="card">
+    <h2>② 实时做T环境 <span id="tLight" class="pill na">—</span></h2>
+    <div id="tSummary" class="hint" style="font-size:13px;color:var(--txt2);margin-bottom:10px">—</div>
+    <table>
+      <thead><tr><th style="width:130px">检查项</th><th style="width:64px">判定</th><th>说明</th></tr></thead>
+      <tbody id="tRules"><tr><td colspan="3" style="color:var(--txt3)">—</td></tr></tbody>
+    </table>
+    <div style="margin-top:10px">
+      <div class="hint" style="margin-bottom:6px">昨日板块主力资金（前5流入 / 后3流出）<span id="thermoTag" style="margin-left:6px"></span></div>
+      <div id="sectorFlow" class="hint">—</div>
+    </div>
+  </div>
+
+  <!-- 个股 -->
+  <div class="card">
+    <h2>③ 个股量价诊断 <span class="tag">输入 6 位代码</span></h2>
+    <div class="row" style="align-items:center">
+      <input type="text" id="code" placeholder="股票/ETF 代码：600519 / 510500 / 513500 / 159928 / 588170" style="width:260px">
+      <button class="primary" id="btnQuery">查询</button>
+      <span class="hint" style="align-self:center">Enter 查询 · 支持股票与 ETF（510500 中证500 / 513500 标普500 / 159928 消费ETF / 588170 半导体ETF 等）</span>
+      <div style="flex-basis:100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        <span class="hint" style="align-self:center">ETF 一键：</span>
+        <button class="etfbtn" data-c="510500">中证500</button>
+        <button class="etfbtn" data-c="513500">标普500</button>
+        <button class="etfbtn" data-c="510300">沪深300</button>
+        <button class="etfbtn" data-c="513100">纳指100</button>
+        <button class="etfbtn" data-c="513520">日经225</button>
+        <button class="etfbtn" data-c="588170">半导体</button>
+        <button class="etfbtn" data-c="588200">科创50</button>
+        <button class="etfbtn" data-c="159928">消费ETF</button>
+        <button class="etfbtn" data-c="512760">半导体50</button>
+        <button class="etfbtn" data-c="159002">货币ETF</button>
+      </div>
+    </div>
+    <div id="stkErr" class="err" style="display:none"></div>
+    <div id="stkBody" style="display:none;margin-top:12px">
+      <div class="row">
+        <div class="col" style="flex:0 0 200px">
+          <div class="big" id="sPrice">—</div>
+          <div class="bigsub" id="sChg">—</div>
+          <div class="hint" id="sName">—</div>
+        </div>
+        <div class="col">
+          <div class="kv"><span>今日累计</span><b id="sVNow">—</b></div>
+          <div class="kv"><span>昨日同期</span><b id="sVSame">—</b></div>
+          <div class="kv"><span>同期比</span><b id="sVRatio">—</b></div>
+          <div class="kv"><span>官方量比</span><b id="sVR">—</b></div>
+        </div>
+        <div class="col">
+          <div class="kv"><span>均价线（黄线）</span><b id="sAvg" class="ylwc">—</b></div>
+          <div class="kv"><span>现价 vs 均价</span><b id="sVsAvg">—</b></div>
+          <div class="kv"><span>全天投影</span><b id="sVProj">—</b></div>
+          <div class="kv"><span>投影换手参考</span><b id="sTurn">—</b></div>
+        </div>
+        <div class="col">
+          <div class="kv"><span>上方最近压力</span><b id="sRes">—</b></div>
+          <div class="kv"><span>下方最近支撑</span><b id="sSup">—</b></div>
+          <div class="kv"><span>箱体位置（20日）</span><b id="sBox">—</b></div>
+          <div class="kv"><span>量价相关系数</span><b id="sCorr">—</b></div>
+        </div>
+      </div>
+      <div style="margin-top:10px" id="sChart"></div>
+      <div style="margin-top:12px">
+        <div class="hint" style="margin-bottom:6px">识别到的量价关系</div>
+        <div class="chips" id="sChips">—</div>
+        <table style="margin-top:10px">
+          <thead><tr><th style="width:118px">形态</th><th style="width:56px">方向</th><th>含义与对做T的提示</th></tr></thead>
+          <tbody id="sPatterns"><tr><td colspan="3" style="color:var(--txt3)">—</td></tr></tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;background:#fafbfc;border:1px solid var(--line);border-radius:9px;padding:10px 12px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">个股做T建议 <span id="sAdvice" class="pill na">—</span></div>
+        <div id="sAdviceTxt" class="hint" style="color:var(--txt2);font-size:13px">—</div>
+      </div>
+      <div id="sTrigBox" style="margin-top:10px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:#fff">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">触发参考（自动生成·非荐股） <span id="sTrig" class="pill na">—</span></div>
+        <div id="sTrigBody" class="hint" style="color:var(--txt2);font-size:12px;line-height:1.95">—</div>
+        <div id="sTViewRow" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)">
+          <div style="font-size:13px;font-weight:600;margin-bottom:3px">做T 视角（日内参考） <span id="sTView" class="pill na">—</span></div>
+          <div id="sTViewTxt" class="hint" style="color:var(--txt2);font-size:12px;line-height:1.85">—</div>
+        </div>
+      </div>
+      <div id="sDipBox" style="display:none;margin-top:10px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:#fff">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">分时回踩低吸（日内执行） <span id="sDip" class="pill na">—</span></div>
+        <div id="sDipTxt" class="hint" style="color:var(--txt2);font-size:12px;line-height:1.85">—</div>
+        <div id="sDipSvg" style="margin-top:6px"></div>
+      </div>
+      <div style="margin-top:10px">
+        <button class="etfbtn" id="wAddFromStk">＋ 加入观察池</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 观察池 -->
+  <div class="card">
+    <h2>③b 观察池 · 触发提醒 <span class="tag" id="wTag">页面需保持打开</span></h2>
+    <div class="row" style="align-items:center">
+      <input type="text" id="wCode" placeholder="加入观察池：6 位代码（如 588170）" style="width:230px">
+      <button id="wAdd">加入</button>
+      <button id="wNotify">🔔 开启浏览器通知</button>
+      <button id="wRecalc">立即重算</button>
+      <span class="hint" id="wMeta" style="align-self:center">快轮询 30s 判价格 · 量能 5min 重算 · 非交易时段自动暂停</span>
+    </div>
+    <div id="wErr" class="err" style="display:none"></div>
+    <div class="hint" style="margin-top:8px;color:var(--txt3);line-height:1.85">
+      ⚠️ <b>能力边界（务必看清）</b>：提醒<b>只在本页保持打开时生效</b>——关闭标签页、切到后台被系统冻结或手机息屏即停止。这是静态页，<b>没有后台、没有服务端、没有推送</b>，它不会在你不在时喊你。<br>
+      · A 线判据含「同期量比 ≥<span id="wVolUp">120</span>%」，量比每 5 分钟重算一次，价格每秒级变化、量比分钟级变化，30s 轮询对两者都够用。<br>
+      · A/B 线在<b>加入观察池时锁定</b>（不随价格滚动），跨交易日自动重置；同一天内 A、B 各只提醒一次，避免反复弹窗。<br>
+      · 提醒仅为<b>你自己的规则被触发</b>的技术提示，非买卖建议。
+    </div>
+    <div id="wBody" class="wcards" style="margin-top:10px"></div>
+  </div>
+
+  <!-- 教学 -->
+  <div class="card">
+    <h2>④ 量能到底怎么看</h2>
+    <details open>
+      <summary>一、量能的正确比法（90% 的人比错了基准）</summary>
+      <div class="body">
+        <p><b>错误做法：</b>盘中拿「今日累计成交量」去比「昨日全天成交量」。早上 10 点你看到的量必然远小于昨天全天，于是永远显示"缩量"——这个对比毫无意义。</p>
+        <p><b>正确做法：对齐时间切片。</b>现在走到了当天的第 N 分钟，就拿今日前 N 分钟的累计量，去比昨日前 N 分钟的累计量。本工具的「同期量比」就是这个口径，也是你软件里"与上一日量能实时对比"的正确算法。</p>
+        <p><b>全天投影量：</b>今日累计量 ÷（昨日同期量占昨日全天量的比例）。它用昨日真实的日内量能分布（早盘高、午后低的 U 型）做外推，比简单按时间比例乘更准。</p>
+        <p><b>官方量比 ≠ 同期量比：</b>量比的分母是过去 5 日平均每分钟成交量，衡量的是"相对近期平均"；同期量比衡量的是"相对昨天同一时点"。做T看同期量比，判断冷热看量比。</p>
+      </div>
+    </details>
+    <details>
+      <summary>二、放量缩量本身没有方向，位置决定性质</summary>
+      <div class="body">
+        <p>同样的量能，在不同位置含义相反：</p>
+        <p>· <b>低位（箱体下沿/长期缩量后）放量上涨</b>：资金进场，是有效信号；<b>低位放量下跌</b>：恐慌盘/最后一跌，但也可能继续杀，需等缩量企稳再看。</p>
+        <p>· <b>高位（箱顶/压力位附近）放量滞涨</b>：典型出货特征，量放大而价格推不动，最危险；<b>高位缩量上涨</b>：惜售，趋势尚在但接近尾声，一旦放量就要走。</p>
+        <p>· <b>缩量下跌</b>：抛压衰竭，通常是底背离的必要条件（不是充分条件）。</p>
+        <p>· <b>上涨途中的缩量回调</b>：健康，是你做T回补的窗口；<b>上涨途中的放量回调</b>：要小心，说明有资金在借着上涨出货。</p>
+      </div>
+    </details>
+    <details>
+      <summary>三、量价背离（顶背离 / 底背离）怎么算出来的</summary>
+      <div class="body">
+        <p>本工具用的是<b>波段对比法</b>，不是拍脑袋：先用 zigzag 把分时切成摆动波段（价格反向超过 0.25% 视为一个拐点），再比较相邻的两个同向波段。</p>
+        <p>· <b>顶背离</b>：后一个上升波段的价格高点 &gt; 前一个高点，但该波段的平均分钟量 &lt; 前一个波段的 85% → 价格创新高而推动的量能跟不上，上攻动能衰减。</p>
+        <p>· <b>底背离</b>：后一个下降波段的价格低点 &lt; 前一个低点，但该波段的平均分钟量 &lt; 前一个波段的 85% → 跌得更深但砸盘的量更小，抛压衰竭。</p>
+        <p><b>重要提醒：</b>底背离只是"跌不动了"，不等于"要涨了"。它必须配合大盘环境（你那套黄白线判据）和价格站回均价线，才有做T价值。单看背离抄底，是最常见的亏钱方式。</p>
+      </div>
+    </details>
+    <details>
+      <summary>四、本工具对你那套做T准则的覆盖情况（哪些还得你自己看）</summary>
+      <div class="body">
+        <table style="font-size:12.5px">
+          <tr><th>你的准则</th><th>本工具</th><th>说明</th></tr>
+          <tr><td>条件1 昨日波动 / 箱体</td><td>✅ 已量化</td><td>昨日振幅、20日箱体分位自动算</td></tr>
+          <tr><td>条件1 板块流入前5流出前3</td><td>✅ 已量化 + 降级</td><td>东财 clist 实时优先；被限流时自动改用<b>市场温度计</b>的行业资金流快照，不再显示"—"</td></tr>
+          <tr><td>条件1 融资盘变化</td><td>✅ 已接入</td><td>来自<b>市场温度计</b>：融资余额 5/10 日变动（T-1 口径，与准则里"昨日数据"一致）。滞后指标，只出 ok/warn，不出 bad</td></tr>
+          <tr><td>条件1 期指基差</td><td>⚠️ 口径替代</td><td>持仓排名仍无免费源（已探测失败，不做假数据）；改用四大期指（IF/IC/IH/IM）平均基差读主力态度——<b>基差 ≠ 持仓排名</b>，只读态度读不到仓位，且 A 股期指长期贴水，故常态区间判 na、绝不出 bad</td></tr>
+          <tr><td>条件2 时间窗口</td><td>✅ 已量化</td><td>9:45-10:00 / 14:00-14:30 优选，开盘15分钟内提示回避</td></tr>
+          <tr><td>条件3 黄白线</td><td>✅ 已量化</td><td>用东财大盘「领先指标」= 黄线，加权指数 = 白线，实时算差值与交叉</td></tr>
+          <tr><td>条件4 量能 + 现象1/2</td><td>✅ 已量化</td><td>低开缩量黄上 / 高开放量黄上+不破缺口下沿，逐条判定</td></tr>
+          <tr><td>条件5 支撑位缩量转放量</td><td>✅ 已量化</td><td>近5分钟量 vs 前15分钟均值 + 距支撑距离</td></tr>
+          <tr><td>条件6 下午回补</td><td>✅ 已量化</td><td>14:00-14:30 窗口 + 上涨放量回调缩量检测</td></tr>
+          <tr><td>4 条警示 + 卖出条件</td><td>✅ 已量化</td><td>黄线下穿放量 / 交织缩量 / 白线上穿缩量 / 接近压力位，均入规则引擎</td></tr>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <div class="foot">
+    <div id="srcNote">数据来源（浏览器直连）：东方财富 push2（快照 stock/get、分时 trends2 含昨日+黄线、1分钟K线兜底），腾讯 ifzq 日K（fqkline，不复权）+ qt.gtimg 快照兜底。东财被限流时昨日同期量会暂不可用，其余指标按腾讯当日数据降级。行情有延迟，以交易软件为准。</div>
+    <div style="margin-top:6px"><b>免责声明</b>：以上内容基于公开数据和量化分析，仅供参考，不构成投资建议。市场有风险，投资需谨慎。任何投资决策应结合个人风险承受能力、资金状况和投资目标独立判断，必要时咨询持牌专业机构。过往表现不预示未来收益。</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ============ 配置（可调阈值集中在这里） ============ */
+var CFG = {
+  IDX_SEC: '1.000001',
+  IDX_TX: 'sh000001',
+  TOTAL_MIN: 241,          // 一个完整交易日的分时条数（含集合竞价）
+  // 量能判定
+  VOL_UP: 1.20,            // 同期量比 >= 视为放量
+  VOL_DN: 0.80,            // 同期量比 <= 视为缩量
+  VOL_DRY: 0.60,           // 显著缩量 / 地量
+  VOL_SURGE: 1.80,         // 近5分钟对前15分钟的倍数 = 突放量
+  VOL_TURN: 1.30,          // 缩量转放量阈值
+  // 黄白线
+  YW_STRONG: 0.15,         // 黄白差(%) 绝对值 >= 此值：明确分离
+  YW_WEAK: 0.03,           // 黄白差(%) 绝对值 >= 此值 且全程同号：方向明确（不算交织）
+  YW_CROSS_LOOK: 12,       // 交叉检测的回看分钟数
+  // 波段 / 背离
+  ZIG_PCT: 0.0025,         // zigzag 拐点阈值 0.25%
+  DIV_VOL_K: 0.85,         // 背离：后段均量 / 前段均量 低于此值
+  // 位置
+  NEAR_PCT: 0.005,         // 距压力/支撑 0.5% 以内算"接近"
+  BOX_TOP: 0.90, BOX_BOT: 0.10,
+  PREV_AMP: 0.020,         // 昨日振幅 >2% 视为易引发大波动
+  CORR_WIN: 30,            // 量价相关系数窗口
+  // 观察池（watch pool）
+  W_FAST: 30000,           // 快轮询：只拉快照判价格线
+  W_SLOW: 300000,          // 慢刷新：重拉分时，更新同期量比（A 触发的判据）
+  W_STAGGER: 800,          // 条目间错峰毫秒，避免并发打爆行情接口
+  W_MAX: 12,               // 观察池上限
+  W_COOL: 600000,          // A 线提醒冷却 10 分钟（防 A 线附近上下穿梭反复弹窗）
+  // 做T 视角（2026-09-04 新增）
+  T_B_WARN: 2.0,           // 距 B 停手线 <=2% 提示收T仓（止损空间太薄，别在箱底重仓低吸）
+  // A 触发「站稳确认制」（2026-09-04 用户拍板 B 方案：专治上头/FOMO，宁愿少赚也不被诱多）
+  // 背景：515880 当日冲过 A 线且量比达标 → 即时触发 → 用户跟单 → 价格守不住回落，被假突破套住。
+  // 规则：站上 A + 量比达标需「连续」稳住 A_CONFIRM_MIN 分钟才算确认；中途任一条件不满足 → 计时清零重来。
+  // 注：15 分钟为工程保守默认值（沙箱取不到分钟级历史数据做回测），实盘第一周用于校准。
+  //     B 破位【不】加确认——止损不能等 15 分钟。
+  A_CONFIRM_MIN: 15,       // A 触发站稳确认分钟数（设为 0 = 关闭确认制，退回即时触发）
+  // 分时回踩低吸（2026-09-04 用户拍板：两档分层 + 迷你分时图）
+  DIP_MIN: 30,             // 分时数据最少根数，不足不判
+  DIP_LOOK: 120,           // 近端高点回看窗口（分钟）
+  DIP_R: 0.004,            // 从近端高点回撤 >=0.4% 才算一次有效回踩
+  DIP_SHRINK: 0.7,         // 回踩段分钟均量 <= 上涨段 x0.7 视为缩量（抛压衰竭）
+  DIP_NEAR: 0.005,         // 距支撑 0.5% 以内算"贴支撑"
+  DIP_MS: 60000,           // 分时数据重拉间隔（分钟级信号，60s 足够）
+  // 市场温度计融合（2026-09-04 M1：单向灌注，补规则引擎的三个缺口）
+  // data.json 由 seonkoo/market-thermo 的 Actions 每日 4 次生成，与本页同源部署 → 相对路径即可。
+  // 本地 file:// 打开时 fetch 必然被 CORS 拦掉 → 一律降级为 null，不影响原有任何功能。
+  THERMO_URL: 'data.json',
+  THERMO_TTL: 600000,      // data.json 盘中不变，缓存 10 分钟
+  // 两融（数据源：温度计 margin，T-1 口径，与准则里"昨日数据"一致）
+  MARGIN_CHG: 1.0,         // 融资余额 5 日变动绝对值 >1% 视为杠杆明显加/减
+  // 期指基差（口径替代：持仓排名无免费源）
+  BASIS_PREM: 0.10,        // 四大期指平均基差 > +0.10% 视为升水（主力偏多）
+  BASIS_DISC: -1.00        // < -1.00% 视为深度贴水（强烈避险）。
+                           // 注意：A股期指长期贴水是常态（今日 -0.70%），常态区间一律判 na 不参与红绿灯。
+                           // 上述阈值均未回测（沙箱取不到分钟级历史），实盘首周校准。
+};
+
+/* ============ 工具 ============ */
+function $(id){ return document.getElementById(id); }
+// 简易 ETF/LOF 判断（沪深交易所 ETF、LOF 常见代码段）
+function isETFCode(code){
+  var c = String(code || '').replace(/^(sh|sz)/i, '');
+  if(c.length !== 6) return false;
+  if(c.startsWith('15') || c.startsWith('16')) return true;          // 深 ETF/LOF 159/160+
+  if(c.startsWith('5') && c.startsWith('5')===c[0]) return /^(510|511|512|513|515|516|517|518|560|56|58)/.test(c);
+  return false;
+}
+function num(v, d){ v = parseFloat(v); return isFinite(v) ? v : (d === undefined ? 0 : d); }
+function fx(v, d){ return isFinite(v) ? v.toFixed(d === undefined ? 2 : d) : '—'; }
+function pctS(v, d){ if(!isFinite(v)) return '—'; return (v > 0 ? '+' : '') + v.toFixed(d === undefined ? 2 : d) + '%'; }
+function cls(v){ return v > 0 ? 'up' : (v < 0 ? 'down' : 'flat'); }
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+// 万/亿 手 格式化（趋势 f56、腾讯日K vol 单位均为「手」）
+function volTxt(hands){
+  if(!isFinite(hands)) return '—';
+  var y = hands / 1e8, w = hands / 1e4;
+  if(Math.abs(y) >= 1) return y.toFixed(2) + ' 亿手';
+  if(Math.abs(w) >= 1) return w.toFixed(1) + ' 万手';
+  return hands.toFixed(0) + ' 手';
+}
+// 元 格式化（成交额对比口径；同花顺/东财等软件默认报成交额）
+function amtTxt(yuan){
+  if(!isFinite(yuan)) return '—';
+  var y = yuan / 1e8, w = yuan / 1e4;
+  if(Math.abs(y) >= 1) return y.toFixed(2) + ' 亿';
+  if(Math.abs(w) >= 1) return w.toFixed(1) + ' 万';
+  return yuan.toFixed(0) + ' 元';
+}
+function secidOf(code){
+  var c = String(code || '').trim().toLowerCase();
+  var m = c.match(/^(sh|sz|bj)?(\d{6})$/);
+  if(!m) return null;
+  var pre = m[1], d = m[2];
+  if(pre === 'sh') return '1.' + d;
+  if(pre === 'sz') return '0.' + d;
+  if(pre) return '0.' + d;
+  if(/^6/.test(d)) return '1.' + d;             // 沪市股票 600xxx/601xxx/603xxx/688xxx
+  if(/^5/.test(d)) return '1.' + d;             // 沪 ETF/LOF: 510xxx 511-589xxx 588xxx
+  if(/^(000001|000016|000300|000688|000852|000905|000906|000922)$/.test(d)) return '1.' + d; // 沪市指数
+  if(/^(159|16)/.test(d)) return '0.' + d;       // 深 ETF/LOF: 159xxx
+  if(/^00/.test(d)) return '0.' + d;             // 深市主板/中小板 000xxx/002xxx/003xxx
+  return '0.' + d;
+}
+function txOf(code){
+  var c = String(code || '').trim().toLowerCase();
+  var m = c.match(/^(sh|sz|bj)?(\d{6})$/);
+  if(!m) return null;
+  if(m[1]) return m[1] + m[2];
+  var d = m[2];
+  if(/^6/.test(d)) return 'sh' + d;
+  if(/^5/.test(d)) return 'sh' + d;             // 沪 ETF/LOF
+  if(/^(4|8)/.test(d)) return 'bj' + d;
+  if(/^(159|16)/.test(d)) return 'sz' + d;       // 深 ETF/LOF
+  if(/^(000001|000016|000300|000688|000852|000905|000906|000922)$/.test(d)) return 'sh' + d; // 沪市指数
+  if(/^00/.test(d)) return 'sz' + d;
+  return 'sz' + d;
+}
+// 交易时段：返回 {open:bool, phase:'pre'|'open15'|'am'|'noon'|'pm'|'close', minIndex:已走分钟, label}
+function marketPhase(now){
+  var h = now.getHours(), m = now.getMinutes();
+  var t = h * 60 + m;
+  var wd = now.getDay();
+  if(wd === 0 || wd === 6) return {open:false, phase:'close', label:'休市（周末）'};
+  if(t < 9*60+15) return {open:false, phase:'pre', label:'盘前'};
+  if(t < 9*60+30) return {open:false, phase:'auction', label:'集合竞价'};
+  if(t < 9*60+45) return {open:true, phase:'open15', label:'开盘15分钟内'};
+  if(t <= 11*60+30) return {open:true, phase:'am', label:'早盘'};
+  if(t < 13*60) return {open:false, phase:'lunch', label:'午间休市'};
+  if(t <= 15*60) return {open:true, phase:'pm', label:'午后'};
+  return {open:false, phase:'close', label:'已收盘'};
+}
+// 是否处于优选做T窗口
+function windowState(now){
+  var t = now.getHours() * 60 + now.getMinutes();
+  var inA = (t >= 9*60+45 && t <= 10*60+0);
+  var inB = (t >= 14*60+0 && t <= 14*60+30);
+  if(inA) return {level:'best', label:'9:45-10:00 优选窗口'};
+  if(inB) return {level:'best', label:'14:00-14:30 优选窗口'};
+  if(t < 9*60+45 && t >= 9*60+30) return {level:'bad', label:'开盘15分钟内（回避）'};
+  if(t > 14*60+30 && t <= 15*60) return {level:'ok', label:'尾盘（注意14:30后异动风险）'};
+  if(t > 10*60 && t < 14*60) return {level:'mid', label:'平稳时段（少来回T）'};
+  return {level:'na', label:'非交易时段'};
+}
+
+/* ============ JSONP ============ */
+var _seq = 0;
+function jsonpCb(url, timeout){
+  return new Promise(function(res, rej){
+    var name = '__jp' + (++_seq) + '_' + Date.now();
+    var s = document.createElement('script');
+    var done = false, timer;
+    function clean(){
+      clearTimeout(timer);
+      try { delete window[name]; } catch(e){ window[name] = undefined; }
+      try { if(s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+    }
+    window[name] = function(d){ if(done) return; done = true; clean(); res(d); };
+    s.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'cb=' + name;
+    s.onerror = function(){ if(done) return; done = true; clean(); rej(new Error('NETWORK')); };
+    // 东财抽风时常返回空 body（非 JSONP），脚本加载成功但回调不被调用 → 快速判失败，避免白等超时
+    s.onload = function(){ if(done) return; done = true; clean(); rej(new Error('EMPTY')); };
+    timer = setTimeout(function(){ if(done) return; done = true; clean(); rej(new Error('TIMEOUT')); }, timeout || 9000);
+    document.head.appendChild(s);
+  });
+}
+// 腾讯 _var= 变量式 JSONP
+function jsonpVar(url, timeout){
+  return new Promise(function(res, rej){
+    var name = '__tv' + (++_seq) + '_' + Date.now();
+    var s = document.createElement('script');
+    var done = false, timer;
+    function clean(){
+      clearTimeout(timer);
+      try { delete window[name]; } catch(e){ window[name] = undefined; }
+      try { if(s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+    }
+    s.src = url + '&_var=' + name;
+    s.onload = function(){
+      if(done) return;
+      var v = window[name];
+      done = true; clean();
+      if(v) res(v); else rej(new Error('EMPTY'));
+    };
+    s.onerror = function(){ if(done) return; done = true; clean(); rej(new Error('NETWORK')); };
+    timer = setTimeout(function(){ if(done) return; done = true; clean(); rej(new Error('TIMEOUT')); }, timeout || 9000);
+    document.head.appendChild(s);
+  });
+}
+
+/* ============ 接口 ============ */
+// 东财限流较严：失败自动重试 1 次（间隔 700ms），提高抽风时的成功率
+function retry2(fn){
+  return function(){
+    var self = this, args = arguments;
+    return fn.apply(self, args).then(null, function(e){
+      return new Promise(function(r){ setTimeout(r, 700); }).then(function(){ return fn.apply(self, args); });
+    });
+  };
+}
+// 东财实时快照
+var apiSnap = retry2(function(secid){
+  var f = ['f43','f44','f45','f46','f47','f48','f50','f57','f58','f60','f169','f170','f86','f168'].join(',');
+  return jsonpCb('https://push2.eastmoney.com/api/qt/stock/get?secid=' + secid + '&fields=' + f + '&fltt=2&invt=2');
+});
+// 多主机依次尝试：东财限流常按主机独立，换主机往往能成
+function tryHosts(hosts, path, parser, timeout){
+  var idx = 0;
+  function attempt(){
+    if(idx >= hosts.length) return Promise.reject(new Error('ALL_HOSTS_FAIL'));
+    var host = hosts[idx++];
+    return jsonpCb('https://' + host + path, timeout).then(function(raw){
+      return parser(raw);            // parser 对空/异常数据抛错 → 触发下一主机
+    }).catch(function(){
+      if(idx >= hosts.length) return Promise.reject(new Error('ALL_HOSTS_FAIL'));
+      return attempt();
+    });
+  }
+  return attempt();
+}
+var EM_HOSTS = ['push2his.eastmoney.com','push2.eastmoney.com','63.push2his.eastmoney.com','14.push2his.eastmoney.com'];
+// 东财分时（ndays=2 一次拿昨日+今日，含黄线）：多主机重试，限流时各主机独立
+var apiTrends = function(secid){
+  var path = '/api/qt/stock/trends2/get?secid=' + secid +
+    '&fields1=f1,f2,f3,f4,f5,f6,f7,f8&fields2=f51,f52,f53,f54,f55,f56,f57,f58&iscr=0&ndays=2';
+  return tryHosts(EM_HOSTS, path, function(raw){
+    var t = parseTrends(raw);
+    if(!t || !t.today.length) throw new Error('EMPTY');
+    return t;
+  }, 8000);
+};
+// 腾讯日K（不复权，含当日实时）
+var apiDaily = retry2(function(tx){
+  return jsonpVar('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=' + tx + ',day,,,120,');
+});
+// 日K缓存：支撑压力位变化慢，5 分钟更新一次即可，减少请求量
+var DAILY_TTL = 5 * 60 * 1000;
+function getDaily(tx){
+  var now = Date.now();
+  STATE.dailyCache = STATE.dailyCache || {};
+  var c = STATE.dailyCache[tx];
+  if(c && (now - c.ts) < DAILY_TTL) return Promise.resolve(c.data);
+  return apiDaily(tx).then(function(dk){
+    var d = parseDaily(dk);
+    if(d) STATE.dailyCache[tx] = {ts: now, data: d};
+    return d;
+  }).catch(function(){
+    return c ? c.data : null;    // 失败时用旧缓存兜底，不让支撑压力位整块消失
+  });
+}
+// 板块资金流（常限流，失败不阻塞）
+function apiSector(){
+  return jsonpCb('https://push2.eastmoney.com/api/qt/clist/get?fid=f62&po=1&pz=8&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:2&fields=f12,f14,f62,f184,f3');
+}
+
+/* ============ 市场温度计 data.json（M1 融合：单向灌注） ============
+   把温度计的 sector / margin / futures_basis 灌进本页，补上规则引擎原先缺的三项：
+     · 条件1 板块资金流   —— 东财 clist 限流时的降级源（原先直接显示"—"）
+     · 条件1 融资盘变化   —— 原先 ❌ 未接入
+     · 条件1 期指多空单   —— 原先 ❌ 探测失败；这里用「期指基差」做口径替代，不是持仓排名
+   铁律：失败一律降级为 null，绝不编造数据。规则引擎对应项显示 na，板块资金流退回原文案。 */
+var THERMO = {data: null, ts: 0, state: 'init'};   // init / ok / fail
+function fetchThermo(){
+  if(typeof fetch !== 'function'){ THERMO.state = 'fail'; return Promise.resolve(THERMO.data); }
+  if(THERMO.data && (Date.now() - THERMO.ts) < CFG.THERMO_TTL) return Promise.resolve(THERMO.data);
+  var url = CFG.THERMO_URL + (CFG.THERMO_URL.indexOf('?') < 0 ? '?t=' : '&t=') + Date.now();
+  return fetch(url, {cache: 'no-store'}).then(function(r){
+    if(!r.ok) throw new Error('HTTP' + r.status);
+    return r.json();
+  }).then(function(j){
+    if(!j || !j.margin || !j.futures_basis) throw new Error('BAD_SHAPE');
+    THERMO.data = j; THERMO.ts = Date.now(); THERMO.state = 'ok';
+    renderThermoTag();
+    return j;
+  }).catch(function(){
+    THERMO.state = 'fail';
+    renderThermoTag();
+    return THERMO.data || null;      // 有旧数据就用旧的，没有就 null
+  });
+}
+// 环境层接入状态角标：让用户一眼看出温度计数据到底接上没有（不藏着降级）
+function renderThermoTag(){
+  var el = $('thermoTag'); if(!el) return;
+  if(THERMO.state === 'ok' && THERMO.data){
+    var g = String(THERMO.data.generated_at || '').replace(' GMT+8', '').slice(5);
+    el.innerHTML = '<span class="chip good">环境层 ✅ 温度计 ' + esc(g) + '</span>';
+  } else {
+    el.innerHTML = '<span class="chip">环境层 ⚠️ 温度计未接入 · 两融/基差判 na</span>';
+  }
+}
+// data.json 的 top/bottom 常含「证券Ⅱ / 证券Ⅲ」这类同板块重复项，取前5前先去重
+function dedupSector(arr){
+  var seen = {}, out = [];
+  for(var i = 0; i < arr.length; i++){
+    if(!arr[i]) continue;
+    var n = String(arr[i].name || '').replace(/[ⅡⅢⅣ]$/, '').trim();
+    if(!n || seen[n]) continue;
+    seen[n] = 1; out.push(arr[i]);
+  }
+  return out;
+}
+
+/* ============ 腾讯兜底数据源（东财限流时启用；file:// 下无需 Referer） ============ */
+// 指数黄线（领先指标）的腾讯代码：上证领先 sh000002、深证领先 sz399002、沪深300领先 sh000902
+function leadTxOf(tx){
+  if(tx === 'sh000001') return 'sh000002';
+  if(tx === 'sz399001') return 'sz399002';
+  if(tx === 'sh000300') return 'sh000902';
+  return null;
+}
+// 普通脚本加载（qt.gtimg.cn 返回 v_xxx="..." 非 JSONP，脚本加载后读全局变量）
+function loadScriptRaw(url, timeout){
+  return new Promise(function(res, rej){
+    var s = document.createElement('script'), done = false, timer;
+    function clean(){ clearTimeout(timer); try { if(s.parentNode) s.parentNode.removeChild(s); } catch(e){} }
+    s.onload = function(){ if(done) return; done = true; clean(); res(); };
+    s.onerror = function(){ if(done) return; done = true; clean(); rej(new Error('NETWORK')); };
+    timer = setTimeout(function(){ if(done) return; done = true; clean(); rej(new Error('TIMEOUT')); }, timeout || 9000);
+    s.src = url; document.head.appendChild(s);
+  });
+}
+function apiSnapTx(codes){
+  return loadScriptRaw('https://qt.gtimg.cn/q=' + codes.join(',')).then(function(){
+    var out = {};
+    for(var i = 0; i < codes.length; i++){
+      var raw = window['v_' + codes[i]];
+      if(raw) out[codes[i]] = parseSnapTx(raw);
+    }
+    return out;
+  });
+}
+// 腾讯快照：v_xxx="1~名称~代码~现价~今开~昨收~成交量~...~最高~最低~..."
+// 注意：指数与个股字段位置不同（指数无买一/卖一/外盘等字段，整体后移 10 位）
+function parseSnapTx(raw){
+  var a = String(raw).split('~');
+  var code = a[2] || '';
+  var idxCodes = {'000001':1,'000016':1,'000300':1,'000688':1,'000852':1,'000905':1,'000906':1,'000922':1,'000010':1,'399001':1,'399002':1,'399006':1,'399673':1};
+  var isIdx = !!idxCodes[code] || /^399/.test(code);
+  var hi, lo, chg, chgPct;
+  if(isIdx){ hi = num(a[27]); lo = num(a[28]); chg = num(a[25]); chgPct = num(a[26]); }
+  else { hi = num(a[17]); lo = num(a[18]); chg = num(a[15]); chgPct = num(a[16]); }
+  return {
+    price: num(a[3]), high: hi, low: lo,
+    open: num(a[4]), preClose: num(a[5]),
+    // 指数 vol 单位为手；个股 vol 单位为股，换算成手
+    vol: isIdx ? num(a[6]) : num(a[6]) / 100,
+    amt: NaN, vr: NaN, turnover: NaN,
+    code: code, name: a[1], chg: chg, chgPct: chgPct, ts: NaN
+  };
+}
+// 腾讯分时（minute/query，仅当日；指数黄线用领先指数重建到白线同坐标）
+function apiTrendsTx(tx, leadTx, isIndex, anchorW, anchorY){
+  var pw = jsonpVar('https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=' + tx);
+  var py = (isIndex && leadTx) ? jsonpVar('https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=' + leadTx) : Promise.resolve(null);
+  return Promise.all([pw, py]).then(function(rs){
+    return parseTrendsTx(rs[0], rs[1], isIndex, anchorW, anchorY, tx);
+  });
+}
+function _mtArr(d){
+  if(!d || d.code !== 0) return null;
+  for(var k in d.data){ if(Object.prototype.hasOwnProperty.call(d.data, k)){ var node = d.data[k]; return (node.data && node.data.data) || null; } }
+  return null;
+}
+function parseTrendsTx(white, yel, isIndex, anchorW, anchorY, tx){
+  var wArr = _mtArr(white), yArr = isIndex ? _mtArr(yel) : null;
+  if(!wArr || !wArr.length) return null;
+  var out = {today: [], yest: [], preClose: NaN, name: tx, code: tx, approx: true};
+  var k = 1;  // 黄线缩放系数：把领先指数缩放到白线同坐标
+  if(isIndex && yArr && yArr.length){
+    if(isFinite(anchorW) && isFinite(anchorY) && anchorY) k = anchorW / anchorY;
+    else if(wArr[0] && yArr[0]) k = (num(wArr[0].split(' ')[1]) || 1) / (num(yArr[0].split(' ')[1]) || 1);
+  }
+  var cumVol = 0, cumAmt = 0;
+  for(var i = 0; i < wArr.length; i++){
+    var wp = String(wArr[i]).split(' ');
+    var t = wp[0], price = num(wp[1]), vol = num(wp[2]), amt = num(wp[3]);
+    cumVol += vol; cumAmt += amt;
+    var ylw;
+    if(isIndex && yArr && yArr[i]) ylw = num(yArr[i].split(' ')[1]) * k;     // 指数：领先指标（缩放到白线坐标）
+    else ylw = (cumVol > 0) ? cumAmt / cumVol : price;                        // 个股：均价线 VWAP
+    out.today.push({t: t.slice(0,2) + ':' + t.slice(2), open: price, close: price, high: price, low: price, vol: vol, amt: amt, ylw: ylw});
+  }
+  return out;
+}
+// 统一抓取：东财优先，失败自动回退腾讯
+function fetchSnap(secid, tx){
+  return apiSnap(secid).then(function(d){ var s = parseSnap(d); if(!s) throw new Error('EMPTY'); return s; })
+    .catch(function(){ return apiSnapTx([tx]).then(function(m){ return (m && m[tx]) || null; }); });
+}
+function fetchTrends(secid, tx, isIndex){
+  var leadTx = isIndex ? leadTxOf(tx) : null;
+  return apiTrends(secid).then(function(t){
+    // apiTrends 已返回解析后的 {today,yest,...}，无需再 parse
+    if(!t || !t.today.length) throw new Error('EMPTY');
+    return {tr: t, src: 'em'};
+  }).catch(function(){
+    // 东财分时全失败 → 先试东财1分钟K线(不同端点)补昨日量；再退腾讯(仅当日)
+    var codes = (isIndex && leadTx) ? [tx, leadTx] : [tx];
+    return apiSnapTx(codes).then(function(snapMap){
+      var aw = (snapMap && snapMap[tx]) ? snapMap[tx].preClose : NaN;
+      var ay = (isIndex && snapMap && snapMap[leadTx]) ? snapMap[leadTx].preClose : NaN;
+      return apiTrendsEM1m(secid).then(function(em1m){
+        // 用东财K线补昨日分钟量(精确同单位)，今日仍用腾讯(含黄线)
+        return apiTrendsTx(tx, leadTx, isIndex, aw, ay).then(function(tr){
+          if(em1m && em1m.yest && em1m.yest.length){ tr.yest = em1m.yest; }
+          return {tr: tr, src: (em1m && em1m.yest && em1m.yest.length) ? 'tx+em1m' : 'tx'};
+        });
+      }).catch(function(){
+        return apiTrendsTx(tx, leadTx, isIndex, aw, ay).then(function(tr){ return {tr: tr, src: 'tx'}; });
+      });
+    });
+  });
+}
+
+// 东财 1 分钟 K 线：trends2 被限流时，用此端点兜底拿昨日分钟量（不同端点，常独立限流；与分时同单位）
+function parseKline1m(data){
+  var d = data && data.data;
+  if(!d || !d.klines || !d.klines.length) return null;
+  var byDay = {};
+  for(var i = 0; i < d.klines.length; i++){
+    var p = String(d.klines[i]).split(',');
+    if(p.length < 7) continue;
+    var dt = p[0].split(' ');
+    var day = dt[0], hm = dt[1];
+    (byDay[day] = byDay[day] || []).push({d: day, t: hm, open: num(p[1]), close: num(p[2]), high: num(p[3]), low: num(p[4]), vol: num(p[5]), amt: num(p[6]), ylw: NaN});
+  }
+  var days = Object.keys(byDay).sort();
+  var today = byDay[days[days.length-1]] || [];
+  var yest = days.length >= 2 ? byDay[days[days.length-2]] : [];
+  return {today: today, yest: yest, preClose: num(d.preClose, NaN), name: d.name, code: d.code};
+}
+var apiTrendsEM1m = function(secid){
+  var path = '/api/qt/stock/kline/get?secid=' + secid +
+    '&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=1&fqt=0&end=20500101&lmt=480';
+  return tryHosts(EM_HOSTS, path, function(raw){ var t = parseKline1m(raw); if(!t || !t.today.length) throw new Error('EMPTY'); return t; }, 6000);
+};
+
+// 解析 trends2 → {today:[], yest:[], preClose, name, code}
+function parseTrends(data){
+  var d = data && data.data;
+  if(!d || !d.trends || !d.trends.length) return null;
+  var out = {today: [], yest: [], preClose: num(d.preClose, NaN), name: d.name, code: d.code};
+  var byDay = {};
+  for(var i = 0; i < d.trends.length; i++){
+    var p = String(d.trends[i]).split(',');
+    if(p.length < 8) continue;
+    var dt = p[0].split(' ');
+    var day = dt[0], hm = dt[1];
+    if(!byDay[day]) byDay[day] = [];
+    byDay[day].push({
+      d: day, t: hm,
+      open: num(p[1]), close: num(p[2]), high: num(p[3]), low: num(p[4]),
+      vol: num(p[5]), amt: num(p[6]), ylw: num(p[7])
+    });
+  }
+  var days = Object.keys(byDay).sort();
+  if(days.length >= 2){ out.yest = byDay[days[days.length-2]]; out.today = byDay[days[days.length-1]]; }
+  else { out.today = byDay[days[0]]; out.yest = []; }
+  return out;
+}
+// 解析腾讯日K → [{d,open,close,high,low,vol}]
+function parseDaily(data){
+  if(!data || data.code !== 0) return null;
+  var d0 = data.data || {};
+  key: for(var k in d0){
+    if(!Object.prototype.hasOwnProperty.call(d0, k)) continue;
+    var node = d0[k];
+    var arr = node.day || node.qfqday;
+    if(arr && arr.length){
+      var out = [];
+      for(var i = 0; i < arr.length; i++){
+        var r = arr[i];
+        out.push({d: r[0], open: num(r[1]), close: num(r[2]), high: num(r[3]), low: num(r[4]), vol: num(r[5])});
+      }
+      return out;
+    }
+  }
+  return null;
+}
+// 解析快照
+function parseSnap(data){
+  var d = data && data.data;
+  if(!d) return null;
+  // 东财指数/个股价格需按 decimal 缩放，fltt=2 时 f43 已是正常数值（实测 f43=394139 对应 3941.39，指数 decimal=2）
+  var dec = (d.f59 !== undefined ? num(d.f59) : 2);
+  var s = {
+    price: num(d.f43), high: num(d.f44), low: num(d.f45), open: num(d.f46),
+    vol: num(d.f47), amt: num(d.f48), vr: num(d.f50) / 100, turnover: num(d.f168) / 100,
+    code: d.f57, name: d.f58, preClose: num(d.f60),
+    chg: num(d.f169), chgPct: num(d.f170) / 100, ts: num(d.f86)
+  };
+  // 防御：ETF 实时价字段偶发返 0 而昨收/今开正常 → 判为无效，触发腾讯兜底取真实净价
+  if(!(s.price > 0) && (s.preClose > 0 || s.open > 0)) return null;
+  return s;
+}
+
+/* ============ 指标 ============ */
+function ma(arr, n, end){
+  if(end === undefined) end = arr.length - 1;
+  if(end + 1 < n) return NaN;
+  var s = 0;
+  for(var i = end - n + 1; i <= end; i++) s += arr[i];
+  return s / n;
+}
+function stddev(arr, n, end){
+  var m = ma(arr, n, end);
+  if(!isFinite(m)) return NaN;
+  var s = 0;
+  for(var i = end - n + 1; i <= end; i++){ var dv = arr[i] - m; s += dv * dv; }
+  return Math.sqrt(s / n);
+}
+function boll(closes, n, k, end){
+  var m = ma(closes, n, end), sd = stddev(closes, n, end);
+  if(!isFinite(m) || !isFinite(sd)) return {mid: NaN, up: NaN, low: NaN};
+  return {mid: m, up: m + k * sd, low: m - k * sd};
+}
+function corr(xs, ys){
+  var n = Math.min(xs.length, ys.length);
+  if(n < 3) return NaN;
+  var sx = 0, sy = 0;
+  for(var i = 0; i < n; i++){ sx += xs[i]; sy += ys[i]; }
+  var mx = sx / n, my = sy / n, a = 0, bx = 0, by = 0;
+  for(var j = 0; j < n; j++){
+    var dx = xs[j] - mx, dy = ys[j] - my;
+    a += dx * dy; bx += dx * dx; by += dy * dy;
+  }
+  if(bx <= 0 || by <= 0) return NaN;
+  return a / Math.sqrt(bx * by);
+}
+// Zigzag 摆动点：返回 [{i, price, type:'H'|'L'}]，能捕获完整的 高-低-高 / 低-高-低 结构
+function zigzag(vals, thrPct){
+  if(!vals || vals.length < 5) return [];
+  var piv = [];
+  var dir = 0;                                  // 0未定 1上升 -1下降
+  var hiI = 0, hiV = vals[0], loI = 0, loV = vals[0];
+  function pushH(){ piv.push({i: hiI, price: hiV, type: 'H'}); }
+  function pushL(){ piv.push({i: loI, price: loV, type: 'L'}); }
+  for(var i = 1; i < vals.length; i++){
+    var v = vals[i];
+    if(v > hiV){ hiI = i; hiV = v; }
+    if(v < loV){ loI = i; loV = v; }
+    if(dir === 0){
+      if(hiV > 0 && (hiV - v) / hiV >= thrPct){        // 自高点回撤达标 → 高点成立
+        pushH(); dir = -1; loI = i; loV = v;
+      } else if(loV > 0 && (v - loV) / loV >= thrPct){  // 自低点反弹达标 → 低点成立
+        pushL(); dir = 1; hiI = i; hiV = v;
+      }
+    } else if(dir === 1){
+      if(hiV > 0 && (hiV - v) / hiV >= thrPct){ pushH(); dir = -1; loI = i; loV = v; }
+    } else {
+      if(loV > 0 && (v - loV) / loV >= thrPct){ pushL(); dir = 1; hiI = i; hiV = v; }
+    }
+  }
+  if(dir === 1) pushH();
+  else if(dir === -1) pushL();
+  else { pushL(); pushH(); }                    // 全程未达阈值：只给起止两点
+  return piv;
+}
+// 到达第 k 个拐点的"推升/打压段"平均分钟量（段起点 = 前一个拐点，首个拐点用数据起点）
+function segAvg(vols, piv, k){
+  if(!piv || k < 0 || k >= piv.length) return 0;
+  var s = k > 0 ? piv[k-1].i : 0;
+  var e = piv[k].i;
+  if(e < s){ var t = s; s = e; e = t; }
+  var sum = 0, c = 0;
+  for(var i = s; i <= e && i < vols.length; i++){ sum += vols[i]; c++; }
+  return c ? sum / c : 0;
+}
+
+/* ============ 核心量能计算 ============ */
+// 同期量/额对比：返回 {curVol, sameVol, ratio, yestTotal, projVol, projRatio, n, unavail}
+// field: 'vol'(手) | 'amt'(元)，默认成交量。放量/缩量阈值按同口径比例判定。
+function volCompare(today, yest, field){
+  field = field || 'vol';
+  var n = today.length;
+  var cur = 0;
+  for(var i = 0; i < n; i++) cur += today[i][field];
+  var hasYest = !!(yest && yest.length);
+  var same = 0;
+  if(hasYest){
+    var m = Math.min(n, yest.length);
+    for(var j = 0; j < m; j++) same += yest[j][field];
+  }
+  var yTotal = 0;
+  if(hasYest) for(var k = 0; k < yest.length; k++) yTotal += yest[k][field];
+  var ratio = (hasYest && same > 0) ? cur / same : NaN;
+  // 投影：用昨日同期占比外推（贴合日内 U 型分布）
+  var proj = (hasYest && yTotal > 0 && same > 0) ? cur * yTotal / same : NaN;
+  return {
+    curVol: cur, sameVol: hasYest ? same : NaN, ratio: ratio, yestTotal: yTotal,
+    projVol: proj, projRatio: (yTotal > 0 ? proj / yTotal : NaN), n: n, unavail: !hasYest
+  };
+}
+// 量能斜率：近5分钟均量 / 前15分钟均量
+function volSlope(today){
+  var n = today.length;
+  if(n < 8) return {recent: NaN, base: NaN, k: NaN};
+  var r = 0, cnt = 0;
+  for(var i = Math.max(0, n - 5); i < n; i++){ r += today[i].vol; cnt++; }
+  var recent = cnt ? r / cnt : NaN;
+  var b = 0, c2 = 0;
+  for(var j = Math.max(0, n - 20); j < n - 5; j++){ b += today[j].vol; c2++; }
+  var base = c2 ? b / c2 : NaN;
+  return {recent: recent, base: base, k: (base > 0 ? recent / base : NaN)};
+}
+// 黄白线分析
+function ywAnalyze(today){
+  var n = today.length;
+  if(!n) return null;
+  var last = today[n-1];
+  var white = last.close, yellow = last.ylw;
+  var preClose = NaN;
+  var diff = yellow - white;
+  var lookback = Math.min(CFG.YW_CROSS_LOOK, n);
+  var hist = [];
+  for(var i = n - lookback; i < n; i++) hist.push(today[i].ylw - today[i].close);
+  var minD = Math.min.apply(null, hist), maxD = Math.max.apply(null, hist);
+  var first = hist[0], lastD = hist[hist.length-1];
+  var cross = 'none';
+  if(first > 0 && lastD < 0) cross = 'yDown';
+  else if(first < 0 && lastD > 0) cross = 'wUp';
+  var amplitude = maxD - minD;
+  return {white: white, yellow: yellow, diff: diff, hist: hist, first: first, lastD: lastD, cross: cross, amplitude: amplitude, minD: minD, maxD: maxD};
+}
+function ywState(yw, preClose){
+  if(!yw) return {state: 'na', label: '—', diffPct: NaN};
+  var dp = isFinite(preClose) && preClose ? (yw.diff / preClose) * 100 : NaN;
+  // 方向稳定性：回看窗口内黄白差是否全程同号（不交叉）
+  var hist = yw.hist || [], allPos = hist.length > 0, allNeg = hist.length > 0;
+  for(var i = 0; i < hist.length; i++){
+    if(hist[i] <= 0) allPos = false;
+    if(hist[i] >= 0) allNeg = false;
+  }
+  var steady = (allPos || allNeg);
+  var s, note = '';
+  if(!isFinite(dp)) s = 'na';
+  else if(Math.abs(dp) >= CFG.YW_STRONG) s = dp > 0 ? 'yUp' : 'wUp';               // 幅度足够
+  else if(steady && Math.abs(dp) >= CFG.YW_WEAK){ s = dp > 0 ? 'yUp' : 'wUp'; note = '（幅度小但全程未交叉）'; }
+  else s = 'mix';                                                                   // 幅度小且来回穿 → 交织
+  var label = {yUp:'黄线在上（主线强）', wUp:'白线在上（权重抗/带指数）', mix:'黄白交织（方向未明）', na:'—'}[s];
+  return {state: s, label: label, diffPct: dp, note: note, steady: steady};
+}
+
+/* ============ 个股量价形态识别 ============ */
+function detectPatterns(ctx){
+  // ctx: {today, yest, vc, slope, yw, daily, snap, preClose, isIndex}
+  var out = [];
+  var today = ctx.today, n = today.length;
+  if(n < 6) return out;
+  var last = today[n-1];
+  var preClose = ctx.preClose;
+  var chgPct = isFinite(preClose) && preClose ? (last.close - preClose) / preClose * 100 : NaN;
+  var ratio = ctx.vc.ratio;
+  var rising = last.close > preClose;
+
+  // 1-4 量价四象限
+  if(isFinite(ratio)){
+    if(ratio >= CFG.VOL_UP && rising) out.push({k:'量价齐升', d:'buy', m:'放量上涨：今日同期量已达昨日 ' + (ratio*100).toFixed(0) + '% 且价格在昨收之上，资金主动推动。位置低=有效进攻；位置高（近压力位）=提防出货。'});
+    else if(ratio >= CFG.VOL_UP && !rising) out.push({k:'放量下跌', d:'sell', m:'同期量 ' + (ratio*100).toFixed(0) + '% 放大但价格在昨收下方，属主动抛售。弱市中是风险；大跌末端可能是恐慌出清，仍需等缩量企稳。'});
+    else if(ratio <= CFG.VOL_DN && rising) out.push({k:'缩量上涨', d:'hold', m:'同期量仅 ' + (ratio*100).toFixed(0) + '% 但价格上涨，是惜售（持筹者不卖）。趋势中后段常见，一旦转为放量就要警惕见顶。'});
+    else if(ratio <= CFG.VOL_DN && !rising) out.push({k:'缩量下跌', d:'buy', m:'同期量 ' + (ratio*100).toFixed(0) + '% 且价格下跌，抛压衰竭。是底背离的必要条件，但需配合站回均价线 + 大盘环境才好进场。'});
+  }
+
+  // 5-6 背离（波段法）：只判定最近一组拐点——做T看的是当下，历史背离不进当前决策
+  var closes = today.map(function(x){ return x.close; });
+  var vols = today.map(function(x){ return x.vol; });
+  var piv = zigzag(closes, CFG.ZIG_PCT);
+  if(piv.length >= 3){
+    var k = piv.length - 1;
+    var p1 = piv[k-2], p2 = piv[k-1], p3 = piv[k];
+    var a1 = segAvg(vols, piv, k-2);   // 到达前一个同向拐点的推升/打压段均量
+    var a3 = segAvg(vols, piv, k);     // 到达最近同向拐点的段均量
+    var tm = function(idx){ return (idx < today.length && today[idx] && today[idx].t) ? today[idx].t + ' ' : ''; };
+    if(p2.type === 'L' && p1.type === 'H' && p3.type === 'H' && p3.price > p1.price && a1 > 0 && a3 < a1 * CFG.DIV_VOL_K){
+      out.push({k:'顶背离', d:'sell', m:'最近一段：' + tm(p1.i) + '高点 ' + fx(p1.price) + ' → ' + tm(p3.i) + '高点 ' + fx(p3.price) +
+        '（创新高），但推升段平均分钟量从 ' + volTxt(a1) + ' 降到 ' + volTxt(a3) + '（仅 ' + (a3/a1*100).toFixed(0) + '%），价格新高而量能跟不上。接近压力位时按减仓处理。'});
+    }
+    if(p2.type === 'H' && p1.type === 'L' && p3.type === 'L' && p3.price < p1.price && a1 > 0 && a3 < a1 * CFG.DIV_VOL_K){
+      out.push({k:'底背离', d:'buy', m:'最近一段：' + tm(p1.i) + '低点 ' + fx(p1.price) + ' → ' + tm(p3.i) + '低点 ' + fx(p3.price) +
+        '（创新低），但打压段平均分钟量从 ' + volTxt(a1) + ' 降到 ' + volTxt(a3) + '（仅 ' + (a3/a1*100).toFixed(0) + '%），抛压衰竭。注意：这只是"跌不动"，不等于"要涨"，需站回均价线 + 大盘配合才有效。'});
+    }
+  }
+
+  // 7 放量滞涨
+  if(n >= 20){
+    var w = today.slice(Math.max(0, n-20));
+    var wv = 0, all = 0;
+    for(var q = 0; q < w.length; q++) wv += w[q].vol;
+    for(var q2 = 0; q2 < n; q2++) all += vols[q2];
+    var avgAll = all / n, avgW = wv / w.length;
+    var chg20 = (last.close - today[Math.max(0, n-20)].close) / today[Math.max(0, n-20)].close * 100;
+    if(avgW > avgAll * 1.4 && Math.abs(chg20) < 0.3){
+      out.push({k:'放量滞涨', d:'sell', m:'近20分钟均量是全日均量的 ' + (avgW/avgAll).toFixed(1) + ' 倍，但20分钟涨幅仅 ' + pctS(chg20) + '，量放大却推不动价，典型高位换手/出货特征。'});
+    }
+  }
+
+  // 8 地量企稳
+  if(isFinite(ratio) && ratio <= CFG.VOL_DRY){
+    var hi = -Infinity, lo = Infinity;
+    for(var z = Math.max(0, n-15); z < n; z++){ hi = Math.max(hi, today[z].high); lo = Math.min(lo, today[z].low); }
+    var amp = hi > 0 ? (hi - lo) / lo * 100 : NaN;
+    if(last.close >= last.ylw && amp < 0.8){
+      out.push({k:'地量企稳', d:'buy', m:'同期量仅 ' + (ratio*100).toFixed(0) + '%（地量），近15分钟振幅 ' + fx(amp,2) + '% 且价在均价上方，卖压基本枯竭。是条件5"缩量转放量"进场的观察点。'});
+    }
+  }
+
+  // 9-10 均价线关系
+  if(isFinite(last.ylw) && last.ylw > 0){
+    var vsAvg = (last.close - last.ylw) / last.ylw * 100;
+    if(vsAvg < -0.3){
+      out.push({k:'跌破均价', d:'sell', m:'现价低于均价线 ' + fx(Math.abs(vsAvg),2) + '%，日内持仓者多数被套，反弹到均价线容易遇抛压。做T应等重新站上均价。'});
+    } else if(vsAvg > 0.3){
+      out.push({k:'站稳均价', d:'hold', m:'现价高于均价线 ' + fx(vsAvg,2) + '%，日内买盘占优。回踩均价不破且缩量，是做T的加仓/回补位置。'});
+    }
+  }
+
+  // 11 缩量转放量
+  if(isFinite(ctx.slope.k) && ctx.slope.k >= CFG.VOL_TURN){
+    out.push({k:'缩量转放量', d:'buy', m:'近5分钟均量是前15分钟的 ' + ctx.slope.k.toFixed(2) + ' 倍，量能开始回补。若同时价格贴近下方支撑，对应你说的条件5极致进场点。'});
+  }
+
+  // 12 尾盘异动
+  var lastT = last.t || '';
+  if(/^14:(3|4|5)/.test(lastT) || /^15:00/.test(lastT)){
+    var t5 = 0, c5 = 0;
+    for(var y = Math.max(0, n-5); y < n; y++){ t5 += vols[y]; c5++; }
+    var avg5 = c5 ? t5/c5 : 0, allA = 0;
+    for(var y2 = 0; y2 < n; y2++) allA += vols[y2];
+    var allAvg = allA / n;
+    if(allAvg > 0 && avg5 / allAvg >= 1.6){
+      out.push({k:'尾盘异动', d:'hold', m:'尾盘5分钟均量是全日均量的 ' + (avg5/allAvg).toFixed(1) + ' 倍。尾盘放量拉升可能是次日高开预期，也可能是资金出逃前的拉抬——需看量价方向，别在尾盘盲目追。'});
+    }
+  }
+
+  // 13 量价相关性
+  if(n >= CFG.CORR_WIN){
+    var px = [], pv = [];
+    for(var c = n - CFG.CORR_WIN; c < n; c++){ px.push(today[c].close); pv.push(today[c].vol); }
+    var cr = corr(px, pv);
+    ctx.corr = cr;
+    if(isFinite(cr) && cr < -0.25){
+      out.push({k:'量价背离（统计）', d:'sell', m:'近' + CFG.CORR_WIN + '分钟价格与成交量的相关系数为 ' + cr.toFixed(2) + '（负相关），价涨量缩或价跌量增，走势缺乏量能确认。'});
+    }
+  }
+
+  // 14 开盘量能占比
+  if(n >= 20){
+    var openV = 0;
+    for(var o = 0; o < Math.min(15, n); o++) openV += vols[o];
+    var tot = 0; for(var o2 = 0; o2 < n; o2++) tot += vols[o2];
+    if(tot > 0 && openV / tot > 0.35){
+      out.push({k:'开盘集中放量', d:'hold', m:'前15分钟占今日总量 ' + (openV/tot*100).toFixed(0) + '%，资金在开盘阶段集中表态。若随后量能持续萎缩，当日后续空间有限。'});
+    }
+  }
+  return out;
+}
+
+/* ============ 支撑压力 ============ */
+function todayYMD(){
+  var d = new Date();
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+function levels(daily, cur, preClose){
+  if(!daily || daily.length < 20) return null;
+  var closes = daily.map(function(x){ return x.close; });
+  var n = daily.length - 1;
+  // 交易时段内拉到的日K最后一根是"今日未定盘"bar：其 high/low 还在变，若纳入 20日箱
+  // 会让箱体"自己扩自己"（现价创新高→箱顶同步抬高→分位被压回，实测偏差最大可达 60%+）。
+  // 盘中把指标窗口截止到最后一根已收K；收盘后(≥15:00)/盘前才用全量。
+  var hm = new Date().getHours() * 60 + new Date().getMinutes();
+  var inSession = hm >= 570 && hm < 900;              // 9:30–15:00（含午休，当日bar均未定盘）
+  var end = (inSession && String(daily[n].d).slice(0, 10) === todayYMD()) ? n - 1 : n;
+  var ma5 = ma(closes, 5, end), ma10 = ma(closes, 10, end), ma20 = ma(closes, 20, end), ma60 = ma(closes, 60, end);
+  var bb = boll(closes, 20, 2, end);
+  var hi20 = -Infinity, lo20 = Infinity, hi60 = -Infinity, lo60 = Infinity;
+  for(var i = Math.max(0, end-19); i <= end; i++){ hi20 = Math.max(hi20, daily[i].high); lo20 = Math.min(lo20, daily[i].low); }
+  for(var j = Math.max(0, end-59); j <= end; j++){ hi60 = Math.max(hi60, daily[j].high); lo60 = Math.min(lo60, daily[j].low); }
+  var boxPos = (hi20 > lo20) ? (cur - lo20) / (hi20 - lo20) : NaN;
+  // "昨日"始终指最后一根已收K的前一根（盘中今日未收，n-1 即昨日；盘后 n-1 仍为昨日）
+  var lastBar = daily[n];
+  var prevBar = daily[n-1];
+  return {
+    ma5: ma5, ma10: ma10, ma20: ma20, ma60: ma60,
+    bollUp: bb.up, bollMid: bb.mid, bollLow: bb.low,
+    hi20: hi20, lo20: lo20, hi60: hi60, lo60: lo60,
+    boxPos: boxPos,
+    prevHigh: prevBar ? prevBar.high : NaN,
+    prevLow: prevBar ? prevBar.low : NaN,
+    prevClose: prevBar ? prevBar.close : NaN,
+    prevAmp: prevBar ? (prevBar.high - prevBar.low) / prevBar.close : NaN,
+    prevVol: prevBar ? prevBar.vol : NaN,
+    todayBar: lastBar,
+    closes: closes
+  };
+}
+function nearestLevels(lv, cur){
+  if(!lv) return {res: null, sup: null};
+  var cands = [
+    {n: 'MA5', v: lv.ma5}, {n: 'MA10', v: lv.ma10}, {n: 'MA20', v: lv.ma20}, {n: 'MA60', v: lv.ma60},
+    {n: 'BOLL上轨', v: lv.bollUp}, {n: '20日高', v: lv.hi20}, {n: '60日高', v: lv.hi60},
+    {n: '昨高', v: lv.prevHigh}, {n: '昨低', v: lv.prevLow}, {n: '昨收', v: lv.prevClose},
+    {n: 'BOLL下轨', v: lv.bollLow}, {n: '20日低', v: lv.lo20}
+  ];
+  var res = null, sup = null;
+  for(var i = 0; i < cands.length; i++){
+    var c = cands[i];
+    if(!isFinite(c.v) || c.v <= 0) continue;
+    if(c.v > cur){
+      var d = (c.v - cur) / cur;
+      if(!res || d < res.d) res = {n: c.n, v: c.v, d: d};
+    } else if(c.v < cur){
+      var d2 = (cur - c.v) / cur;
+      if(!sup || d2 < sup.d) sup = {n: c.n, v: c.v, d: d2};
+    }
+  }
+  return {res: res, sup: sup};
+}
+
+/* ============ 做T规则引擎 ============ */
+function buildTRules(ctx){
+  // ctx: {mp, win, yw, yws, vc, slope, lv, near, preClose, snap, now, prevAmp, boxPos, isIndex}
+  var R = [];
+  function add(id, name, st, detail){ R.push({id: id, name: name, st: st, detail: detail}); }
+
+  // --- 条件2：时间窗口 ---
+  var win = ctx.win;
+  if(win.level === 'best') add('win', '条件2 时间窗口', 'ok', win.label + '：符合你设定的做T时段。');
+  else if(win.level === 'bad') add('win', '条件2 时间窗口', 'bad', win.label + '：按你的准则，开盘直接买卖要回避。');
+  else if(win.level === 'mid') add('win', '条件2 时间窗口', 'warn', win.label + '：平稳时段来回T成功率低，除非有消息刺激的个股。');
+  else if(win.level === 'ok') add('win', '条件2 时间窗口', 'warn', win.label + '：已过优选窗口，尾盘需防异动。');
+  else add('win', '条件2 时间窗口', 'na', '非交易时段，以下判定为收盘状态快照。');
+
+  // --- 条件1：昨日波动 ---
+  var pa = ctx.prevAmp;
+  if(isFinite(pa)){
+    if(pa > CFG.PREV_AMP) add('prev', '条件1 昨日波动', 'warn', '昨日振幅 ' + (pa*100).toFixed(2) + '%（>' + (CFG.PREV_AMP*100) + '%），今日开盘易大幅波动，需先观察再动手。');
+    else add('prev', '条件1 昨日波动', 'ok', '昨日振幅 ' + (pa*100).toFixed(2) + '%，属平稳，今日开盘不易被带动大幅跳动。');
+  } else add('prev', '条件1 昨日波动', 'na', '日K数据未取到，无法判定。');
+
+  // --- 条件1：箱体位置（纯描述定位，不做方向性"好坏"判定）---
+  // 实测依据：6标的×2年 n≈2765，箱体分位与未来5日收益 Pearson r=+0.024（非重叠样本 +0.083，
+  // 未达 ±0.0833 显著门槛）——"高分位=危险 / 低分位=机会"的方向假设无统计支撑，已移除。
+  // 危险/机会留给量价形态引擎（警示4 需"放量+滞涨"双条件，单分位不构成）。
+  var bp = ctx.boxPos, lvx = ctx.lv;
+  if(isFinite(bp) && lvx){
+    var pctTxt = Math.max(0, Math.min(100, Math.round(bp * 100)));
+    if(bp <= 0){
+      add('box', '条件1 箱体位置', 'bad', '现价已跌破 20日箱底 ' + fx(lvx.lo20) + '，箱体结构失效——对应 B 停手线，停止加仓/观望。');
+    } else if(bp >= 1){
+      add('box', '条件1 箱体位置', 'warn', '现价已突破 20日箱顶 ' + fx(lvx.hi20) + '，进入无箱体参照的新高区——不追高，等回踩确认或放量站稳。');
+    } else if(bp >= CFG.BOX_TOP){
+      add('box', '条件1 箱体位置', 'warn', '位于20日箱体 ' + pctTxt + '% 分位，贴近箱顶 ' + fx(lvx.hi20) + '——上方空间有限，能否突破看量能；警示4（高位放量滞涨）需量价同时确认，不以分位单独判危险。');
+    } else if(bp <= CFG.BOX_BOT){
+      add('box', '条件1 箱体位置', 'na', '位于20日箱体 ' + pctTxt + '% 分位，贴近箱底 ' + fx(lvx.lo20) + '——箱底未破则观察等待，跌破即触发 B 停手线。');
+    } else {
+      add('box', '条件1 箱体位置', 'ok', '位于20日箱体 ' + pctTxt + '% 分位（' + fx(lvx.lo20) + ' ~ ' + fx(lvx.hi20) + '）中部运行。');
+    }
+  } else add('box', '条件1 箱体位置', 'na', '日K数据未取到，无法判定。');
+
+  // --- 条件1：融资盘变化（数据源 = 市场温度计 margin，T-1 口径，与准则里"昨日数据"一致）---
+  // 只出 ok / warn / na，不出 bad：两融是滞后指标，单独立否决项证据不足。平稳判 na 以免稀释红绿灯。
+  var th = ctx.thermo;
+  if(th && th.margin && isFinite(th.margin.chg5)){
+    var c5 = th.margin.chg5, c10 = th.margin.chg10, mdate = th.margin.date || '';
+    var sgn = function(v){ return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; };
+    var m10 = isFinite(c10) ? ('，10 日 ' + sgn(c10)) : '';
+    if(c5 >= CFG.MARGIN_CHG)
+      add('margin', '条件1 融资盘', 'ok', '融资余额 5 日 ' + sgn(c5) + m10 + '（' + mdate + '）：杠杆资金进场，做多意愿增强。杠杆盘追涨会放大波动，别跟着加杠杆。');
+    else if(c5 <= -CFG.MARGIN_CHG)
+      add('margin', '条件1 融资盘', 'warn', '融资余额 5 日 ' + sgn(c5) + m10 + '（' + mdate + '）：杠杆资金撤离，追涨动力不足。');
+    else
+      add('margin', '条件1 融资盘', 'na', '融资余额 5 日 ' + sgn(c5) + m10 + '（' + mdate + '）：杠杆平稳，无额外方向。');
+  } else add('margin', '条件1 融资盘', 'na', '未取到两融数据（市场温度计 data.json 不可用；file:// 本地打开时必然如此）。这一项需人工看。');
+
+  // --- 条件1：期指基差（口径替代，不是持仓排名）---
+  // 诚实说明：你要的 A50/IF 多空单持仓排名无可靠免费源（已探测失败，不做假数据）。
+  // 这里用四大期指（IF/IC/IH/IM）平均基差替代：它衡量的是"主力愿意为对冲付多少钱"，
+  // 与"多空持仓排名"是两个不同的东西 —— 只能读态度，读不到仓位。
+  // 只出 ok / warn / na，绝不出 bad：A股期指长期贴水是常态（常态区间判 na，不参与红绿灯）。
+  if(th && th.futures_basis && isFinite(th.futures_basis.avg_basis_pct)){
+    var fb = th.futures_basis, bp = fb.avg_basis_pct;
+    var st2 = fb.attitude || fb.stance || '';
+    if(bp >= CFG.BASIS_PREM)
+      add('basis', '条件1 期指基差', 'ok', '四大期指平均升水 ' + (bp >= 0 ? '+' : '') + bp.toFixed(2) + '%（' + st2 + '）：主力偏多，做T环境偏顺。');
+    else if(bp <= CFG.BASIS_DISC)
+      add('basis', '条件1 期指基差', 'warn', '四大期指平均贴水 ' + bp.toFixed(2) + '%（' + st2 + '）：深度贴水，主力强烈避险，降低做T进攻性。');
+    else
+      add('basis', '条件1 期指基差', 'na', '四大期指平均基差 ' + bp.toFixed(2) + '%（' + st2 + '）：处于常态区间（A股期指长期贴水），无额外方向信号。');
+  } else add('basis', '条件1 期指基差', 'na', '未取到期指基差（市场温度计 data.json 不可用）。持仓排名本就无免费源，这一项需人工看。');
+
+  // --- 条件3：黄白线 ---
+  var yws = ctx.yws, yw = ctx.yw, vc = ctx.vc;
+  if(yws.state === 'yUp') add('yw', '条件3 黄白线', 'ok', yws.label + '，黄白差 ' + pctS(yws.diffPct, 3) + '。科技/消费等主线强于权重，做T成功率高。');
+  else if(yws.state === 'wUp') add('yw', '条件3 黄白线', 'bad', yws.label + '，黄白差 ' + pctS(yws.diffPct, 3) + '。抗指数或带指数突破为主，按你的准则应减少做T。');
+  else if(yws.state === 'mix') add('yw', '条件3 黄白线', 'warn', yws.label + '，黄白差 ' + pctS(yws.diffPct, 3) + '，方向未明。');
+  else add('yw', '条件3 黄白线', 'na', '—');
+
+  // --- 条件4：量能 + 现象1/现象2 ---
+  var ratio = vc.ratio;
+  var openGap = (isFinite(ctx.preClose) && ctx.preClose > 0 && isFinite(ctx.openP)) ? (ctx.openP - ctx.preClose) / ctx.preClose * 100 : NaN;
+  var gapTxt = isFinite(openGap) ? (openGap > 0.05 ? '高开 ' + openGap.toFixed(2) + '%' : (openGap < -0.05 ? '低开 ' + Math.abs(openGap).toFixed(2) + '%' : '平开')) : '开盘状态未知';
+  var volTxtS = isFinite(ratio) ? '同期量比 ' + (ratio*100).toFixed(0) + '%（' + (ratio >= CFG.VOL_UP ? '放量' : (ratio <= CFG.VOL_DN ? '缩量' : '平量')) + '）' : '量能数据不足';
+  add('vol', '条件4 量能', (isFinite(ratio) && ratio >= CFG.VOL_UP) ? 'ok' : 'warn', gapTxt + '，' + volTxtS + '，全天投影 ' + (isFinite(vc.projRatio) ? (vc.projRatio*100).toFixed(0) + '% of 昨日' : '—') + '。');
+
+  // 现象1：低开 + 缩量 + 黄上 + 不破支撑
+  var sup = ctx.near && ctx.near.sup;
+  var noBreakSup = sup ? sup.d > 0 : true;
+  var gapUp = isFinite(openGap) && openGap > 0.05;
+  var gapDn = isFinite(openGap) && openGap < -0.05;
+  var ph1 = gapDn && (isFinite(ratio) && ratio <= CFG.VOL_DN) && yws.state === 'yUp' && noBreakSup;
+  // 现象2：高开 + 放量 + 黄上 + 不接近压力 + 开盘15分钟后不破缺口下沿(昨高)
+  var res = ctx.near && ctx.near.res;
+  var notNearRes = res ? res.d > CFG.NEAR_PCT : true;
+  // 只有高开才存在「向上跳空缺口」；低开时该项不适用，不能拿来卡现象1
+  var noFillGap = gapUp ? (isFinite(ctx.prevHigh) ? ctx.cur > ctx.prevHigh : true) : true;
+  var ph2 = gapUp && (isFinite(ratio) && ratio >= CFG.VOL_UP) && yws.state === 'yUp' && notNearRes && noFillGap;
+
+  if(ph1){
+    add('ph1', '条件4 现象1', 'ok', '低开 + 缩量 + 黄线在上 + 未破下方支撑（' + (sup ? sup.n + ' ' + fx(sup.v) + '，距 ' + (sup.d*100).toFixed(2) + '%' : '无明显支撑') + '）→ 符合加仓进攻板块条件。');
+  } else if(ph2){
+    add('ph2', '条件4 现象2', 'ok', '高开 + 放量 + 黄线在上 + 未接近压力 + 未跌破缺口下沿（昨高 ' + fx(ctx.prevHigh) + '）→ 符合加仓进攻板块条件。');
+  } else {
+    var why = [];
+    if(!(isFinite(openGap) && (openGap > 0.05 || openGap < -0.05))) why.push('非明显高开/低开');
+    if(!(isFinite(ratio) && (ratio >= CFG.VOL_UP || ratio <= CFG.VOL_DN))) why.push('量能未明确放大或萎缩');
+    if(yws.state !== 'yUp') why.push('黄线未在上');
+    if(!notNearRes) why.push('已接近上方压力（' + (res ? res.n + ' ' + fx(res.v) : '') + '）');
+    if(gapUp && !noFillGap) why.push('高开后已跌破缺口下沿（昨高 ' + fx(ctx.prevHigh) + '）');
+    if(!noBreakSup) why.push('已跌破下方支撑（' + (sup ? sup.n + ' ' + fx(sup.v) : '') + '）');
+    add('ph', '条件4 现象1/2', 'warn', '未同时满足。缺失：' + (why.length ? why.join('、') : '条件不成立') + '。');
+  }
+
+  // --- 警示1/3：黄白交叉 ---
+  if(yw && yw.cross === 'yDown'){
+    add('w1', '警示1 黄线下穿白线', isFinite(ratio) && ratio >= CFG.VOL_UP ? 'bad' : 'warn',
+      '近' + CFG.YW_CROSS_LOOK + '分钟内黄线由上方下穿白线，且量能' + (isFinite(ratio) && ratio >= CFG.VOL_UP ? '同步放大——这是你列的最强警示信号，小票转弱、资金撤离主线，应停止加仓。' : '未明显放大，需继续观察是否坐实。'));
+  }
+  if(yw && yw.cross === 'wUp'){
+    add('w3', '警示3 白线上穿黄线', isFinite(ratio) && ratio <= CFG.VOL_DN ? 'bad' : 'warn',
+      '白线由下方上穿黄线，且量能' + (isFinite(ratio) && ratio <= CFG.VOL_DN ? '萎缩——权重拉升但整体缩量，通常是护盘而非普涨，多数个股不赚钱，减少做T。' : '未见萎缩，观察权重是否带动指数突破。'));
+  }
+
+  // --- 警示2：交织 + 缩大量 ---
+  if(yws.state === 'mix' && isFinite(ratio) && ratio <= CFG.VOL_DRY){
+    add('w2', '警示2 交织缩量', 'bad', '黄白线交织（差 ' + pctS(yws.diffPct,3) + '）且同期量仅 ' + (ratio*100).toFixed(0) + '%，属"缩大量"：方向未明 + 资金观望，此时做T容易被两面打脸。');
+  }
+
+  // --- 警示4：接近大级别压力 ---
+  if(res && res.d <= CFG.NEAR_PCT){
+    add('w4', '警示4 接近压力位', 'bad', '距上方 ' + res.n + '（' + fx(res.v) + '）仅 ' + (res.d*100).toFixed(2) + '%，接近大级别压力，不宜加仓，已有仓位可考虑减。');
+  } else if(res){
+    add('w4', '警示4 接近压力位', 'ok', '距上方最近压力 ' + res.n + '（' + fx(res.v) + '）还有 ' + (res.d*100).toFixed(2) + '%，空间尚存。');
+  }
+
+  // --- 条件5：支撑位缩量转放量 ---
+  if(sup && sup.d <= CFG.NEAR_PCT){
+    var kk = ctx.slope.k;
+    if(isFinite(kk) && kk >= CFG.VOL_TURN){
+      add('p5', '条件5 极致进场', 'ok', '现价贴近下方支撑 ' + sup.n + '（' + fx(sup.v) + '，距 ' + (sup.d*100).toFixed(2) + '%），且近5分钟量是前15分钟的 ' + kk.toFixed(2) + ' 倍——缩量转放量，符合你的极致进场点。');
+    } else {
+      add('p5', '条件5 极致进场', 'warn', '已贴近支撑 ' + sup.n + '（' + fx(sup.v) + '），但量能尚未转为放量（近5分钟/前15分钟 = ' + (isFinite(kk) ? kk.toFixed(2) : '—') + '），等放量确认再进。');
+    }
+  }
+
+  // --- 条件6：下午回补 ---
+  var t = ctx.now.getHours()*60 + ctx.now.getMinutes();
+  if(t >= 14*60 && t <= 14*60+30){
+    var upVolOk = isFinite(ctx.slope.k) && ctx.slope.k >= 1.0;
+    add('p6', '条件6 下午回补', upVolOk ? 'ok' : 'warn',
+      '处于 14:00-14:30 回补窗口：' + (upVolOk ? '上涨时量能有配合（近5分钟/前15分钟 = ' + ctx.slope.k.toFixed(2) + '），可去补进攻板块中涨幅还不多的。' : '当前量能未放大（' + (isFinite(ctx.slope.k) ? ctx.slope.k.toFixed(2) : '—') + '），不满足"上涨放量、回调缩量"，回补要谨慎。'));
+  }
+
+  // --- 卖出条件提示 ---
+  var sellHits = [];
+  if(res && res.d <= 0.003) sellHits.push('已触及/逼近上方 ' + res.n + '（' + fx(res.v) + '）');
+  if(yws.state === 'wUp') sellHits.push('白线在上，指数靠权重拉动，个股赚钱效应差');
+  if(isFinite(ratio) && ratio >= CFG.VOL_UP && ctx.cur < ctx.preClose) sellHits.push('放量下跌，存在主动抛售');
+  add('sell', '卖出条件', sellHits.length ? 'bad' : 'ok', sellHits.length ? sellHits.join('；') + '。' : '未触发（未触压力位、非放量下跌、非权重独拉）。');
+
+  return {rules: R, ph1: ph1, ph2: ph2};
+}
+function summarizeT(res, ctx){
+  var bad = 0, warn = 0, ok = 0;
+  for(var i = 0; i < res.rules.length; i++){
+    var s = res.rules[i].st;
+    if(s === 'bad') bad++; else if(s === 'warn') warn++; else if(s === 'ok') ok++;
+  }
+  var light, txt;
+  if(!ctx.mp.open && ctx.mp.phase !== 'open15'){
+    light = {cls: 'na', txt: '休市'};
+    txt = '当前非交易时段，以下为最近一个收盘状态的数据。盘中打开才有实时做T指导意义。';
+  } else if(bad > 0){
+    light = {cls: 'bad', txt: '🔴 减少做T / 观望'};
+    txt = '有 ' + bad + ' 项触发否决信号（见上表红条）。按你的准则，出现警示信号时应停止加仓、仅做已有仓位的减仓操作。';
+  } else if((res.ph1 || res.ph2) && ctx.win.level === 'best'){
+    light = {cls: 'ok', txt: '🟢 进攻窗口（可加仓）'};
+    txt = '现象' + (res.ph1 ? '1（低开缩量黄上）' : '2（高开放量黄上）') + '成立，且处于优选时间窗口。符合你准则中最适合加仓进攻板块（大消费/泛科技）的组合。';
+  } else if((res.ph1 || res.ph2)){
+    light = {cls: 'ok', txt: '🟢 进攻窗口（时间待选）'};
+    txt = '现象' + (res.ph1 ? '1' : '2') + '已成立，但当前不在 9:45-10:00 / 14:00-14:30 优选窗口内。可以准备，建议等到窗口期再动手。';
+  } else if(ok >= 3 && warn <= 2){
+    light = {cls: 'ok', txt: '🟡 可做但控制节奏'};
+    txt = '无否决信号，' + ok + ' 项支持、' + warn + ' 项待观察。属于中性偏多环境，可做T但不追高，按个股量价形态决定加减。';
+  } else {
+    light = {cls: 'warn', txt: '🟡 观望为主'};
+    txt = '支持项不足以构成进攻信号（' + ok + ' 支持 / ' + warn + ' 待观察）。条件未同时满足时，空仓等待本身就是对的决策。';
+  }
+  return {light: light, txt: txt, bad: bad, warn: warn, ok: ok};
+}
+
+/* ============ SVG 分时图 ============ */
+function drawTrend(hostId, today, yest, preClose, opt){
+  var host = $(hostId);
+  if(!host) return;
+  opt = opt || {};
+  var W = 880, H = opt.h || 300;
+  var PL = 56, PR = 54, PT = 12, PB = 20, GAP = 16;
+  var bodyH = H - PT - PB - GAP;
+  var pH = Math.round(bodyH * 0.64), vH = bodyH - pH;
+  var yP0 = PT, yP1 = PT + pH;
+  var yV0 = yP1 + GAP, yV1 = yV0 + vH;
+  var n = today.length;
+  if(!n){ host.innerHTML = '<div class="hint">暂无分时数据</div>'; return; }
+
+  var xs = function(i){ return PL + (W - PL - PR) * (n <= 1 ? 0 : i / (CFG.TOTAL_MIN - 1)); };
+  // 价格范围
+  var lo = Infinity, hi = -Infinity;
+  for(var i = 0; i < n; i++){
+    lo = Math.min(lo, today[i].low, today[i].ylw > 0 ? today[i].ylw : Infinity);
+    hi = Math.max(hi, today[i].high, today[i].ylw > 0 ? today[i].ylw : -Infinity);
+  }
+  if(isFinite(preClose)){ lo = Math.min(lo, preClose); hi = Math.max(hi, preClose); }
+  if(!isFinite(lo) || !isFinite(hi) || hi === lo){ lo = lo - 1; hi = hi + 1; }
+  var pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+  var ysP = function(v){ return yP1 - (v - lo) / (hi - lo) * pH; };
+  var maxDev = Math.max(Math.abs(hi - preClose), Math.abs(preClose - lo));
+  var ysR = function(v){ return yP1 - (v - lo) / (hi - lo) * pH; };
+
+  // 量范围
+  var vmax = 0;
+  for(var j = 0; j < n; j++) vmax = Math.max(vmax, today[j].vol);
+  if(yest) for(var j2 = 0; j2 < Math.min(n, yest.length); j2++) vmax = Math.max(vmax, yest[j2].vol);
+  if(vmax <= 0) vmax = 1;
+  var ysV = function(v){ return yV1 - (v / vmax) * vH; };
+
+  var s = '';
+  s += '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:auto">';
+  // 背景
+  s += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#fff"/>';
+  // 价格网格（按昨收对称的 5 档）
+  if(isFinite(preClose) && maxDev > 0){
+    for(var g = -2; g <= 2; g++){
+      var pv = preClose + maxDev * g / 2;
+      if(pv < lo || pv > hi) continue;
+      var yy = ysP(pv);
+      s += '<line x1="' + PL + '" y1="' + yy.toFixed(1) + '" x2="' + (W-PR) + '" y2="' + yy.toFixed(1) + '" stroke="' + (g===0?'#c9ced6':'#f1f3f5') + '" stroke-width="1"' + (g===0?' stroke-dasharray="4 3"':'') + '/>';
+      s += '<text x="' + (PL-6) + '" y="' + (yy+3.5).toFixed(1) + '" text-anchor="end" font-size="10" fill="#9ca3af">' + pv.toFixed(opt.dec === undefined ? 2 : opt.dec) + '</text>';
+      var rp = (pv - preClose) / preClose * 100;
+      s += '<text x="' + (W-PR+6) + '" y="' + (yy+3.5).toFixed(1) + '" font-size="10" fill="' + (rp>0?'#d92b2b':(rp<0?'#0f9d58':'#9ca3af')) + '">' + pctS(rp, 2) + '</text>';
+    }
+  }
+  // 时间刻度
+  var marks = [[0,'09:30'],[30,'10:00'],[60,'10:30'],[90,'11:00'],[120,'11:30/13:00'],[180,'14:00'],[210,'14:30'],[240,'15:00']];
+  for(var mi = 0; mi < marks.length; mi++){
+    var mx = xs(marks[mi][0]);
+    if(mx > W - PR + 2) continue;
+    s += '<line x1="' + mx.toFixed(1) + '" y1="' + yP0 + '" x2="' + mx.toFixed(1) + '" y2="' + yP1 + '" stroke="#f6f7f9" stroke-width="1"/>';
+    s += '<text x="' + mx.toFixed(1) + '" y="' + (yP1+12) + '" text-anchor="middle" font-size="9.5" fill="#c4cad3">' + marks[mi][1] + '</text>';
+  }
+  // 量柱
+  var bw = Math.max(1, (W - PL - PR) / CFG.TOTAL_MIN * 0.72);
+  for(var k = 0; k < n; k++){
+    var vv = today[k].vol;
+    var col = today[k].close >= today[k].open ? '#f2b8b8' : '#b7e2c8';
+    var y1 = ysV(vv), y0 = yV1;
+    if(y1 >= y0) y1 = y0 - 0.5;
+    s += '<rect x="' + (xs(k) - bw/2).toFixed(1) + '" y="' + y1.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (y0-y1).toFixed(1) + '" fill="' + col + '"/>';
+  }
+  // 昨日同期量折线
+  if(yest && yest.length){
+    var pts = [];
+    for(var q = 0; q < Math.min(n, yest.length); q++) pts.push(xs(q).toFixed(1) + ',' + ysV(yest[q].vol).toFixed(1));
+    if(pts.length > 1) s += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#cbd5e1" stroke-width="1.2"/>';
+  }
+  // 量区边框
+  s += '<line x1="' + PL + '" y1="' + yV1 + '" x2="' + (W-PR) + '" y2="' + yV1 + '" stroke="#e5e7eb" stroke-width="1"/>';
+  // 白线
+  var pw = [];
+  for(var a = 0; a < n; a++) pw.push(xs(a).toFixed(1) + ',' + ysP(today[a].close).toFixed(1));
+  s += '<polyline points="' + pw.join(' ') + '" fill="none" stroke="#1f2937" stroke-width="1.6"/>';
+  // 黄线
+  var py = [];
+  for(var b2 = 0; b2 < n; b2++){ if(today[b2].ylw > 0) py.push(xs(b2).toFixed(1) + ',' + ysP(today[b2].ylw).toFixed(1)); }
+  if(py.length > 1) s += '<polyline points="' + py.join(' ') + '" fill="none" stroke="#f59e0b" stroke-width="1.4"/>';
+  // 末端点
+  var lx = xs(n-1), ly = ysP(today[n-1].close);
+  s += '<circle cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="2.6" fill="#1f2937"/>';
+  s += '</svg>';
+  host.innerHTML = s;
+}
+
+/* 日K蜡烛图：K线 + MA5/10/20 + 成交量（A股口径：阳线红 / 阴线绿） */
+function drawKline(hostId, daily, opt){
+  var host = $(hostId);
+  if(!host) return;
+  opt = opt || {};
+  if(!daily || daily.length < 2){
+    host.innerHTML = '<div class="hint" style="padding:8px 0">暂无日K数据</div>';
+    return;
+  }
+  var SHOW = opt.show || 90;
+  var bars = daily.slice(-SHOW);
+  var W = 880, H = opt.h || 320;
+  var PL = 62, PR = 62, PT = 12, PB = 20, GAP = 18;
+  var bodyH = H - PT - PB - GAP;
+  var pH = Math.round(bodyH * 0.70), vH = bodyH - pH;
+  var yP0 = PT, yP1 = PT + pH, yV0 = yP1 + GAP, yV1 = yV0 + vH;
+  var n = bars.length;
+  var slot = (W - PL - PR) / n;
+  var xc = function(i){ return PL + slot * (i + 0.5); };
+  var closes = [];
+  for(var i = 0; i < n; i++) closes.push(bars[i].close);
+  function mas(k){
+    var out = [];
+    for(var i2 = 0; i2 < n; i2++){
+      if(i2 + 1 < k){ out.push(NaN); continue; }
+      var s = 0;
+      for(var j2 = i2 - k + 1; j2 <= i2; j2++) s += closes[j2];
+      out.push(s / k);
+    }
+    return out;
+  }
+  var ma5 = mas(5), ma10 = mas(10), ma20 = mas(20);
+  var lo = Infinity, hi = -Infinity;
+  for(var a = 0; a < n; a++){
+    var b = bars[a];
+    if(b.low < lo) lo = b.low; if(b.high > hi) hi = b.high;
+    var mlist = [ma5[a], ma10[a], ma20[a]];
+    for(var m2 = 0; m2 < 3; m2++){ var mv = mlist[m2]; if(mv === mv){ if(mv < lo) lo = mv; if(mv > hi) hi = mv; } }
+  }
+  if(!isFinite(lo) || !isFinite(hi)) return;
+  var range = (hi - lo) || 1, pad = range * 0.08;
+  lo -= pad; hi += pad;
+  var ysP = function(v){ return yP1 - (v - lo) / (hi - lo) * pH; };
+  var vmax = 0;
+  for(var j = 0; j < n; j++) if(bars[j].vol > vmax) vmax = bars[j].vol;
+  if(vmax <= 0) vmax = 1;
+  var ysV = function(v){ return yV1 - (v / vmax) * vH; };
+  var UP = '#d92b2b', DN = '#0f9d58';
+  var s = '';
+  s += '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:auto">';
+  s += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#fff"/>';
+  for(var g = 0; g <= 4; g++){
+    var pv = lo + (hi - lo) * g / 4;
+    var yy = ysP(pv);
+    s += '<line x1="' + PL + '" y1="' + yy.toFixed(1) + '" x2="' + (W-PR) + '" y2="' + yy.toFixed(1) + '" stroke="#f1f3f5" stroke-width="1"/>';
+    s += '<text x="' + (PL-6) + '" y="' + (yy+3.5).toFixed(1) + '" text-anchor="end" font-size="10" fill="#9ca3af">' + pv.toFixed(2) + '</text>';
+  }
+  var step = Math.max(1, Math.ceil(n / 7));
+  for(var d = 0; d < n; d += step){
+    var dstr = String(bars[d].d || '').slice(5);
+    s += '<text x="' + xc(d).toFixed(1) + '" y="' + (yP1+14) + '" text-anchor="middle" font-size="9.5" fill="#c4cad3">' + dstr + '</text>';
+  }
+  var cw = Math.max(1.5, slot * 0.62);
+  for(var c = 0; c < n; c++){
+    var b2 = bars[c];
+    var up = b2.close >= b2.open;
+    var col = up ? UP : DN;
+    var cx = xc(c);
+    s += '<line x1="' + cx.toFixed(1) + '" y1="' + ysP(b2.high).toFixed(1) + '" x2="' + cx.toFixed(1) + '" y2="' + ysP(b2.low).toFixed(1) + '" stroke="' + col + '" stroke-width="1"/>';
+    var yO = ysP(b2.open), yC = ysP(b2.close);
+    var top = Math.min(yO, yC), bot = Math.max(yO, yC);
+    if(bot - top < 0.8){ bot = top + 0.8; }
+    s += '<rect x="' + (cx - cw/2).toFixed(1) + '" y="' + top.toFixed(1) + '" width="' + cw.toFixed(1) + '" height="' + (bot - top).toFixed(1) + '" fill="' + col + '"/>';
+  }
+  var vw = Math.max(1, slot * 0.55);
+  for(var v = 0; v < n; v++){
+    var b3 = bars[v];
+    var colv = b3.close >= b3.open ? '#f2b8b8' : '#b7e2c8';
+    var vy1 = ysV(b3.vol), vy0 = yV1;
+    if(vy1 >= vy0) vy1 = vy0 - 0.5;
+    s += '<rect x="' + (xc(v) - vw/2).toFixed(1) + '" y="' + vy1.toFixed(1) + '" width="' + vw.toFixed(1) + '" height="' + (vy0 - vy1).toFixed(1) + '" fill="' + colv + '"/>';
+  }
+  s += '<line x1="' + PL + '" y1="' + yV1 + '" x2="' + (W-PR) + '" y2="' + yV1 + '" stroke="#e5e7eb" stroke-width="1"/>';
+  var maDraw = function(arr, col){
+    var prevI = -1;
+    for(var m = 0; m < n; m++){
+      if(arr[m] !== arr[m]){ prevI = -1; continue; }
+      if(prevI >= 0){
+        s += '<line x1="' + xc(prevI).toFixed(1) + '" y1="' + ysP(arr[prevI]).toFixed(1) +
+             '" x2="' + xc(m).toFixed(1) + '" y2="' + ysP(arr[m]).toFixed(1) +
+             '" stroke="' + col + '" stroke-width="1.2"/>';
+      }
+      prevI = m;
+    }
+  };
+  maDraw(ma5, '#f59e0b'); maDraw(ma10, '#ec4899'); maDraw(ma20, '#7c3aed');
+  s += '</svg>';
+  host.innerHTML = s;
+  var meta = $(opt.meta);
+  if(meta){
+    var lastBar = bars[n-1], prevBar = bars[n-2];
+    var lastChg = prevBar ? (lastBar.close - prevBar.close) / prevBar.close * 100 : NaN;
+    var txt = (bars[0].d || '') + ' ~ ' + (lastBar.d || '') +
+      ' · 收 ' + fx(lastBar.close) + ' ' + pctS(lastChg) +
+      ' · MA5 ' + fx(ma5[n-1]) + ' / MA10 ' + fx(ma10[n-1]) + ' / MA20 ' + fx(ma20[n-1]);
+    meta.innerHTML = txt;
+  }
+}
+
+/* ============ 渲染 ============ */
+var STATE = {idx: null, daily: null, dailyTs: 0, dailyCache: {}, stock: null, timer: null, sectorLoaded: false, metric: 'amt',
+             watch: {items: [], notice: false, fastTimer: null, slowTimer: null}};
+
+// 箱体分位文案（cur 可能跑到箱体外，需 clamp 并标注）
+function boxTxt(lv){
+  if(!lv || !isFinite(lv.boxPos)) return '—';
+  var bp = lv.boxPos;
+  var p = Math.max(0, Math.min(100, bp * 100));
+  var out = (bp < 0 || bp > 1) ? '（箱体外）' : '';
+  return p.toFixed(0) + '% 分位' + out + '（' + fx(lv.lo20) + ' ~ ' + fx(lv.hi20) + '）';
+}
+function setStatus(txt, cls){
+  var e = $('status');
+  e.textContent = txt; e.className = 'pill ' + (cls || 'na');
+}
+function showErr(id, msg){
+  var e = $(id);
+  if(!msg){ e.style.display = 'none'; return; }
+  e.style.display = 'block'; e.textContent = msg;
+}
+
+function renderRules(tbody, rules){
+  var h = '';
+  for(var i = 0; i < rules.length; i++){
+    var r = rules[i];
+    var m = {ok:['ok','✅'], warn:['warn','⚠️'], bad:['bad','❌'], na:['na','—']}[r.st] || ['na','—'];
+    h += '<tr><td>' + esc(r.name) + '</td><td><span class="pill ' + m[0] + '">' + m[1] + '</span></td><td>' + esc(r.detail) + '</td></tr>';
+  }
+  tbody.innerHTML = h;
+}
+
+function renderIndex(){
+  var I = STATE.idx;
+  if(!I) return;
+  var _isAmt = STATE.metric === 'amt';
+  var _vf = _isAmt ? amtTxt : volTxt;
+  var snap = I.snap, vc = I.vc, yw = I.yw, yws = I.yws, lv = I.lv;
+  var last = I.trends.today[I.trends.today.length-1];
+  var cur = snap ? snap.price : last.close;
+  var preClose = isFinite(I.trends.preClose) ? I.trends.preClose : (lv ? lv.prevClose : NaN);
+  var chg = cur - preClose, chgPct = preClose ? chg / preClose * 100 : NaN;
+
+  $('ixPrice').textContent = fx(cur);
+  $('ixPrice').className = 'big ' + cls(chg);
+  $('ixChg').innerHTML = '<span class="' + cls(chg) + '">' + (chg>0?'+':'') + fx(chg) + '　' + pctS(chgPct) + '</span>';
+  $('ixTime').textContent = '昨收 ' + fx(preClose) + '　最新分时 ' + last.t;
+
+  $('ixWht').textContent = fx(yw.white);
+  $('ixYlw').textContent = fx(yw.yellow);
+  $('ixDiff').innerHTML = '<span class="' + (yw.diff>0?'up':(yw.diff<0?'down':'flat')) + '">' + (yw.diff>0?'+':'') + fx(yw.diff) + '（' + pctS(yws.diffPct,3) + '）</span>';
+  $('ixYwState').innerHTML = '<span class="pill ' + ({yUp:'ok', wUp:'bad', mix:'warn'}[yws.state]||'na') + '">' + yws.label + (yws.note || '') + '</span>';
+  $('ixBox').textContent = boxTxt(lv);
+  $('ixPrevAmp').innerHTML = (lv && isFinite(lv.prevAmp))
+    ? '<span class="' + (lv.prevAmp > CFG.PREV_AMP ? 'up' : 'flat') + '">' + (lv.prevAmp*100).toFixed(2) + '%</span>' +
+      (lv.prevAmp > CFG.PREV_AMP ? ' <span class="pill warn">偏大</span>' : ' <span class="pill ok">平稳</span>')
+    : '—';
+
+  $('vNow').textContent = _vf(vc.curVol);
+  if(vc.unavail){
+    // 主源（东财）限流，昨日分时量暂不可得：诚实提示，绝不编造 0 或近似假数
+    $('vSame').innerHTML = '<span class="warn">主源限流·暂不可用</span>';
+    $('vRatio').innerHTML = '— <span class="pill na">量能数据不足</span> <span class="warn">（点「立即刷新」重试）</span>';
+  } else {
+    $('vSame').textContent = _vf(vc.sameVol);
+    var r = vc.ratio;
+    $('vRatio').innerHTML = '<span class="' + (isFinite(r) ? cls(r-1) : 'flat') + '">' + (isFinite(r) ? (r*100).toFixed(0) + '%' : '—') + '</span>' +
+      ' <span class="pill ' + (r>=CFG.VOL_UP?'ok':(r<=CFG.VOL_DN?'warn':'na')) + '">' + (r>=CFG.VOL_UP?'放量':(r<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
+  }
+  $('vProj').textContent = isFinite(vc.projVol) ? _vf(vc.projVol) + '（' + (vc.projRatio*100).toFixed(0) + '% of 昨）' : '—';
+
+  var sl = I.slope;
+  $('vSlope').innerHTML = isFinite(sl.k) ? '<span class="' + (sl.k>=1?'up':'down') + '">' + sl.k.toFixed(2) + '×</span>' : '—';
+  var op = I.openP;
+  var gap = (isFinite(preClose) && isFinite(op)) ? (op - preClose)/preClose*100 : NaN;
+  $('ixOpen').innerHTML = (isFinite(op) ? fx(op) : '—') + ' <span class="' + cls(gap) + '">' + pctS(gap) + '</span>';
+  $('ixVsPre').innerHTML = '<span class="' + cls(chgPct) + '">' + pctS(chgPct) + '</span>';
+  $('ixYHigh').textContent = lv ? fx(lv.prevHigh) : '—';
+
+  // 量能进度条：以 200% 为满格，100% 处为中线
+  var w = isFinite(r) ? Math.min(100, r/2*100) : 0;
+  var bar = $('vBar');
+  bar.style.width = w.toFixed(1) + '%';
+  bar.style.background = (r >= CFG.VOL_UP ? 'var(--up)' : (r <= CFG.VOL_DN ? 'var(--down)' : 'var(--info)'));
+  $('vBarTxt').textContent = '已走 ' + vc.n + ' 分钟 · 今日 ' + _vf(vc.curVol) + ' vs 昨日同期 ' + _vf(vc.sameVol) +
+    ' · 投影全天 ' + (isFinite(vc.projRatio) ? (vc.projRatio*100).toFixed(0) + '%' : '—') + ' of 昨日全天';
+
+  var mp = I.mp;
+  $('mktTag').textContent = mp.label;
+  $('mktTag').className = 'pill ' + (mp.open ? 'ok' : 'na');
+
+  drawTrend('ixChart', I.trends.today, I.trends.yest, preClose, {h: 300, dec: 2});
+  drawKline('ixKline', I.daily || [], {show: 90, h: 300, meta: 'ixKMeta'});
+}
+
+function renderT(){
+  var I = STATE.idx;
+  if(!I) return;
+  var out = I.ruleOut, sum = I.sum;
+  $('tLight').textContent = sum.light.txt;
+  $('tLight').className = 'pill ' + sum.light.cls;
+  $('tSummary').textContent = sum.txt;
+  renderRules($('tRules'), out.rules);
+}
+
+function renderStock(){
+  var S = STATE.stock;
+  if(!S){ $('stkBody').style.display = 'none'; return; }
+  $('stkBody').style.display = 'block';
+  var _isAmt = STATE.metric === 'amt';
+  var _vf = _isAmt ? amtTxt : volTxt;
+  var snap = S.snap, vc = S.vc, lv = S.lv, tr = S.trends;
+  var last = tr.today[tr.today.length-1];
+  var cur = snap ? snap.price : last.close;
+  var preClose = isFinite(tr.preClose) ? tr.preClose : (lv ? lv.prevClose : NaN);
+  var chg = cur - preClose, chgPct = preClose ? chg/preClose*100 : NaN;
+
+  var sOp = S.openP;
+  var sGap = (isFinite(preClose) && isFinite(sOp)) ? (sOp - preClose) / preClose * 100 : NaN;
+  $('sName').innerHTML = (snap && snap.name ? snap.name : (tr.name || '')) + '　' + (snap ? snap.code : tr.code) +
+    '　' + (isETFCode(snap && snap.code) ? '<span class="pill warn" style="margin-left:4px">ETF/LOF</span>' : '') +
+    '　<span class="pill na" style="font-size:11px;margin-left:2px">源:' + (S.src||'?') + '</span>' +
+    (snap ? '　<span class="hint" style="font-size:11px">raw:现=' + snap.price + ' 开=' + snap.open + ' 昨=' + snap.preClose + ' 量=' + snap.vol + (snap.amt!=null?' 额='+snap.amt:'') + '</span>' : '') +
+    '　昨收 ' + fx(preClose) + '　今开 ' + (isFinite(sOp) ? fx(sOp) : '—') + '（' + pctS(sGap) + '）';
+  $('sPrice').textContent = fx(cur);
+  $('sPrice').className = 'big ' + cls(chg);
+  $('sChg').innerHTML = '<span class="' + cls(chg) + '">' + (chg>0?'+':'') + fx(chg) + '　' + pctS(chgPct) + '</span>';
+
+  $('sVNow').textContent = _vf(vc.curVol);
+  if(vc.unavail){
+    $('sVSame').innerHTML = '<span class="warn">主源限流·暂不可用</span>';
+    $('sVRatio').innerHTML = '— <span class="pill na">量能数据不足</span> <span class="warn">（刷新重试）</span>';
+  } else {
+    $('sVSame').textContent = _vf(vc.sameVol);
+    var r = vc.ratio;
+    $('sVRatio').innerHTML = '<span class="' + (isFinite(r)?cls(r-1):'flat') + '">' + (isFinite(r)?(r*100).toFixed(0)+'%':'—') + '</span>' +
+      ' <span class="pill ' + (r>=CFG.VOL_UP?'ok':(r<=CFG.VOL_DN?'warn':'na')) + '">' + (r>=CFG.VOL_UP?'放量':(r<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
+  }
+  $('sVR').textContent = snap && isFinite(snap.vr) ? snap.vr.toFixed(2) : '—';
+  $('sAvg').textContent = fx(last.ylw);
+  var vsAvg = last.ylw ? (cur - last.ylw)/last.ylw*100 : NaN;
+  $('sVsAvg').innerHTML = '<span class="' + cls(vsAvg) + '">' + pctS(vsAvg) + '</span>';
+  $('sVProj').textContent = isFinite(vc.projVol) ? _vf(vc.projVol) + '（' + (vc.projRatio*100).toFixed(0) + '% of 昨）' : '—';
+  var to = (snap && isFinite(snap.turnover)) ? snap.turnover : NaN;
+  var prog = (vc.yestTotal > 0) ? vc.sameVol / vc.yestTotal : NaN;   // 昨日同期占全天的比例 = 当日进度
+  if(isFinite(to) && isFinite(prog) && prog > 0){
+    $('sTurn').innerHTML = to.toFixed(2) + '% → 投影 <b>' + (to / prog).toFixed(2) + '%</b>';
+  } else {
+    $('sTurn').textContent = isFinite(to) ? to.toFixed(2) + '%' : '—';
+  }
+
+  var nl = nearestLevels(lv, cur);
+  $('sRes').innerHTML = nl.res ? fx(nl.res.v) + ' <span class="hint">' + nl.res.n + ' +' + (nl.res.d*100).toFixed(2) + '%</span>' : '—';
+  $('sSup').innerHTML = nl.sup ? fx(nl.sup.v) + ' <span class="hint">' + nl.sup.n + ' -' + (nl.sup.d*100).toFixed(2) + '%</span>' : '—';
+  $('sBox').textContent = boxTxt(lv);
+  $('sCorr').textContent = isFinite(S.corr) ? S.corr.toFixed(2) : '—';
+
+  drawTrend('sChart', tr.today, tr.yest, preClose, {h: 280, dec: 2});
+
+  // 形态 chips
+  var chips = '';
+  for(var i = 0; i < S.pats.length; i++){
+    var p = S.pats[i];
+    var c = {buy:'good', sell:'hot', hold:'mid'}[p.d] || '';
+    chips += '<span class="chip ' + c + '">' + esc(p.k) + '</span>';
+  }
+  $('sChips').innerHTML = S.pats.length ? chips : '<span class="hint">当前时段未识别到典型形态（数据点不足或走势平淡）</span>';
+
+  var rows = '';
+  var dmap = {buy:['ok','偏多'], sell:['bad','偏空'], hold:['warn','中性']};
+  for(var j = 0; j < S.pats.length; j++){
+    var q = S.pats[j], dm = dmap[q.d] || ['na','—'];
+    rows += '<tr><td><b>' + esc(q.k) + '</b></td><td><span class="pill ' + dm[0] + '">' + dm[1] + '</span></td><td>' + esc(q.m) + '</td></tr>';
+  }
+  $('sPatterns').innerHTML = rows || '<tr><td colspan="3" style="color:var(--txt3)">—</td></tr>';
+
+  // 个股建议
+  var adv = stockAdvice(S, nl, cur, preClose);
+  $('sAdvice').textContent = adv.label;
+  $('sAdvice').className = 'pill ' + adv.cls;
+  $('sAdviceTxt').textContent = adv.txt;
+
+  renderTrig();
+}
+
+function stockAdvice(S, nl, cur, preClose){
+  var I = STATE.idx;
+  var vc = S.vc, r = vc.ratio, pats = S.pats;
+  var hasTop = false, hasBot = false, dryUp = false, stag = false;
+  for(var i = 0; i < pats.length; i++){
+    if(pats[i].k === '顶背离') hasTop = true;
+    if(pats[i].k === '底背离') hasBot = true;
+    if(pats[i].k === '地量企稳') dryUp = true;
+    if(pats[i].k === '放量滞涨') stag = true;
+  }
+  var envOk = I && I.sum && (I.sum.light.cls === 'ok');
+  var envBad = I && I.sum && (I.sum.light.cls === 'bad');
+  var resNear = nl.res && nl.res.d <= 0.003;
+  var supNear = nl.sup && nl.sup.d <= 0.005;
+
+  if(envBad) return {cls:'bad', label:'⛔ 大盘环境不支持', txt:'大盘已触发否决信号（见上方做T环境），个股再有形态也不建议新开仓。你的准则里"黄线下穿白线放量/接近压力位"属于停手信号，此时优先处理已有仓位。'};
+  if(hasTop || stag) return {cls:'bad', label:'⚠️ 减仓/不追', txt:'个股出现' + (hasTop?'顶背离':'放量滞涨') + '，量能不支持继续上攻。' + (resNear?'且已贴近上方压力位，属你列的卖出条件之一。':'可考虑在压力位附近减，回落企稳再回补。')};
+  if(resNear) return {cls:'warn', label:'⚠️ 压力位附近', txt:'已贴近上方 ' + nl.res.n + '（' + fx(nl.res.v) + '），对应你的卖出条件"触碰压力位（均线/BOLL上轨/前高）"。不宜加仓，已有仓位可分批减。'};
+  if(hasBot && envOk) return {cls:'ok', label:'✅ 可小仓试多', txt:'出现底背离（抛压衰竭）且大盘环境为进攻窗口，符合低吸条件。建议分批：先试一小笔，站回均价线且量能转放大后再加。'};
+  if(hasBot) return {cls:'warn', label:'🟡 观察（等确认）', txt:'出现底背离但大盘环境未确认进攻，属于"跌不动但还没涨"。按你的准则，需等黄白线配合 + 站回均价线再动。'};
+  if(dryUp && supNear && isFinite(S.slope.k) && S.slope.k >= CFG.VOL_TURN) return {cls:'ok', label:'✅ 支撑位缩量转放量', txt:'贴近下方支撑 ' + nl.sup.n + '（' + fx(nl.sup.v) + '）且量能由缩转放（' + S.slope.k.toFixed(2) + '×），对应你的条件5极致进场点。'};
+  if(supNear) return {cls:'warn', label:'🟡 贴近支撑但未放量', txt:'已贴近支撑 ' + nl.sup.n + '（' + fx(nl.sup.v) + '），但量能尚未转为放量，等放量确认再进场，避免接在半山腰。'};
+  if(isFinite(r) && r >= CFG.VOL_UP && cur > preClose) return {cls:'ok', label:'✅ 放量上涨，持有', txt:'同期量 ' + (r*100).toFixed(0) + '% 且价格在昨收之上，量价配合。持有为主，回踩均价线缩量时可加。'};
+  if(isFinite(r) && r <= CFG.VOL_DN && cur < preClose) return {cls:'warn', label:'🟡 缩量回调，观察', txt:'同期量仅 ' + (r*100).toFixed(0) + '% 且价格回落，属缩量回调（健康）。若能在均价线/支撑位止跌且随后放量，是回补点。'};
+  return {cls:'na', label:'— 信号不足', txt:'当前未识别到明确的量价形态，保持观察，不做无依据的操作。'};
+}
+
+// ============ A/B 触发参考（自动生成·非荐股）============
+// 复用一个引擎（lv/nl/vc），查任何股票/ETF 都自动给出：
+//   B 破位停手线 = 20日箱底 lo20（跌破 = 结构失效，停手/离场）
+//   A 建仓参考线 = 上方最近均线/压力（放量站回 = 右侧确认）
+// 触发语义：A/B 线在查询时固定（不随价格滚动），当日触发一次即锁存高亮；
+// 换标的或重新点「查询」才重置。st 为跨渲染状态（页面用 S._trg，测试可传空）。
+function buildTrig(S, nl, cur, st){
+  var lv = S && S.lv;
+  if(!lv || !S.daily || S.daily.length < 21){
+    return {cls:'na', label:'— 日K不足', body:'需 ≥21 根日K才能生成 20日箱体/压力 参考线。请稍后重试，或确认代码有效。',
+            A:null, B:null};
+  }
+  var r = S.vc ? S.vc.ratio : NaN;
+  var ratioOk = isFinite(r) && r >= CFG.VOL_UP;
+  var volTxt2 = isFinite(r) ? (r*100).toFixed(0) + '%' : '量能待查';
+  var sup = (nl && nl.sup) || null;
+  // 首次：固定 B = 停手线；A = 上方最近均线(MA5→MA10→MA20)，全在脚下再用最近压力，都无→新高区
+  // B 自适应（实测依据：20日箱底距现价中位 5.1%、31% 情况在 -8% 外，对做T过宽）：
+  //   价格在 20日线上方 → B = 20日线 MA20（中位 ~2.6%，破线即短线结构转弱，停手更早、盈亏比合理）
+  //   已跌破 20日线（MA20>cur）或 MA20 缺失 → B = 20日箱底 lo20（结构硬底，弱势中不再追）
+  // 锁存时同时存 Bsrc（来源标签），供文案显示用的是哪条线。
+  var A = st && st.A, B = st && st.B, Bsrc = st && st.Bsrc;
+  if(!B){
+    B = (isFinite(lv.ma20) && lv.ma20 < cur) ? lv.ma20 : lv.lo20;
+    Bsrc = (isFinite(lv.ma20) && lv.ma20 < cur) ? '20日线' : '20日箱底';
+    if(st){ st.B = B; st.Bsrc = Bsrc; }
+  }
+  if(!Bsrc) Bsrc = '停手线';
+  if(!A){
+    var maC = [['MA5', lv.ma5], ['MA10', lv.ma10], ['MA20', lv.ma20]];
+    for(var mi = 0; mi < maC.length; mi++){
+      if(isFinite(maC[mi][1]) && maC[mi][1] > cur){ A = {n: maC[mi][0], v: maC[mi][1]}; break; }
+    }
+    if(!A && nl && nl.res) A = nl.res;
+    if(A && st) st.A = A;
+  }
+  var dA = A ? (cur - A.v) / cur * 100 : null;   // 百分比，负=还差
+  var dB = isFinite(B) && B > 0 ? (cur - B) / B * 100 : null; // 百分比，距箱底
+  var bNow = isFinite(B) && cur < B;
+  var standA = A && cur >= A.v;      // 站上 A（量能是否达标另判）
+  var nearB = !bNow && isFinite(B) && dB !== null && dB <= 0.5; // 距箱底 ≤0.5%
+  // ── A 触发「站稳确认制」（2026-09-04 用户拍板 B 方案）────────────────
+  // 站上 A + 量比达标两条件需「连续」成立 A_CONFIRM_MIN 分钟才确认，中途任一条断掉即计时清零。
+  // 跨交易日保护：st 若被持久化过夜，aSince 属昨日则清零，避免开盘瞬间误判"已确认"。
+  var nowMs = Date.now(), holdMs = CFG.A_CONFIRM_MIN * 60000, today = new Date().toDateString();
+  var aAbove = A && cur >= A.v && ratioOk;    // 两条件当前同时成立
+  var aHeld = 0, aConfirmed = false;
+  if(st){
+    if(st.aSinceDay !== today){ st.aSinceDay = today; st.aSince = 0; }
+    if(aAbove){ if(!st.aSince) st.aSince = nowMs; }
+    else { st.aSince = 0; }                   // 条件中断 → 计时清零
+    aHeld = st.aSince ? (nowMs - st.aSince) : 0;
+    aConfirmed = !!st.aSince && aHeld >= holdMs;
+  } else {
+    aConfirmed = !!aAbove;                    // 无锁存对象时退化为即时判定（兜底）
+  }
+  var aNow = aAbove;
+  // 当日锁存：A 确认后保持；B 破位保持直到站回 B 上方
+  if(st){
+    if(aConfirmed) st.firedA = true;
+    if(bNow) st.firedB = true;
+    if(!bNow && A && cur < A.v){ /* 回落至 A 下方：清标记，避免假突破长期误高亮 */ st.firedA = false; }
+  }
+  var fireB = (st && st.firedB) || bNow;
+  var fireA = (st && st.firedA) || aConfirmed;
+
+  var cls2, label, body, whenTxt = '';
+  var firedAInfo = (st && st.firedA && !aNow) ? '（今日已放量站回过一次，现回落至线下方，追高需谨慎）' : '';
+  if(fireB){
+    cls2 = 'bad'; label = '⛔ B 触发：破位停手';
+    body = '现价 ' + fx(cur) + ' ' + (bNow ? '已跌破' : '今日曾跌破') + ' <b>' + Bsrc + ' ' + fx(B) + '</b>（' + (dB!==null?Math.abs(dB).toFixed(1):0) + '%），' +
+      (Bsrc === '20日箱底' ? '箱体结构失效' : '短线结构转弱') + '——按你的规则<b>停止加仓/离场观望</b>，不因"跌得深"而接。' +
+      (sup ? ' 下方仅剩参考支撑 ' + esc(sup.n) + ' ' + fx(sup.v) + '，反弹不站回 B 前不参与。' : '');
+  } else if(fireA){
+    cls2 = 'ok'; label = '✅ A 触发：放量站回（已站稳）';
+    body = '现价 ' + fx(cur) + ' 已<b>放量站回</b>上方 ' + esc(A.n) + ' <b>' + fx(A.v) + '</b>（同期量比 ' + volTxt2 + ' ≥' + (CFG.VOL_UP*100).toFixed(0) + '%），并在 A 上方<b>连续稳住 ' + CFG.A_CONFIRM_MIN + ' 分钟</b>确认 → 规则允许<b>分批试仓</b>（首笔轻仓）；跌破 ' + Bsrc + ' ' + fx(B) + ' 则停手。' + firedAInfo;
+  } else if(standA && aAbove){
+    var heldMin = Math.floor(aHeld / 60000), leftMin = Math.max(1, Math.ceil((holdMs - aHeld) / 60000));
+    cls2 = 'warn'; label = '🕐 站上 A，确认中 ' + heldMin + '/' + CFG.A_CONFIRM_MIN + ' 分';
+    body = '现价 ' + fx(cur) + ' 已站上 ' + esc(A.n) + ' <b>' + fx(A.v) + '</b> 且量比 ' + volTxt2 + ' 达标，但按「站稳确认」规则需在 A 上方<b>连续稳住 ' + CFG.A_CONFIRM_MIN + ' 分钟</b>才算数——目前已稳 <b>' + heldMin + '</b> 分钟，还差约 <b>' + leftMin + '</b> 分钟。' +
+      '<br><b>确认前先别动手</b>（防冲高回落诱多）；中途跌回 A 下方或量比掉档，计时清零重来。';
+  } else if(standA){
+    cls2 = 'warn'; label = '🟡 站上 A 线，等放量';
+    body = '现价 ' + fx(cur) + ' 已站上 ' + esc(A.n) + ' <b>' + fx(A.v) + '</b>，但同期量比 ' + volTxt2 + ' 未达 ' + (CFG.VOL_UP*100).toFixed(0) + '%——<b>无量上涨别追</b>，等放量确认或回踩不破再加。';
+  } else if(nearB){
+    cls2 = 'warn'; label = '⚠️ 逼近停手线';
+    body = '现价 ' + fx(cur) + ' 距 B 停手线（' + Bsrc + ' ' + fx(B) + '）仅 ' + dB.toFixed(1) + '%，已进入破位警戒区——<b>不加仓</b>；若放量跌破 B 立即停手。';
+  } else if(A){
+    cls2 = 'na'; label = '· 等待触发';
+    body = '现价 ' + fx(cur) + ' 在 A/B 之间运行：<br>· <b>A 建仓参考</b>（右侧确认）：放量站回 ' + esc(A.n) + ' <b>' + fx(A.v) + '</b>（还差 ' + (Math.abs(dA)).toFixed(1) + '%），且同期量比 ≥' + (CFG.VOL_UP*100).toFixed(0) + '% 才动手。<br>· <b>B 停手线</b>：跌破 ' + Bsrc + ' ' + fx(B) + '（距 ' + dB.toFixed(1) + '%）即停手。';
+  } else {
+    cls2 = 'na'; label = '· 阶段新高区';
+    body = '现价 ' + fx(cur) + ' 已创阶段新高、无上方待收复压力——按"不追高"原则此处<b>不以 A 线建仓</b>。' +
+      (sup ? ' 等回踩 <b>' + esc(sup.n) + ' ' + fx(sup.v) + '</b> 不破、缩量企稳再看；跌破 ' + fx(B) + '（' + Bsrc + '）离场。' : '');
+  }
+  var note = (S && S._snapTs) ? ('<div style="margin-top:2px;color:var(--txt3)">现价自动刷新于 ' + S._snapTs + '；量能为查询时刻快照，超过 10 分钟请点「查询」刷新量能再确认 A 触发。</div>') : '';
+  return {cls: cls2, label: label, body: body + note, A: A, B: B, Bsrc: Bsrc,
+          confirming: !!(standA && aAbove && !aConfirmed), heldMin: Math.floor(aHeld / 60000), needMin: CFG.A_CONFIRM_MIN};
+}
+// 做T 视角（2026-09-04 用户拍板）：用户以日内正T(低吸高抛)为主，把 A/B 当"安全闸门"用。
+// 语义：A/B 之间=震荡假设成立可做T；距B≤2%=收T仓别重仓低吸；跌破B=停正T(低吸变接刀)；
+//       放量站上A=转强确认(做飞可追回、勿当低吸追高)。只给方向提示，日内执行点位以分时为准。
+// 入参 t 为 buildTrig 的返回值（含锁定后的 A/B/Bsrc/cls），cur 为现价。纯函数，不碰 DOM。
+function buildTView(t, cur){
+  if(!t) return null;
+  var B = t.B, A = t.A;
+  if(!isFinite(B) || B <= 0) return null;   // 日K不足/无停手线时不显示
+  var bNow = cur < B;
+  var rB = (cur - B) / B * 100;             // 相对 B：正=在 B 上方
+  var rA = (A && isFinite(A.v) && A.v > 0) ? (cur - A.v) / A.v * 100 : null; // 相对 A：负=还差
+  var dist = '距 B ' + (rB >= 0 ? '+' : '') + rB.toFixed(1) + '%' +
+             (rA === null ? '' : ' · 距 A ' + (rA > 0 ? '+' : '') + rA.toFixed(1) + '%');
+  var res = {cls:'na', label:'· 可做T', txt:''};
+  if(bNow){
+    res.cls = 'bad'; res.label = '⛔ 跌破停手线 · 停正T';
+    res.txt = '现价 ' + fx(cur) + ' 已跌破 ' + t.Bsrc + ' <b>' + fx(B) + '</b>——震荡假设破产，正T 低吸会变接刀。当日不做多向T，只考虑减仓或观望。';
+  } else if(t.cls === 'bad'){
+    res.cls = 'warn'; res.label = '⚠️ 今日曾破位 · T仓谨慎';
+    res.txt = '今日跌破过 ' + t.Bsrc + ' <b>' + fx(B) + '</b>（现已站回）——箱体不稳，正T 仓位先收一收，等放量企稳再低吸，别急着抄。';
+  } else if(rB <= CFG.T_B_WARN){
+    res.cls = 'warn'; res.label = '⚠️ 逼近停手 · 收T仓';
+    res.txt = '现价距 ' + t.Bsrc + ' <b>' + fx(B) + '</b> 仅 ' + rB.toFixed(1) + '%，做T 止损空间太薄——<b>别在箱底重仓低吸</b>，等站回放量或破位明朗再动。';
+  } else if(t.cls === 'ok'){
+    res.cls = 'ok'; res.label = '✅ 放量站上 A · 转强确认';
+    res.txt = '现价放量站上 ' + esc(A.n) + ' <b>' + fx(A.v) + '</b>——对做T 而言这是<b>转强/高抛参考</b>，不是低吸点：做飞想追回可用波段视角小仓，勿当日内低吸追高，破 ' + t.Bsrc + ' ' + fx(B) + ' 停手。';
+  } else {
+    res.label = '· 可做T：等分时低吸点';
+    res.txt = 'A/B 之间运行，震荡假设成立可做T——<b>低吸参考</b>：回踩 ' + t.Bsrc + ' <b>' + fx(B) + '</b> 上方缩量企稳；<b>高抛参考</b>：' + (A ? esc(A.n) + ' <b>' + fx(A.v) + '</b>' : '日内冲高滞涨') + ' 附近。';
+  }
+  res.txt += '<div style="margin-top:2px;color:var(--txt3)">' + dist + ' · 方向参考，日内执行以分时为准，非买卖指令</div>';
+  return res;
+}
+/* ============ 分时回踩低吸（2026-09-04 用户拍板：两档分层 + 迷你分时图）============ */
+// 原料全部现成：today[] 每分钟 {close,vol,amt} + VWAP(累计额/累计量)。纯函数，不碰 DOM。
+// 状态机（几何判定，无需跨轮持久状态，可测）：
+//   na    分时数据不足
+//   up    走强/高位运行（回撤不足，无低吸结构）
+//   dip   回踩中（刚拐头 / 未缩量 / 未贴支撑，不提示）
+//   watch 🟡 缩量回踩至支撑区（可试仓观察）
+//   ok    ✅ 回踩后重新站回 VWAP（低吸确认，右侧）
+//   void  ❌ 跌破回踩段前低（结构失败作废，别接刀）
+// gate（日线破 B 停用低吸信号）由 renderDip 前置判断，不入本函数。
+function dipState(arr){
+  var out = {phase:'na', cls:'na', label:'· 数据不足', msg:'分时数据不足（< ' + CFG.DIP_MIN + ' 根），稍后自动重试。', hi:null, lo:null, vwap:null, dipPct:null, volRatio:null};
+  if(!arr || arr.length < CFG.DIP_MIN) return out;
+  var n = arr.length, closes = [], vwaps = [], cAmt = 0, cVol = 0;
+  for(var i = 0; i < n; i++){
+    var a = arr[i] || {}, c = num(a.close);
+    closes.push(c);
+    cAmt += num(a.amt); cVol += num(a.vol);
+    vwaps.push(cVol > 0 ? cAmt / cVol : (c > 0 ? c : NaN));
+  }
+  var cur = closes[n-1], vwapCur = vwaps[n-1];
+  var i0 = Math.max(0, n - CFG.DIP_LOOK), hiI = n-1, hiPx = -1;
+  for(var j = i0; j < n; j++){ if(closes[j] >= hiPx){ hiPx = closes[j]; hiI = j; } }   // 取最右新高
+  var dipPct = hiPx > 0 ? (hiPx - cur) / hiPx : 0;
+  out.hi = {i: hiI, px: hiPx}; out.vwap = vwapCur; out.dipPct = dipPct;
+  if(hiI === n-1 || dipPct < CFG.DIP_R){
+    out.phase = 'up'; out.label = '· 走强中，无回踩';
+    out.msg = '现价贴着日内高点运行（回撤 ' + (dipPct*100).toFixed(2) + '% < 阈值 ' + (CFG.DIP_R*100).toFixed(1) + '%），没有可低吸的回踩结构——不追高，等回落再看。';
+    return out;
+  }
+  if(n - 1 - hiI < 3){
+    out.phase = 'dip'; out.label = '· 回踩初段，观察';
+    out.msg = '刚从高点 ' + fx(hiPx) + ' 拐头回落 ' + (dipPct*100).toFixed(2) + '%，才 ' + (n-1-hiI) + ' 分钟——先观察是否缩量、到哪企稳，不急着接。';
+    return out;
+  }
+  var loI = hiI + 1, loPx = Infinity, prevLo = Infinity;
+  for(var k = hiI + 1; k < n; k++){ if(closes[k] < loPx){ loPx = closes[k]; loI = k; } }
+  for(var m = hiI + 1; m < n - 1; m++){ if(closes[m] < prevLo) prevLo = closes[m]; }   // 前低（不含当前根）
+  out.lo = {i: loI, px: loPx};
+  var u0 = Math.max(i0, hiI - 30), su = 0, cu = 0, sd = 0, cd = 0;
+  for(var u = u0; u <= hiI; u++){ su += num(arr[u].vol); cu++; }
+  for(var v = hiI + 1; v < n; v++){ sd += num(arr[v].vol); cd++; }
+  var upAvg = cu > 0 ? su / cu : 0, dnAvg = cd > 0 ? sd / cd : 0;
+  var vr = upAvg > 0 ? dnAvg / upAvg : null;
+  out.volRatio = vr;
+  var shrink = vr !== null && vr <= CFG.DIP_SHRINK;
+  var nearest = null;
+  if(isFinite(vwapCur) && vwapCur > 0 && vwapCur <= cur) nearest = {n:'均价', v:vwapCur, dd:(cur-vwapCur)/cur};
+  if(isFinite(loPx) && loPx > 0 && loPx <= cur && (!nearest || (cur-loPx)/cur < nearest.dd)) nearest = {n:'回踩低', v:loPx, dd:(cur-loPx)/cur};
+  if(nearest && nearest.dd > CFG.DIP_NEAR) nearest = null;                              // 距支撑 >0.5% 不算贴
+  if(prevLo !== Infinity && cur < prevLo){
+    out.phase = 'void'; out.cls = 'bad'; out.label = '⛔ 跌破回踩低点 · 作废';
+    out.msg = '回踩段前低 ' + fx(prevLo) + ' 已跌破——回踩结构失败，低吸信号作废，<b>停止等下一次，不接刀</b>。';
+    return out;
+  }
+  if(isFinite(vwapCur) && cur >= vwapCur){
+    out.phase = 'ok'; out.cls = 'ok'; out.label = '✅ 低吸确认 · 站回均价';
+    out.msg = '从日内高点 ' + fx(hiPx) + ' 回撤 ' + (dipPct*100).toFixed(2) + '% 后，现价 ' + fx(cur) + ' 重新站回均价线 <b>' + fx(vwapCur) + '</b>' +
+      (vr !== null ? '（回踩段量 ' + (vr*100).toFixed(0) + '%）' : '') + '——缩量回踩企稳的右侧确认，可低吸试仓；跌破回踩低 ' + fx(loPx) + ' 即撤。';
+    return out;
+  }
+  if(shrink && nearest){
+    out.phase = 'watch'; out.cls = 'warn'; out.label = '🟡 缩量回踩支撑区';
+    out.msg = '回踩段量能萎缩至上涨段 ' + (vr*100).toFixed(0) + '%（抛压衰竭），现价贴<b>' + nearest.n + ' ' + fx(nearest.v) + '</b>（距 ' + (nearest.dd*100).toFixed(2) + '%）——<b>可试仓观察区</b>；破回踩低 ' + fx(loPx) + ' 即撤，站回均价再加。';
+    return out;
+  }
+  out.phase = 'dip';
+  if(shrink){
+    out.label = '· 回踩缩量，等企稳';
+    out.msg = '回踩中且量已萎缩（上涨段的 ' + (vr*100).toFixed(0) + '%），但还没贴到支撑——等回踩到 均价/前低/昨收 附近企稳再看。';
+  } else {
+    out.label = '· 回踩中，未见缩量';
+    out.msg = '从高点 ' + fx(hiPx) + ' 回撤 ' + (dipPct*100).toFixed(2) + '%，但量未缩（' + (vr !== null ? '上涨段的 ' + (vr*100).toFixed(0) + '%' : '量数据不足') + '）——抛压未尽，先不动，等缩量或站回均价。';
+  }
+  return out;
+}
+// 迷你分时图：最近 DIP_LOOK 根 close + VWAP + 高点/回踩低点/现价标记（纯 svg 字符串）
+function dipSvg(today, st){
+  var n = today.length;
+  var start = Math.max(0, n - CFG.DIP_LOOK);
+  var seg = today.slice(start);
+  var W = 560, H = 116, pl = 8, pr = 8, pt = 10, pb = 12;
+  var cw = W - pl - pr, ch = H - pt - pb, closes = [], vwps = [], cAmt = 0, cVol = 0;
+  var x0 = 0, x1 = seg.length - 1;
+  for(var i = 0; i < seg.length; i++){
+    var a = seg[i] || {}, c = num(a.close);
+    closes.push(c);
+    cAmt += num(a.amt); cVol += num(a.vol);
+    vwps.push(cVol > 0 ? cAmt / cVol : NaN);
+    if(i === 0) x0 = c; x1 = c;
+  }
+  var loV = Infinity, hiV = -Infinity;
+  for(var q = 0; q < closes.length; q++){
+    if(closes[q] < loV) loV = closes[q];
+    if(closes[q] > hiV) hiV = closes[q];
+    if(isFinite(vwps[q])){ if(vwps[q] < loV) loV = vwps[q]; if(vwps[q] > hiV) hiV = vwps[q]; }
+  }
+  var hiT = Math.max(st && st.hi ? st.hi.px : hiV, hiV), loT = Math.min(st && st.lo ? st.lo.px : loV, loV);
+  if(loT < hiT){ hiT += (hiT - loT) * 0.06; loT -= (hiT - loT) * 0.06; } else { hiT += 0.01; loT -= 0.01; }
+  function X(i){ return pl + (x1 > x0 ? (i - x0) / (x1 - x0) * cw : cw / 2); }
+  function Y(v){ return pt + (hiT - v) / (hiT - loT) * ch; }
+  var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:auto;display:block">';
+  var pC = [], pV = [];
+  for(var t2 = 0; t2 < closes.length; t2++){
+    pC.push(X(t2).toFixed(1) + ',' + Y(closes[t2]).toFixed(1));
+    if(isFinite(vwps[t2])) pV.push(X(t2).toFixed(1) + ',' + Y(vwps[t2]).toFixed(1));
+  }
+  s += '<polyline points="' + pC.join(' ') + '" fill="none" stroke="#1f2937" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>';
+  if(pV.length > 1) s += '<polyline points="' + pV.join(' ') + '" fill="none" stroke="#f59e0b" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>';
+  if(st && st.hi && st.hi.i >= start){
+    var hix = X(st.hi.i - start), hiy = Y(st.hi.px);
+    s += '<circle cx="' + hix.toFixed(1) + '" cy="' + hiy.toFixed(1) + '" r="3" fill="#1f2937"/>';
+  }
+  if(st && st.lo && st.lo.i >= start){
+    var lox = X(st.lo.i - start), loy = Y(st.lo.px);
+    s += '<circle cx="' + lox.toFixed(1) + '" cy="' + loy.toFixed(1) + '" r="3" fill="#e08700"/>';
+  }
+  var cix = closes.length - 1, ciy = Y(closes[cix]);
+  s += '<circle cx="' + X(cix).toFixed(1) + '" cy="' + ciy.toFixed(1) + '" r="3.2" fill="#d92b2b"/>';
+  s += '<text x="' + (W - pr - 4) + '" y="' + (H - 3) + '" text-anchor="end" font-size="11" fill="#9ca3af">近 ' + closes.length + ' 分钟 · 深色=价 黄=均价</text>';
+  return s + '</svg>';
+}
+function renderDip(){
+  var S = STATE.stock, box = $('sDipBox');
+  if(!box) return;
+  if(!S || !S.trends || !S.trends.today || !S.trends.today.length){ box.style.display = 'none'; return; }
+  var today = S.trends.today;
+  var snap = S.snap, cur = (snap && snap.price > 0) ? snap.price : today[today.length-1].close;
+  var p = $('sDip'), box2 = $('sDipSvg'), txt = $('sDipTxt');
+  box.style.display = 'block';
+  // 日线闸门：B 已破（bad）→ 今日不提供低吸信号
+  var nl = S.lv ? nearestLevels(S.lv, cur) : null;
+  if(S.lv && S._trg && S.lv.ma20 !== undefined){
+    var t = buildTrig(S, nl, cur, S._trg);
+    if(t && t.cls === 'bad'){
+      p.textContent = '⛔ 闸门关闭 · 今日不做正T'; p.className = 'pill bad';
+      txt.innerHTML = '日线已破 ' + t.Bsrc + ' <b>' + fx(t.B) + '</b>（' + t.label + '）——破位日分时低吸 = 接刀，低吸信号停用。等重新站回或新箱体确立再做。';
+      box2.innerHTML = ''; box.style.borderColor = '#f3c2c2';
+      return;
+    }
+  }
+  var st = dipState(today);
+  p.textContent = st.label; p.className = 'pill ' + st.cls;
+  txt.innerHTML = st.msg;
+  box2.innerHTML = st.phase === 'na' ? '' : dipSvg(today, st);
+  box.style.borderColor = st.cls === 'ok' ? '#bfe3ce' : (st.cls === 'bad' ? '#f3c2c2' : (st.cls === 'warn' ? '#f2d9ab' : 'var(--line)'));
+  S._dip = st;
+}
+function renderTrig(){
+  var S = STATE.stock;
+  var box = $('sTrigBox');
+  if(!S){ if(box) box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  if(!S._trg) S._trg = {};
+  var snap = S.snap, tr = S.trends;
+  var cur = snap && snap.price > 0 ? snap.price : tr.today[tr.today.length-1].close;
+  var nl = nearestLevels(S.lv, cur);
+  var t = buildTrig(S, nl, cur, S._trg);
+  var p = $('sTrig');
+  p.textContent = t.label;
+  p.className = 'pill ' + t.cls;
+  $('sTrigBody').innerHTML = t.body;
+  box.style.borderColor = t.cls === 'ok' ? '#bfe3ce' : (t.cls === 'bad' ? '#f3c2c2' : (t.cls === 'warn' ? '#f2d9ab' : 'var(--line)'));
+  var tv = buildTView(t, cur), vrow = $('sTViewRow');
+  if(vrow){
+    if(tv){
+      vrow.style.display = 'block';
+      var pv = $('sTView');
+      pv.textContent = tv.label; pv.className = 'pill ' + tv.cls;
+      $('sTViewTxt').innerHTML = tv.txt;
+    } else vrow.style.display = 'none';
+  }
+}
+// 自动刷新时轻量更新个股快照（价格/涨跌），量能区保持查询时刻值（诚实的口径）
+function refreshStockPrice(){
+  var S = STATE.stock;
+  if(!S || !S.code) return;
+  var secid = secidOf(S.code), tx = txOf(S.code);
+  if(!secid) return;
+  fetchSnap(secid, tx).then(function(ns){
+    if(!ns || !(ns.price > 0)) return;
+    var pre = S.preClose;
+    S.snap = ns;
+    if(!isFinite(pre) && isFinite(ns.preClose)) S.preClose = ns.preClose;
+    var d = new Date();
+    S._snapTs = d.getHours() + ':' + ('0'+d.getMinutes()).slice(-2) + ':' + ('0'+d.getSeconds()).slice(-2);
+    renderStock();
+    renderTrig();
+    renderDip();
+    // 分时回踩低吸：节流重拉分时（≥DIP_MS 一次、盘中才拉），量能区仍保持查询时刻快照（诚实口径）
+    var mp = marketPhase(new Date());
+    if(mp.open && (!S._trendsTs2 || Date.now() - S._trendsTs2 > CFG.DIP_MS)){
+      S._trendsTs2 = Date.now();
+      fetchTrends(secid, tx, false).then(function(b2){
+        if(!b2 || !b2.tr || !b2.tr.today || !b2.tr.today.length) return;
+        if(STATE.stock !== S) return;                       // 已换股则丢弃
+        S.trends = b2.tr;
+        S._trendsTs = nowHM();
+        renderTrig();
+        renderDip();
+      }).catch(function(){ S._trendsTs2 = 0; });              // 失败下轮重试
+    }
+  }).catch(function(){ /* 静默：保留旧价，下轮再试 */ });
+}
+
+/* ============ 观察池 + 浏览器通知 ============ */
+// 能力边界：静态页无后台。快轮询只判价格线（30s），慢刷新重算同期量比（5min）。
+// A/B 线在加入观察池时锁定，跨交易日自动重置；同日内 A、B 各只弹一次通知。
+var WKEY = 'neng_watch_v1';
+function nowHM(){ var d = new Date(); return ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2) + ':' + ('0'+d.getSeconds()).slice(-2); }
+
+function wLoad(){
+  try{ var a = JSON.parse(localStorage.getItem(WKEY) || '[]'); return (a && a.length) ? a : []; }catch(e){ return []; }
+}
+function wSave(){
+  try{ localStorage.setItem(WKEY, JSON.stringify(STATE.watch.items.map(function(it){ return it.code; }))); }catch(e){}
+}
+function wFind(code){
+  var its = STATE.watch.items;
+  for(var i=0;i<its.length;i++) if(its[i].code === code) return its[i];
+  return null;
+}
+function wErr(msg){
+  var el = $('wErr'); if(!el) return;
+  if(!msg){ el.style.display = 'none'; el.textContent = ''; return; }
+  el.style.display = 'block'; el.textContent = msg;
+}
+function wAdd(code){
+  code = String(code || '').trim();
+  var secid = secidOf(code), tx = txOf(code);
+  if(!secid){ wErr('代码格式不对，请输入 6 位数字（如 588170）。'); return; }
+  if(STATE.watch.items.length >= CFG.W_MAX){ wErr('观察池最多 ' + CFG.W_MAX + ' 个，先移除一些再加。'); return; }
+  if(wFind(code)){ wErr(code + ' 已在观察池中。'); return; }
+  wErr('');
+  var it = {code: code, secid: secid, tx: tx, S: null, ready: false, err: '', notified: {}, nday: ''};
+  STATE.watch.items.push(it);
+  wSave(); renderWatch();
+  wInit(it).then(function(){ renderWatch(); });
+}
+function wRemove(code){
+  STATE.watch.items = STATE.watch.items.filter(function(it){ return it.code !== code; });
+  wSave(); renderWatch();
+}
+// 初始化：拉全量（快照 + 分时 + 日线），锁定 A/B 线
+function wInit(it){
+  it.ready = false; it.err = '';
+  return Promise.all([ fetchSnap(it.secid, it.tx), fetchTrends(it.secid, it.tx, false) ]).then(function(rs){
+    var snap = rs[0], tr = rs[1] && rs[1].tr;
+    if(!tr || !tr.today || !tr.today.length) throw new Error('TREND_EMPTY');
+    var preClose = isFinite(tr.preClose) ? tr.preClose : (snap ? snap.preClose : NaN);
+    return getDaily(it.tx).then(function(daily){
+      var cur = (snap && snap.price > 0) ? snap.price : tr.today[tr.today.length-1].close;
+      if(!isFinite(preClose) && daily && daily.length >= 2) preClose = daily[daily.length-2].close;
+      it.S = {code: it.code, snap: snap, trends: tr, daily: daily, preClose: preClose,
+              lv: levels(daily, cur, preClose),
+              vc: volCompare(tr.today, tr.yest, STATE.metric),
+              _trg: {}, _snapTs: nowHM()};
+      it.ready = true;
+    });
+  }).catch(function(e){ it.err = (e && e.message) ? e.message : String(e); it.ready = false; });
+}
+function wCur(it){
+  var S = it.S;
+  if(S.snap && S.snap.price > 0) return S.snap.price;
+  return S.trends.today[S.trends.today.length-1].close;
+}
+function wEval(it){
+  var S = it.S, cur = wCur(it);
+  return buildTrig(S, nearestLevels(S.lv, cur), cur, S._trg);
+}
+function notify(title, body){
+  try{
+    if(!('Notification' in window) || !STATE.watch.notice) return false;
+    if(Notification.permission !== 'granted') return false;
+    var n = new Notification(title, {body: body, tag: 'neng-' + title});
+    setTimeout(function(){ try{ n.close(); }catch(e){} }, 20000);
+    return true;
+  }catch(e){ return false; }
+}
+function wNotify(it, t){
+  var day = new Date().toDateString();
+  if(it.nday !== day){ it.nday = day; it.notified = {}; it.nAts = 0; }
+  if(!it.notified) it.notified = {};
+  var now = Date.now(), cur = wCur(it);
+  // A：假突破回落至 A 下方后，允许再次提醒（那是一次新的站上事件）；但加 10 分钟冷却，避免 A 线附近上下穿梭刷屏
+  if(t.cls === 'ok'){
+    if(!it.notified.A && (!it.nAts || now - it.nAts > CFG.W_COOL)){
+      it.notified.A = true; it.nAts = now;
+      notify('✅ ' + it.code + ' 放量站回 A 线（稳住 ' + CFG.A_CONFIRM_MIN + ' 分钟）',
+        '现价 ' + fx(cur) + '，站上 ' + (t.A ? (t.A.n + ' ' + fx(t.A.v)) : 'A 线') + ' 且量能达标，已在 A 上方连续稳住 ' + CFG.A_CONFIRM_MIN + ' 分钟确认。按你的规则：可分批轻仓试，跌破 B 线停手。');
+    }
+  } else if(t.A && isFinite(t.A.v) && cur < t.A.v){
+    it.notified.A = false;   // 已回落 A 下方：撤销标记，下次真正站上可再提醒（冷却期内不弹）
+  }
+  // B：破位当日只提醒一次，不清除——站回 B 上方也不撤销，纪律提示保持
+  if(t.cls === 'bad' && !it.notified.B){
+    it.notified.B = true;
+    notify('⛔ ' + it.code + ' 跌破 B 线',
+      '现价 ' + fx(cur) + '，跌破 ' + (t.Bsrc || '20日箱底') + ' ' + fx(t.B) + '。按你的规则：停止加仓 / 离场观望。');
+  }
+}
+// 快轮询：只拉快照判价格线（条目间错峰，避免并发限流）
+function wFastTick(){
+  var its = STATE.watch.items;
+  if(!its.length) return;
+  if(!marketPhase(new Date()).open) return;
+  its.forEach(function(it, i){
+    if(!it.ready) return;
+    setTimeout(function(){
+      fetchSnap(it.secid, it.tx).then(function(ns){
+        if(!ns || !(ns.price > 0)) return;
+        it.S.snap = ns; it.S._snapTs = nowHM();
+        var t = wEval(it);
+        wNotify(it, t);
+        renderWatch();
+      }).catch(function(){ /* 静默：保留旧价，下轮再试 */ });
+    }, i * CFG.W_STAGGER);
+  });
+}
+// 慢刷新：重拉分时分时，更新同期量比（A 触发的量能判据）
+function wSlowTick(){
+  var its = STATE.watch.items;
+  if(!its.length) return;
+  if(!marketPhase(new Date()).open) return;
+  its.forEach(function(it, i){
+    if(!it.ready) return;
+    setTimeout(function(){
+      fetchTrends(it.secid, it.tx, false).then(function(b){
+        if(!b || !b.tr || !b.tr.today || !b.tr.today.length) return;
+        it.S.trends = b.tr;
+        it.S.vc = volCompare(b.tr.today, b.tr.yest, STATE.metric);
+        it.S._snapTs = nowHM();
+        renderWatch();
+      }).catch(function(){});
+    }, i * CFG.W_STAGGER);
+  });
+}
+function wRecalcAll(){
+  var its = STATE.watch.items;
+  if(!its.length){ wErr('观察池是空的。'); return; }
+  wErr('重算中…（逐条错峰拉取，请稍候）');
+  var i = 0;
+  (function next(){
+    if(i >= its.length){ wErr(''); renderWatch(); return; }
+    var it = its[i++];
+    wInit(it).then(function(){ renderWatch(); setTimeout(next, CFG.W_STAGGER); });
+  })();
+}
+function renderWatch(){
+  var tb = $('wBody'); if(!tb) return;
+  var its = STATE.watch.items;
+  if(!its.length){
+    tb.innerHTML = '<div style="color:var(--txt3);padding:14px 0;text-align:center">观察池为空。在上面输入代码点「加入」，或在个股诊断后点「＋ 加入观察池」。</div>';
+    return;
+  }
+  var html = '';
+  for(var i=0;i<its.length;i++){
+    var it = its[i];
+    if(!it.ready){
+      html += '<div class="wcard">' +
+        '<div class="wcode"><b>' + esc(it.code) + '</b></div>' +
+        '<div class="wstate" style="color:var(--txt3)">' + (it.err ? '加载失败：' + esc(it.err) + '（点「重算」重试）' : '加载中…') + '</div>' +
+        '<div class="wact"><button class="etfbtn" data-re="' + esc(it.code) + '">重算</button> <button class="etfbtn" data-rm="' + esc(it.code) + '">移除</button></div>' +
+        '</div>';
+      continue;
+    }
+    var S = it.S, cur = wCur(it), t = wEval(it);
+    var pc = (isFinite(S.preClose) && S.preClose > 0) ? (cur - S.preClose) / S.preClose * 100 : NaN;
+    var r = S.vc ? S.vc.ratio : NaN;
+    var bg = t.cls === 'ok' ? '#f2fbf6' : (t.cls === 'bad' ? '#fff5f5' : (t.cls === 'warn' ? '#fffbf0' : '#fff'));
+    var nm = (S.snap && S.snap.name) ? '<small>' + esc(S.snap.name) + '</small>' : '';
+    html += '<div class="wcard" style="background:' + bg + '">' +
+      '<div class="wcode"><b>' + esc(it.code) + '</b>' + nm + '</div>' +
+      '<div class="wprice"><b>' + fx(cur) + '</b><span class="wchg ' + cls(pc) + '">' + pctS(pc) + '</span></div>' +
+      '<div class="wstate"><span class="pill ' + t.cls + '">' + esc(t.label) + '</span></div>' +
+      '<div class="wline">' +
+        '<span><b>A</b> ' + (t.A ? fx(t.A.v) : '—') + '</span>' +
+        '<span class="sep">·</span>' +
+        '<span><b>B</b> ' + fx(t.B) + '</span>' +
+        '<span class="sep">·</span>' +
+        '<span><b>量比</b> ' + (isFinite(r) ? (r*100).toFixed(0) + '%' : '—') + '</span>' +
+        '<span class="sep">·</span>' +
+        '<span>' + esc(S._snapTs || '') + '</span>' +
+      '</div>' +
+      '<div class="wact"><button class="etfbtn" data-re="' + esc(it.code) + '">重算</button> <button class="etfbtn" data-rm="' + esc(it.code) + '">移除</button></div>' +
+      '</div>';
+  }
+  tb.innerHTML = html;
+}
+function wRenderNotifyBtn(){
+  var b = $('wNotify'); if(!b) return;
+  if(!('Notification' in window)){ b.textContent = '🔔 浏览器不支持通知'; b.disabled = true; return; }
+  var p = Notification.permission;
+  if(p === 'granted' && STATE.watch.notice){ b.textContent = '🔔 通知已开启'; b.className = 'primary'; }
+  else if(p === 'denied'){ b.textContent = '🔔 通知被拒绝'; b.className = ''; }
+  else { b.textContent = '🔔 开启浏览器通知'; b.className = ''; }
+}
+function wNotifyEnable(){
+  if(!('Notification' in window)){ wErr('此浏览器不支持桌面通知；页面内高亮仍然有效。'); return; }
+  if(Notification.permission === 'granted'){
+    STATE.watch.notice = true; wRenderNotifyBtn(); wErr(''); return;
+  }
+  try{
+    var r = Notification.requestPermission();
+    if(r && r.then) r.then(after); else after(Notification.permission);
+  }catch(e){ after('denied'); }
+  function after(p){
+    STATE.watch.notice = (p === 'granted');
+    wRenderNotifyBtn();
+    if(p === 'granted'){ wErr(''); notify('观察池通知已开启', '池中任意标的触发 A/B 线时会弹窗提醒（页面需保持打开）。'); }
+    else wErr('通知权限被拒绝。可在浏览器地址栏左侧设置里允许通知后重试；页面内高亮仍然有效。');
+  }
+}
+function wStart(){
+  var codes = wLoad();
+  STATE.watch.items = [];
+  for(var i=0;i<codes.length;i++){
+    var secid = secidOf(codes[i]), tx = txOf(codes[i]);
+    if(!secid) continue;
+    STATE.watch.items.push({code: codes[i], secid: secid, tx: tx, S: null, ready: false, err: '', notified: {}, nday: ''});
+  }
+  renderWatch();
+  if('Notification' in window && Notification.permission === 'granted') STATE.watch.notice = true;
+  wRenderNotifyBtn();
+  // 串行错峰初始化，避免一次性并发打爆行情接口
+  var k = 0;
+  (function next(){
+    if(k >= STATE.watch.items.length) return;
+    var it = STATE.watch.items[k++];
+    wInit(it).then(function(){ renderWatch(); setTimeout(next, CFG.W_STAGGER); });
+  })();
+  if(STATE.watch.fastTimer) clearInterval(STATE.watch.fastTimer);
+  if(STATE.watch.slowTimer) clearInterval(STATE.watch.slowTimer);
+  STATE.watch.fastTimer = setInterval(wFastTick, CFG.W_FAST);
+  STATE.watch.slowTimer = setInterval(wSlowTick, CFG.W_SLOW);
+}
+
+/* ============ 主流程 ============ */
+function loadIndex(){
+  var secid = CFG.IDX_SEC, tx = CFG.IDX_TX, isIdx = true;
+  var now = new Date();
+  var mp = marketPhase(now), win = windowState(now);
+  return Promise.all([ fetchSnap(secid, tx), fetchTrends(secid, tx, isIdx) ]).then(function(rs){
+    var snap = rs[0];
+    var bundle = rs[1];
+    var tr = bundle.tr, src = bundle.src;
+    if(!tr || !tr.today.length) throw new Error('TREND_EMPTY');
+    var preClose = isFinite(tr.preClose) ? tr.preClose : (snap ? snap.preClose : NaN);
+    var I = {snap: snap, trends: tr, mp: mp, win: win, now: now, preClose: preClose, src: src};
+    STATE.idx = I;
+    return Promise.all([ getDaily(tx), fetchThermo() ]).then(function(rs2){
+      var daily = rs2[0];
+      I.daily = daily;
+      I.thermo = rs2[1];   // 市场温度计快照（可能为 null，规则引擎会判 na）
+      var cur = I.snap ? I.snap.price : tr.today[tr.today.length-1].close;
+      if(!isFinite(I.preClose) && daily && daily.length >= 2) I.preClose = daily[daily.length-2].close;
+      preClose = I.preClose;
+      I.lv = levels(daily, cur, I.preClose);
+      // 开盘价兜底：东财指数分时的分钟 open 恒为 0，需回落到日K最后一根的开盘价
+      var openP = (snap && isFinite(snap.open) && snap.open > 0) ? snap.open
+                : (I.lv && I.lv.todayBar && isFinite(I.lv.todayBar.open) && I.lv.todayBar.open > 0) ? I.lv.todayBar.open
+                : (tr.today[0] && isFinite(tr.today[0].open) && tr.today[0].open > 0) ? tr.today[0].open : NaN;
+      I.openP = openP;
+      var vc = volCompare(tr.today, tr.yest, STATE.metric);
+      I.yestAvail = !vc.unavail;
+      var slope = volSlope(tr.today);
+      var yw = ywAnalyze(tr.today);
+      var yws = ywState(yw, preClose);
+      I.vc = vc; I.slope = slope; I.yw = yw; I.yws = yws;
+      var near = nearestLevels(I.lv, cur);
+      var ctx = {
+        mp: mp, win: win, yw: yw, yws: yws, vc: vc, slope: slope, lv: I.lv, near: near,
+        preClose: preClose, snap: snap, now: now, cur: cur, openP: openP,
+        prevAmp: I.lv ? I.lv.prevAmp : NaN,
+        boxPos: I.lv ? I.lv.boxPos : NaN,
+        prevHigh: I.lv ? I.lv.prevHigh : NaN,
+        thermo: I.thermo
+      };
+      I.ruleOut = buildTRules(ctx);
+      I.sum = summarizeT(I.ruleOut, ctx);
+      console.log('[量能雷达] 大盘(' + src + ') 分时条数=' + tr.today.length + ' 昨日=' + tr.yest.length +
+        ' 同期量比=' + (isFinite(vc.ratio)?vc.ratio.toFixed(3):'NA') +
+        ' 黄白差=' + (isFinite(yws.diffPct)?yws.diffPct.toFixed(3)+'%':'NA') +
+        ' 规则: ok=' + I.sum.ok + ' warn=' + I.sum.warn + ' bad=' + I.sum.bad);
+    });
+  });
+}
+
+function loadSector(){
+  return apiSector().then(function(d){
+    var arr = d && d.data && d.data.diff;
+    if(!arr || !arr.length){ $('sectorFlow').textContent = '数据源未返回（东财板块资金流接口常被限流，请到交易软件确认）'; return; }
+    var h = '';
+    for(var i = 0; i < Math.min(5, arr.length); i++){
+      var x = arr[i];
+      h += '<span class="chip good">' + esc(x.f14) + ' +' + (num(x.f62)/1e8).toFixed(2) + '亿（' + pctS(num(x.f3)) + '）</span> ';
+    }
+    var tail = arr.slice(-3);
+    for(var j = 0; j < tail.length; j++){
+      var y = tail[j];
+      h += '<span class="chip hot">' + esc(y.f14) + ' ' + (num(y.f62)/1e8).toFixed(2) + '亿（' + pctS(num(y.f3)) + '）</span> ';
+    }
+    $('sectorFlow').innerHTML = h + '<div class="hint" style="margin-top:4px">口径：东财行业板块主力净流入（盘中为实时、盘后为全日）。避开连续三日居流出前3的板块。</div>';
+  }).catch(function(){
+    // 东财 clist 限流 → 降级到市场温度计的 sector 快照，不再直接显示"—"
+    return fetchThermo().then(function(t){
+      if(t && t.sector && renderSectorFromThermo(t)) return;
+      $('sectorFlow').textContent = '板块资金流数据源未连通（东财 clist 接口限流，市场温度计快照也不可用）。这一项请到交易软件人工确认：前一日流入前5、流出前3。';
+    });
+  });
+}
+
+// 用市场温度计 data.json 的 sector 渲染（东财 clist 限流时的降级路径）
+function renderSectorFromThermo(t){
+  var top = dedupSector(t.sector.top || []).slice(0, 5);
+  var bot = dedupSector(t.sector.bottom || []).slice(-3);
+  if(!top.length) return false;
+  function flowTxt(v){ return (v >= 0 ? '+' : '') + v.toFixed(2) + '亿'; }
+  var h = '';
+  for(var i = 0; i < top.length; i++)
+    h += '<span class="chip good">' + esc(top[i].name) + ' ' + flowTxt(num(top[i].flow)) + '（' + pctS(num(top[i].pct)) + '）</span> ';
+  var allNeg = bot.length > 0;
+  for(var j = 0; j < bot.length; j++){
+    var b = bot[j], f = num(b.flow);
+    if(f >= 0) allNeg = false;
+    h += '<span class="chip hot">' + esc(b.name) + ' ' + flowTxt(f) + '（' + pctS(num(b.pct)) + '）</span> ';
+  }
+  // 诚实口径：data.json 的 bottom 是"按净流入升序取末 3 位"，flow 为正说明是流入最少而非真净流出
+  $('sectorFlow').innerHTML = h +
+    '<div class="hint" style="margin-top:4px">降级口径：东财 clist 限流，已改用<b>市场温度计</b>的行业资金流快照（' + esc(t.generated_at || '') + '）。' +
+    (allNeg ? '后 3 项为净流出板块。' : '注意：后 3 项是「净流入最少」而非净流出——当天全市场没有板块净流出。') +
+    '避开连续三日居末位的板块。</div>';
+  return true;
+}
+
+function queryStock(){
+  var code = String($('code').value || '').trim();
+  if(!code) return;
+  var secid = secidOf(code), tx = txOf(code);
+  if(!secid){ showErr('stkErr', '代码格式不对，请输入 6 位数字（如 600519）。'); return; }
+  showErr('stkErr', '');
+  $('btnQuery').disabled = true;
+  $('btnQuery').textContent = '查询中';
+  Promise.all([ fetchSnap(secid, tx), fetchTrends(secid, tx, false) ]).then(function(rs){
+    var snap = rs[0];
+    var bundle = rs[1];
+    var tr = bundle.tr, src = bundle.src;
+    if(!tr || !tr.today.length) throw new Error('TREND_EMPTY');
+    var now = new Date();
+    var preClose = isFinite(tr.preClose) ? tr.preClose : (snap ? snap.preClose : NaN);
+    var S = {snap: snap, trends: tr, preClose: preClose, now: now, corr: NaN, pats: [], src: src, code: code};
+    STATE.stock = S;
+    return getDaily(tx).then(function(daily){
+      S.daily = daily;
+      var cur = snap ? snap.price : tr.today[tr.today.length-1].close;
+      if(!isFinite(S.preClose) && daily && daily.length >= 2) S.preClose = daily[daily.length-2].close;
+      preClose = S.preClose;
+      S.lv = levels(daily, cur, S.preClose);
+      S.openP = (snap && isFinite(snap.open) && snap.open > 0) ? snap.open
+              : (S.lv && S.lv.todayBar && isFinite(S.lv.todayBar.open) && S.lv.todayBar.open > 0) ? S.lv.todayBar.open
+              : (tr.today[0] && isFinite(tr.today[0].open) && tr.today[0].open > 0) ? tr.today[0].open : NaN;
+      var vc = volCompare(tr.today, tr.yest, STATE.metric);
+      var slope = volSlope(tr.today);
+      var yw = ywAnalyze(tr.today);
+      S.vc = vc; S.slope = slope; S.yw = yw;
+      S.pats = detectPatterns({today: tr.today, yest: tr.yest, vc: vc, slope: slope, yw: yw, daily: daily, snap: snap, preClose: S.preClose});
+      S.corr = (typeof S.patCtxCorr === 'number') ? S.patCtxCorr : S.corr;
+      console.log('[量能雷达] 个股(' + src + ') ' + code + ' 同期量比=' + (isFinite(vc.ratio)?vc.ratio.toFixed(3):'NA') + ' 识别形态=' + S.pats.length);
+      renderStock();
+      renderDip();
+    });
+  }).catch(function(e){
+    showErr('stkErr', '获取失败：' + (e && e.message ? e.message : e) + '。可能是代码不存在、停牌，或行情接口被限流，稍后重试。');
+  }).then(function(){
+    $('btnQuery').disabled = false;
+    $('btnQuery').textContent = '查询';
+  });
+}
+
+function refreshAll(){
+  setStatus('加载中…', 'na');
+  showErr('globalErr', '');
+  var t0 = Date.now();
+  loadIndex().then(function(){
+    renderIndex();
+    renderT();
+    if(STATE.stock) renderStock();
+    var now = new Date();
+    var srcTxt = (STATE.idx && STATE.idx.src === 'tx+em1m') ? '腾讯+东财K线' : (STATE.idx && STATE.idx.src === 'tx') ? '腾讯兜底' : '东方财富';
+    var yTxt = (STATE.idx && STATE.idx.yestAvail === false) ? '，昨日量限流·暂不可用' : '';
+    $('lastTime').textContent = '更新于 ' + now.toLocaleTimeString('zh-CN', {hour12:false}) + '（耗时 ' + ((Date.now()-t0)/1000).toFixed(1) + 's）｜源:' + srcTxt + yTxt;
+    setStatus('实时', 'ok');
+    if(!STATE.sectorLoaded){ STATE.sectorLoaded = true; loadSector(); }
+    if(STATE.stock) refreshStockPrice();
+  }).catch(function(e){
+    console.error(e);
+    showErr('globalErr', '大盘数据获取失败（' + (e && e.message ? e.message : e) + '）。东方财富接口偶发限流，点「立即刷新」重试；若持续失败，检查网络或稍后再试。');
+    setStatus('获取失败', 'bad');
+    $('lastTime').textContent = '上次尝试 ' + new Date().toLocaleTimeString('zh-CN', {hour12:false});
+  });
+}
+
+function setTimer(){
+  if(STATE.timer) clearInterval(STATE.timer);
+  var v = parseInt($('freq').value, 10);
+  if(v > 0) STATE.timer = setInterval(refreshAll, v);
+}
+
+/* ============ 口径切换（成交额 / 成交量）============ */
+function recomputeMetric(){
+  var I = STATE.idx;
+  if(!I) return;
+  var cur = I.snap ? I.snap.price : I.trends.today[I.trends.today.length-1].close;
+  var vc = volCompare(I.trends.today, I.trends.yest, STATE.metric);
+  I.yestAvail = !vc.unavail;
+  I.vc = vc;
+  var near = nearestLevels(I.lv, cur);
+  var ctx = {
+    mp: I.mp, win: I.win, yw: I.yw, yws: I.yws, vc: vc, slope: I.slope, lv: I.lv, near: near,
+    preClose: I.preClose, snap: I.snap, now: I.now, cur: cur, openP: I.openP,
+    prevAmp: I.lv ? I.lv.prevAmp : NaN,
+    boxPos: I.lv ? I.lv.boxPos : NaN,
+    prevHigh: I.lv ? I.lv.prevHigh : NaN
+  };
+  I.ruleOut = buildTRules(ctx);
+  I.sum = summarizeT(I.ruleOut, ctx);
+  renderIndex();
+  renderT();
+  var S = STATE.stock;
+  if(S){
+    S.vc = volCompare(S.trends.today, S.trends.yest, STATE.metric);
+    S.pats = detectPatterns({today: S.trends.today, yest: S.trends.yest, vc: S.vc, slope: S.slope, yw: S.yw, daily: S.daily, snap: S.snap, preClose: S.preClose});
+    renderStock();
+  }
+}
+function setMetric(m){
+  if(m !== 'amt' && m !== 'vol') return;
+  STATE.metric = m;
+  var btns = document.querySelectorAll('#metSeg button');
+  for(var i = 0; i < btns.length; i++) btns[i].className = btns[i].getAttribute('data-m') === m ? 'on' : '';
+  recomputeMetric();
+}
+
+/* ============ 绑定 ============ */
+$('btnRefresh').addEventListener('click', refreshAll);
+$('metSeg').addEventListener('click', function(e){
+  var b = e.target;
+  if(b && b.tagName === 'BUTTON' && b.getAttribute('data-m')) setMetric(b.getAttribute('data-m'));
+});
+// ETF 一键按钮：填入代码并触发查询
+document.querySelectorAll('.etfbtn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var c = btn.getAttribute('data-c');
+    if(!c) return;
+    $('code').value = c;
+    queryStock();
+  });
+});
+$('btnQuery').addEventListener('click', queryStock);
+$('freq').addEventListener('change', setTimer);
+$('code').addEventListener('keydown', function(e){ if(e.key === 'Enter') queryStock(); });
+
+/* ============ 观察池绑定 ============ */
+$('wAdd').addEventListener('click', function(){ wAdd($('wCode').value); $('wCode').value = ''; });
+$('wCode').addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){ wAdd($('wCode').value); $('wCode').value = ''; }
+});
+$('wNotify').addEventListener('click', wNotifyEnable);
+$('wRecalc').addEventListener('click', wRecalcAll);
+$('wAddFromStk').addEventListener('click', function(){ wAdd($('code').value); });
+$('wBody').addEventListener('click', function(e){
+  var b = e.target;
+  if(!b || b.tagName !== 'BUTTON') return;
+  var rm = b.getAttribute('data-rm'), re = b.getAttribute('data-re');
+  if(rm) wRemove(rm);
+  else if(re){ var it = wFind(re); if(it) wInit(it).then(function(){ renderWatch(); }); }
+});
+
+(function init(){
+  var m = window.location.search.match(/code=(\d{6})/);
+  if(m) $('code').value = m[1];
+  var vu = $('wVolUp');
+  if(vu) vu.textContent = (CFG.VOL_UP * 100).toFixed(0);
+  refreshAll();
+  setTimer();
+  wStart();
+})();
+</script>
+</body>
+</html>
