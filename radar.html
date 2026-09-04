@@ -185,6 +185,27 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
     </div>
   </div>
 
+  <!-- 市场广度（环境层实时 · 广度+深度融合） -->
+  <div class="card">
+    <h2>①-b 市场广度 <span class="tag">全市场实时 · 环境层</span> <span id="brTag" class="pill na">—</span></h2>
+    <div class="row" style="align-items:stretch">
+      <div class="col" style="flex:1 1 200px">
+        <div class="kv"><span>上涨 / 下跌 / 平</span><b id="brBreadth">—</b></div>
+        <div class="kv"><span>上涨占比</span><b id="brAdv">—</b></div>
+        <div class="kv"><span>沪深主力净流入</span><b id="brMain">—</b></div>
+      </div>
+      <div class="col" style="flex:1 1 240px">
+        <div class="hint" style="margin-bottom:4px">主要指数</div>
+        <div id="brIdx" class="hint" style="line-height:1.9">—</div>
+      </div>
+      <div class="col" style="flex:1 1 280px">
+        <div class="hint" style="margin-bottom:4px">行业资金流（实时 · 前5流入 / 后3流出）</div>
+        <div id="brSector" class="hint">—</div>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:8px">广度 = 全市场 5200+ 只的聚合视角（做T 先看"大势"是否值得动手）；下方 ② 是单票量价深度。同屏即「广度+深度」融合。行业/期指为东财实时，两融仅 T-1（见 ② 条件1）。</div>
+  </div>
+
   <!-- 做T环境 -->
   <div class="card">
     <h2>② 实时做T环境 <span id="tLight" class="pill na">—</span></h2>
@@ -336,7 +357,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
         <table style="font-size:12.5px">
           <tr><th>你的准则</th><th>本工具</th><th>说明</th></tr>
           <tr><td>条件1 昨日波动 / 箱体</td><td>✅ 已量化</td><td>昨日振幅、20日箱体分位自动算</td></tr>
-          <tr><td>条件1 板块流入前5流出前3</td><td>✅ 已量化 + 降级</td><td>东财 clist 实时优先；被限流时自动改用<b>市场温度计</b>的行业资金流快照，不再显示"—"</td></tr>
+          <tr><td>条件1 板块流入前5流出前3</td><td>✅ 已量化 + 降级</td><td>东财 push2delay <b>实时</b>行业资金流（每轮刷新）；被限流时自动改用<b>市场温度计</b>的行业资金流快照，不再显示"—"</td></tr>
           <tr><td>条件1 融资盘变化</td><td>✅ 已接入</td><td>来自<b>市场温度计</b>：融资余额 5/10 日变动（T-1 口径，与准则里"昨日数据"一致）。滞后指标，只出 ok/warn，不出 bad</td></tr>
           <tr><td>条件1 期指基差</td><td>⚠️ 口径替代</td><td>持仓排名仍无免费源（已探测失败，不做假数据）；改用四大期指（IF/IC/IH/IM）平均基差读主力态度——<b>基差 ≠ 持仓排名</b>，只读态度读不到仓位，且 A 股期指长期贴水，故常态区间判 na、绝不出 bad</td></tr>
           <tr><td>条件2 时间窗口</td><td>✅ 已量化</td><td>9:45-10:00 / 14:00-14:30 优选，开盘15分钟内提示回避</td></tr>
@@ -609,10 +630,6 @@ function getDaily(tx){
     return c ? c.data : null;    // 失败时用旧缓存兜底，不让支撑压力位整块消失
   });
 }
-// 板块资金流（常限流，失败不阻塞）
-function apiSector(){
-  return jsonpCb('https://push2.eastmoney.com/api/qt/clist/get?fid=f62&po=1&pz=8&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:2&fields=f12,f14,f62,f184,f3');
-}
 
 /* ============ 市场温度计 data.json（M1 融合：单向灌注） ============
    把温度计的 sector / margin / futures_basis 灌进本页，补上规则引擎原先缺的三项：
@@ -639,14 +656,14 @@ function fetchThermo(){
     return THERMO.data || null;      // 有旧数据就用旧的，没有就 null
   });
 }
-// 环境层接入状态角标：让用户一眼看出温度计数据到底接上没有（不藏着降级）
+// 环境层接入状态角标：行业/期指已是东财实时，只有两融是温度计 T-1 快照 → 如实标注
 function renderThermoTag(){
   var el = $('thermoTag'); if(!el) return;
-  if(THERMO.state === 'ok' && THERMO.data){
+  if(THERMO.state === 'ok' && THERMO.data && THERMO.data.margin){
     var g = String(THERMO.data.generated_at || '').replace(' GMT+8', '').slice(5);
-    el.innerHTML = '<span class="chip good">环境层 ✅ 温度计 ' + esc(g) + '</span>';
+    el.innerHTML = '<span class="chip good">环境层 ✅ 两融 T-1（温度计 ' + esc(g) + '）· 行业/期指实时</span>';
   } else {
-    el.innerHTML = '<span class="chip">环境层 ⚠️ 温度计未接入 · 两融/基差判 na</span>';
+    el.innerHTML = '<span class="chip">环境层 ⚠️ 两融未接入（file:// 本地打开时必然如此）· 行业/期指仍实时</span>';
   }
 }
 // data.json 的 top/bottom 常含「证券Ⅱ / 证券Ⅲ」这类同板块重复项，取前5前先去重
@@ -659,6 +676,167 @@ function dedupSector(arr){
     seen[n] = 1; out.push(arr[i]);
   }
   return out;
+}
+
+/* ============ 市场广度实时层（M2：雷达直连东财，取代「只读 data.json 快照」）============
+   复用温度计「方案C」同款端点（push2delay 东财实时），一次并发拿全市场广度：
+     · 涨跌家数 + 沪深主力净流入（ulist 1.000001,0.399001）
+     · 主要指数强弱（ulist 指数组）
+     · 行业板块资金流（clist m:90+t:2，实时）
+     · 期指基差（eastmoney 指数现货 + 新浪 nf_ 期货连续，取差）
+   不变量：
+     · 两融(margin) 仍只能 T-1，只来自 data.json（温度计落盘），绝不编造实时
+     · 任何一项拉取失败 → 该项降级为 null / 用 data.json 同字段兜底，绝不造假
+     · 与温度计前端同接口同源，保证「广度」和「温度计页」看到的一致 */
+var EM_ULIST = "https://push2delay.eastmoney.com/api/qt/ulist.np/get";
+var EM_CLIST = "https://push2delay.eastmoney.com/api/qt/clist/get";
+var SINA_FUT = "https://hq.sinajs.cn/list=";
+var RT_FUT_NAME = { IF0:"沪深300", IC0:"中证500", IH0:"上证50", IM0:"中证1000" };
+var RT_FUT_SEC  = { IF0:"1.000300", IC0:"1.000905", IH0:"1.000016", IM0:"1.000852" };
+var BR_IDX = "1.000001,0.399001,0.399006,1.000688";
+var BR_E = 1e8;
+
+// 新浪期指连续合约现货：返回 var hq_str_nf_IF0="..."，script 跨域后读全局变量（非 JSONP 回调）
+function sinaFutures(){
+  return new Promise(function(resolve){
+    var syms = Object.keys(RT_FUT_NAME);
+    var s = document.createElement('script');
+    var done = false;
+    var timer = setTimeout(function(){ finish(null); }, 9000);
+    s.onload = function(){
+      if(done) return;
+      var out = {};
+      syms.forEach(function(sym){
+        var v = window['hq_str_nf_' + sym];
+        if(typeof v === 'string' && v){
+          var p = v.split(',');
+          var px = parseFloat(p[3]);   // 新浪 nf_ 格式：今开,最高,最低,最新 → 最新价在 [3]
+          if(px) out[sym] = px;
+        }
+      });
+      finish(out);
+    };
+    s.onerror = function(){ finish(null); };
+    function finish(v){ if(done) return; done = true; clearTimeout(timer); try{ s.remove(); }catch(e){} resolve(v); }
+    s.src = SINA_FUT + syms.map(function(x){ return 'nf_' + x; }).join(',');
+    document.head.appendChild(s);
+  });
+}
+
+function fetchBreadth(){
+  var rt = { ts: new Date() };
+  var jobs = [];
+  // 1) 涨跌家数 + 沪深主力净流入（沪+深相加≈全市场，不含北交所，约差1.5%）
+  jobs.push(jsonpCb(EM_ULIST + '?fltt=2&secids=1.000001,0.399001&fields=f12,f14,f62,f66,f72,f78,f84,f104,f105,f106').then(function(j){
+    var diff = (((j||{}).data)||{}).diff || [];
+    var m=0,xl=0,lg=0,md=0,sm=0,up=0,dn=0,fl=0;
+    diff.forEach(function(d){ m+=d.f62||0; xl+=d.f66||0; lg+=d.f72||0; md+=d.f78||0; sm+=d.f84||0; up+=d.f104||0; dn+=d.f105||0; fl+=d.f106||0; });
+    rt.breadth = { up:up, down:dn, flat:fl };
+    rt.flow = { main_net:+(m/BR_E).toFixed(1), xlarge_net:+(xl/BR_E).toFixed(1), large_net:+(lg/BR_E).toFixed(1),
+                mid_net:+(md/BR_E).toFixed(1), small_net:+(sm/BR_E).toFixed(1) };
+  }).catch(function(e){ rt.e_breadth = e.message; }));
+  // 2) 主要指数强弱
+  jobs.push(jsonpCb(EM_ULIST + '?fltt=2&secids=' + BR_IDX + '&fields=f1,f2,f3,f4,f12,f13,f14').then(function(j){
+    var diff = (((j||{}).data)||{}).diff || [];
+    rt.indices = {};
+    diff.forEach(function(d){ if(d.f2) rt.indices[d.f12] = { name:d.f14, price:d.f2, pct:d.f3, change:d.f4 }; });
+  }).catch(function(e){ rt.e_idx = e.message; }));
+  // 3) 行业板块资金流（实时）
+  jobs.push(jsonpCb(EM_CLIST + '?fid=f62&po=1&pz=200&pn=1&np=1&fltt=2&invt=2&fs=' + encodeURIComponent('m:90+t:2') + '&fields=f12,f14,f62,f184,f3').then(function(j){
+    var raw = (((j||{}).data)||{}).diff || [];
+    var arr = (Array.isArray(raw)?raw:Object.values(raw))
+      .map(function(d){ return { name:d.f14, flow:+((d.f62||0)/BR_E).toFixed(1), pct:d.f3 }; })
+      .filter(function(x){ return x.name; }).sort(function(a,b){ return b.flow-a.flow; });
+    rt.sector = { n: arr.length, top: arr.slice(0,12), bottom: arr.slice(-12).reverse() };
+  }).catch(function(e){ rt.e_sector = e.message; }));
+  // 4) 期指基差（东财指数现货 + 新浪期货连续，取差）
+  jobs.push(sinaFutures().then(function(fut){
+    return jsonpCb(EM_ULIST + '?fltt=2&secids=' + Object.values(RT_FUT_SEC).join(',') + '&fields=f12,f2').then(function(j){
+      var diff = (((j||{}).data)||{}).diff || [];
+      var spots = {}; diff.forEach(function(d){ if(d.f2){ spots[d.f12] = d.f2; spots[String(d.f12).split('.')[1]] = d.f2; } });
+      if(!fut) return;
+      var items = [], bps = [];
+      Object.keys(RT_FUT_NAME).forEach(function(sym){
+        var fut_px = fut[sym], sec = RT_FUT_SEC[sym], code = sec.split('.')[1];
+        var spot = spots[code];
+        if(!fut_px || !spot) return;
+        var basis = +(fut_px - spot).toFixed(2);
+        var bp = +(basis/spot*100).toFixed(3);
+        bps.push(bp);
+        items.push({ name: RT_FUT_NAME[sym], fut:+fut_px.toFixed(2), spot:+spot.toFixed(2), basis:basis, basis_pct:bp,
+          stance: bp > 0.10 ? '升水' : (bp < -0.30 ? '贴水' : '持平') });
+      });
+      if(items.length){
+        var avg = +(bps.reduce(function(a,b){return a+b;},0)/bps.length).toFixed(3);
+        rt.futures_basis = { items:items, avg_basis_pct:avg,
+          attitude: avg > 0.10 ? '主力偏多/看涨' : (avg < -0.30 ? '主力偏空/避险' : '中性') };
+      }
+    });
+  }).catch(function(e){ rt.e_basis = e.message; }));
+
+  return Promise.all(jobs).then(function(){ return rt; });
+}
+
+/* mergeThermo：合并「东财实时广度」与「温度计 data.json 快照」
+   · margin 只有 T-1 来源（data.json），实时层不提供 → 仅来自 dj
+   · sector / futures_basis 优先取东财实时(br)，拉不到再降级 data.json 同字段
+   · 任一为 null 都不抛错，规则引擎对应项自然判 na */
+function mergeThermo(dj, br){
+  var out = { _src: dj ? (dj.generated_at || '') : '', _live: false };
+  out.margin = (dj && dj.margin) ? dj.margin : null;
+  out.sector = (br && br.sector && br.sector.top && br.sector.top.length) ? br.sector
+             : (dj ? dj.sector : null);
+  out.futures_basis = (br && br.futures_basis && br.futures_basis.items) ? br.futures_basis
+                    : (dj ? dj.futures_basis : null);
+  out._live = !!(br && (br.sector || br.futures_basis));
+  return out;
+}
+
+// ①-b 市场广度面板渲染（所有字段缺失时各自显示「—」，不报错）
+function renderBreadth(b){
+  if(!b) return;
+  var tag = $('brTag'); if(tag){ tag.className = 'pill ok'; tag.textContent = '实时'; }
+  if(b.breadth){
+    var t = b.breadth.up + b.breadth.down + b.breadth.flat;
+    $('brBreadth').textContent = b.breadth.up + ' / ' + b.breadth.down + ' / ' + b.breadth.flat;
+    var ab = $('brAdv'); if(ab) ab.textContent = (t ? (b.breadth.up / t * 100).toFixed(1) : '—') + '%';
+  }
+  if(b.flow){
+    var mn = $('brMain');
+    if(mn) mn.innerHTML = (b.flow.main_net >= 0 ? '<span class="up">+' : '<span class="down">') + b.flow.main_net.toFixed(1) + ' 亿</span>';
+  }
+  if(b.indices){
+    var names = { '1.000001':'上证', '0.399001':'深证', '0.399006':'创业板', '1.000688':'科创50' };
+    var h = '';
+    Object.keys(names).forEach(function(k){
+      var d = b.indices[k]; if(!d) return;
+      var c = d.pct > 0 ? 'up' : (d.pct < 0 ? 'down' : '');
+      h += '<div><b class="' + c + '">' + names[k] + ' ' + pctS(d.pct) + '</b></div>';
+    });
+    if(h) $('brIdx').innerHTML = h;
+  }
+  if(b.sector && b.sector.top && b.sector.top.length){
+    var sh = '';
+    b.sector.top.slice(0,5).forEach(function(x){ sh += '<span class="chip good">' + esc(x.name) + ' +' + num(x.flow).toFixed(1) + '亿</span> '; });
+    var bot = b.sector.bottom.slice(-3);
+    bot.forEach(function(y){ sh += '<span class="chip hot">' + esc(y.name) + ' ' + num(y.flow).toFixed(1) + '亿</span> '; });
+    $('brSector').innerHTML = sh;
+  }
+}
+
+// ② 板块资金流（条件1）：优先用东财实时行业流，失败降级温度计快照
+function loadSector(){
+  var br = STATE.idx && STATE.idx.breadth;
+  if(br && br.sector && br.sector.top && br.sector.top.length){ renderSectorLive(br.sector); return; }
+  if(THERMO.data && THERMO.data.sector && renderSectorFromThermo(THERMO.data)) return;
+  $('sectorFlow').textContent = '板块资金流数据源未连通（东财实时接口限流，市场温度计快照也不可用）。这一项请到交易软件人工确认：前一日流入前5、流出前3。';
+}
+function renderSectorLive(sector){
+  var top = sector.top.slice(0,5), tail = sector.bottom.slice(-3);
+  var h = '';
+  top.forEach(function(x){ h += '<span class="chip good">' + esc(x.name) + ' +' + num(x.flow).toFixed(2) + '亿（' + pctS(num(x.pct)) + '）</span> '; });
+  tail.forEach(function(y){ h += '<span class="chip hot">' + esc(y.name) + ' ' + num(y.flow).toFixed(2) + '亿（' + pctS(num(y.pct)) + '）</span> '; });
+  $('sectorFlow').innerHTML = h + '<div class="hint" style="margin-top:4px">实时口径：东财行业板块主力净流入（每轮刷新更新）。避开连续三日居流出前3的板块。</div>';
 }
 
 /* ============ 腾讯兜底数据源（东财限流时启用；file:// 下无需 Referer） ============ */
@@ -2363,10 +2541,11 @@ function loadIndex(){
     var preClose = isFinite(tr.preClose) ? tr.preClose : (snap ? snap.preClose : NaN);
     var I = {snap: snap, trends: tr, mp: mp, win: win, now: now, preClose: preClose, src: src};
     STATE.idx = I;
-    return Promise.all([ getDaily(tx), fetchThermo() ]).then(function(rs2){
+    return Promise.all([ getDaily(tx), fetchThermo(), fetchBreadth() ]).then(function(rs2){
       var daily = rs2[0];
       I.daily = daily;
-      I.thermo = rs2[1];   // 市场温度计快照（可能为 null，规则引擎会判 na）
+      I.thermo = mergeThermo(rs2[1], rs2[2]);   // 两融来自 data.json(T-1)，行业/期指取东财实时，缺失再降级快照
+      I.breadth = rs2[2];                        // 东财实时广度（驱动①-b 面板 + 条件1 板块/期指）
       var cur = I.snap ? I.snap.price : tr.today[tr.today.length-1].close;
       if(!isFinite(I.preClose) && daily && daily.length >= 2) I.preClose = daily[daily.length-2].close;
       preClose = I.preClose;
@@ -2401,31 +2580,7 @@ function loadIndex(){
   });
 }
 
-function loadSector(){
-  return apiSector().then(function(d){
-    var arr = d && d.data && d.data.diff;
-    if(!arr || !arr.length){ $('sectorFlow').textContent = '数据源未返回（东财板块资金流接口常被限流，请到交易软件确认）'; return; }
-    var h = '';
-    for(var i = 0; i < Math.min(5, arr.length); i++){
-      var x = arr[i];
-      h += '<span class="chip good">' + esc(x.f14) + ' +' + (num(x.f62)/1e8).toFixed(2) + '亿（' + pctS(num(x.f3)) + '）</span> ';
-    }
-    var tail = arr.slice(-3);
-    for(var j = 0; j < tail.length; j++){
-      var y = tail[j];
-      h += '<span class="chip hot">' + esc(y.f14) + ' ' + (num(y.f62)/1e8).toFixed(2) + '亿（' + pctS(num(y.f3)) + '）</span> ';
-    }
-    $('sectorFlow').innerHTML = h + '<div class="hint" style="margin-top:4px">口径：东财行业板块主力净流入（盘中为实时、盘后为全日）。避开连续三日居流出前3的板块。</div>';
-  }).catch(function(){
-    // 东财 clist 限流 → 降级到市场温度计的 sector 快照，不再直接显示"—"
-    return fetchThermo().then(function(t){
-      if(t && t.sector && renderSectorFromThermo(t)) return;
-      $('sectorFlow').textContent = '板块资金流数据源未连通（东财 clist 接口限流，市场温度计快照也不可用）。这一项请到交易软件人工确认：前一日流入前5、流出前3。';
-    });
-  });
-}
-
-// 用市场温度计 data.json 的 sector 渲染（东财 clist 限流时的降级路径）
+// 用市场温度计 data.json 的 sector 渲染（东财实时接口限流时的降级路径）
 function renderSectorFromThermo(t){
   var top = dedupSector(t.sector.top || []).slice(0, 5);
   var bot = dedupSector(t.sector.bottom || []).slice(-3);
@@ -2505,7 +2660,8 @@ function refreshAll(){
     var yTxt = (STATE.idx && STATE.idx.yestAvail === false) ? '，昨日量限流·暂不可用' : '';
     $('lastTime').textContent = '更新于 ' + now.toLocaleTimeString('zh-CN', {hour12:false}) + '（耗时 ' + ((Date.now()-t0)/1000).toFixed(1) + 's）｜源:' + srcTxt + yTxt;
     setStatus('实时', 'ok');
-    if(!STATE.sectorLoaded){ STATE.sectorLoaded = true; loadSector(); }
+    if(STATE.idx && STATE.idx.breadth) renderBreadth(STATE.idx.breadth);  // ①-b 市场广度（每轮刷新）
+    loadSector();   // ② 板块资金流：每轮用东财实时渲染，失败降级温度计快照
     if(STATE.stock) refreshStockPrice();
   }).catch(function(e){
     console.error(e);
