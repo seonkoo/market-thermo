@@ -28,6 +28,7 @@ if hasattr(sys.stdout, "reconfigure"):
 BASE = os.path.dirname(os.path.abspath(__file__))
 CFG_PATH = os.path.join(BASE, "config.json")
 OUT_PATH = os.path.join(BASE, "data.json")
+TL_PATH = os.path.join(BASE, "timeline.json")   # 主力视角 regime 当日轨迹（只留当日，跨日重置）
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
 
@@ -1346,6 +1347,47 @@ def build_freshness():
     }
 
 
+# ---------------------------------------------------------------- 主力状态当日轨迹
+def append_timeline(data):
+    """把本轮主力 regime 追加进当日轨迹 timeline.json（只留当日，跨日重置）。
+
+    规则：同一 regime 连续采样合并成一段 (s~e)，只有发生状态切换才开新段；
+    同一 HH:MM 内重复运行不产生新点（幂等）。这样页面能直接画"转换时间轴"，
+    无需前端再压缩。"""
+    cr = data.get("capital_read") or {}
+    regime = cr.get("regime")
+    if not regime:
+        return  # 本轮状态机失败/缺失，不记
+    now = datetime.now(timezone(timedelta(hours=8)))
+    today = now.strftime("%Y-%m-%d")
+    hm = now.strftime("%H:%M")
+    tl = {"date": today, "segments": []}
+    if os.path.exists(TL_PATH):
+        try:
+            with open(TL_PATH, "r", encoding="utf-8") as f:
+                old = json.load(f)
+            if old.get("date") == today:
+                tl = old
+        except Exception:
+            pass
+    segs = tl.setdefault("segments", [])
+    conf = cr.get("confidence", 0)
+    if segs and segs[-1]["regime"] == regime:
+        # 状态未变：合并进最后一段（时间延伸）；同分钟则完全跳过
+        if segs[-1]["e"] == hm:
+            return
+        segs[-1]["e"] = hm
+        segs[-1]["confidence"] = conf
+    else:
+        segs.append({"s": hm, "e": hm, "regime": regime, "confidence": conf})
+    with open(TL_PATH, "w", encoding="utf-8") as f:
+        json.dump(tl, f, ensure_ascii=False, indent=1)
+    # JSONP 兜底（file:// 双击 / 实时模式直读本地）
+    tl_js = os.path.join(BASE, "timeline.js")
+    with open(tl_js, "w", encoding="utf-8") as f:
+        f.write("window.THERMO_TIMELINE = " + json.dumps(tl, ensure_ascii=False) + ";\n")
+
+
 # ---------------------------------------------------------------- main
 def main():
     t0 = time.time()
@@ -1471,6 +1513,12 @@ def main():
     js_path = os.path.join(BASE, "data.js")
     with open(js_path, "w", encoding="utf-8") as f:
         f.write("window.THERMO_DATA = " + json.dumps(data, ensure_ascii=False) + ";\n")
+
+    # 主力 regime 当日轨迹（盘中加密采样 → 页面画转换时间轴）
+    try:
+        append_timeline(data)
+    except Exception as e:
+        warn("轨迹记录失败: %s" % str(e)[:90])
 
     log("=" * 60)
     log("完成，耗时 %.1fs -> %s" % (data["elapsed"], OUT_PATH))

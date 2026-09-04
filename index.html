@@ -130,6 +130,17 @@
   .etf-list .flow-item .fl.down { color: var(--down); }
   .chip-line { margin-top: 6px; }
   .chip-line .pill { margin-bottom: 4px; }
+  /* 今日状态轨迹（主力 regime 盘中采样时间轴） */
+  .tl { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .tl-title { font-size: 12px; color: var(--sub); font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tl-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--chip); margin-bottom: 4px; }
+  .tl-seg { height: 100%; min-width: 4px; }
+  .tl-ticks { display: flex; font-size: 10px; color: var(--sub); margin-bottom: 6px; }
+  .tl-ticks span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-steps { font-size: 11.5px; line-height: 1.9; color: var(--sub); }
+  .tl-steps .st { color: var(--txt); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tl-steps .arr { margin: 0 4px; color: var(--line); }
+  .tl-note { font-size: 10.5px; color: var(--sub); margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -153,6 +164,7 @@
 
 <!-- file:// 双击打开时的 JSONP 兜底；Pages 上优先用 fetch(data.json) -->
 <script src="data.js"></script>
+<script src="timeline.js"></script>
 <script>
 const SCOPE_NOTE = "宽度为成交额Top800口径；流动性为全市场口径";
 
@@ -192,6 +204,16 @@ async function loadData() {
     if (window.THERMO_DATA) return window.THERMO_DATA;
     throw e;
   }
+}
+
+/* 今日状态轨迹（timeline.json：Python 状态机在盘中的 regime 采样段） */
+let TIMELINE = null;
+async function loadTimeline() {
+  try {
+    const r = await fetch("timeline.json", { cache: "no-store" });
+    if (r.ok) { TIMELINE = await r.json(); return; }
+  } catch (e) { /* fallthrough */ }
+  if (window.THERMO_TIMELINE) TIMELINE = window.THERMO_TIMELINE;
 }
 
 /* ================= 实时增强层（方案C：前端直连行情源）=================
@@ -567,6 +589,40 @@ function renderCapitalRead(d) {
   </div>`;
 }
 
+/* ---------- 今日状态轨迹（regime 盘中变化时间轴） ---------- */
+function renderTimeline(d) {
+  const tl = TIMELINE;
+  const segs = (tl && tl.segments) || [];
+  if (!segs.length) return "";
+  const todayStr = tl.date || "";
+  // 时间轴只对「当天」有意义；若 data.json 与 timeline 不是同一天，多半是跨日/数据未更新
+  const fresh = todayStr === (d.generated_at || "").slice(0, 10);
+  // 色带：每个采样段按时间比例画一条色块，切换点一目了然
+  const t0 = segs[0].s, t1 = segs[segs.length - 1].e;
+  const toMin = t => { const [h, m] = (t || "0:0").split(":").map(Number); return h * 60 + m; };
+  const span = Math.max(toMin(t1) - toMin(t0) + 1, 1);
+  const bar = segs.map(s => {
+    const w = Math.min((toMin(s.e) - toMin(s.s) + 1) / span * 100, 100);
+    const col = regimeTone(s.regime).c;
+    return `<div class="tl-seg" style="width:${w}%;background:${col}" title="${s.s}~${s.e} ${s.regime}"></div>`;
+  }).join("");
+  const ticks = segs.map(s => `<span>${s.s}</span>`).join("");
+  const steps = segs.map((s, i) =>
+    (i > 0 ? `<span class="arr">→</span>` : "") +
+    `<span class="st" style="color:${regimeTone(s.regime).c}">${s.s}~${s.e} ${s.regime}</span>`
+  ).join("");
+  const note = fresh
+    ? "时段为 Python 状态机每次盘中采样的真实运行时刻；收盘后定格，盘中切换仅供参考。"
+    : `轨迹日期 ${todayStr} 与当前数据日 ${d.generated_at.slice(0,10)} 不一致——数据可能未更新或已跨日。`;
+  return `<div class="card tl-card">
+    <h2>⏱ 今日状态轨迹 <span class="tag">主力 regime 盘中采样 · 每~30分钟</span>${fresh ? freshTag("capital_read") : ""}</h2>
+    <div class="tl-bar">${bar}</div>
+    <div class="tl-ticks">${ticks}</div>
+    <div class="tl-steps">${steps}</div>
+    <div class="tl-note">${note}</div>
+  </div>`;
+}
+
 /* ---------- 主力资金构成（订单流） ---------- */
 function renderFlow(d) {
   const f = d.flow;
@@ -660,7 +716,7 @@ function render(d) {
   const grid = document.getElementById("app");
   grid.className = "grid";
   grid.innerHTML =
-    renderCapitalRead(d) + renderJudgement(d) + renderIndices(d) + renderBreadth(d) +
+    renderCapitalRead(d) + renderTimeline(d) + renderJudgement(d) + renderIndices(d) + renderBreadth(d) +
     renderFuturesBasis(d) + renderEtfFlow(d) + renderFlow(d) +
     renderBreadthCount(d) + renderEmotion(d) +
     renderLiquidity(d) + renderMargin(d) + renderSector(d);
@@ -694,6 +750,7 @@ modeBtn.title = MODE === "realtime"
 modeBtn.onclick = () => setMode(MODE === "realtime" ? "snapshot" : "realtime");
 
 loadData().then(async d => {
+  await loadTimeline();            // ① 先读当日状态轨迹（失败则保持 TIMELINE=null，卡片自动隐藏）
   render(d);                       // ① 先用快照秒开，不白屏
   if (MODE !== "realtime") return; // 快照模式到此为止
   try {
@@ -702,6 +759,7 @@ loadData().then(async d => {
     setInterval(async () => {      // ③ 每 30 秒自动刷新
       try {
         applyRealtime(d, await fetchRealtime());
+        await loadTimeline();      // 轨迹也跟随刷新（盘中新增采样点即时出现）
         render(d);
       } catch (e) { /* 单次失败静默，下轮自动重试 */ }
     }, RT_REFRESH_MS);
