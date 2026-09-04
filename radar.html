@@ -2529,6 +2529,37 @@ function wStart(){
 }
 
 /* ============ 主流程 ============ */
+// makeCtx：组装规则引擎上下文（含 thermo）。ctx 必须统一由它构造，
+// 避免口径切换/广度更新等路径漏带 thermo 导致条件1的板块/期指/两融误判 na。
+function makeCtx(I, cur){
+  var near = nearestLevels(I.lv, cur);
+  return {
+    mp: I.mp, win: I.win, yw: I.yw, yws: I.yws, vc: I.vc, slope: I.slope, lv: I.lv, near: near,
+    preClose: I.preClose, snap: I.snap, now: I.now, cur: cur, openP: I.openP,
+    prevAmp: I.lv ? I.lv.prevAmp : NaN,
+    boxPos: I.lv ? I.lv.boxPos : NaN,
+    prevHigh: I.lv ? I.lv.prevHigh : NaN,
+    thermo: I.thermo
+  };
+}
+
+// onBreadth：东财实时广度(板块/期指/涨跌家数…)到达后，并回 thermo、重算规则、
+// 补渲染 ①-b 市场广度与 ② 板块资金流。全程后台异步，不阻塞大盘主卡首屏。
+function onBreadth(I, dj, brd){
+  if(STATE.idx !== I) return;                 // 已被更新的刷新覆盖则丢弃过期结果
+  I.breadth = brd;
+  I.thermo = mergeThermo(dj, brd);            // sector/basis 升级为东财实时，margin 保持 T-1
+  var cur = (I.snap && isFinite(I.snap.price)) ? I.snap.price
+          : I.trends.today[I.trends.today.length-1].close;
+  var ctx = makeCtx(I, cur);
+  I.ruleOut = buildTRules(ctx);
+  I.sum = summarizeT(I.ruleOut, ctx);
+  renderIndex();
+  renderT();
+  renderBreadth(brd);                         // ①-b 市场广度
+  loadSector();                               // ② 板块资金流改用东财实时（失败则快照）
+}
+
 function loadIndex(){
   var secid = CFG.IDX_SEC, tx = CFG.IDX_TX, isIdx = true;
   var now = new Date();
@@ -2541,11 +2572,11 @@ function loadIndex(){
     var preClose = isFinite(tr.preClose) ? tr.preClose : (snap ? snap.preClose : NaN);
     var I = {snap: snap, trends: tr, mp: mp, win: win, now: now, preClose: preClose, src: src};
     STATE.idx = I;
-    return Promise.all([ getDaily(tx), fetchThermo(), fetchBreadth() ]).then(function(rs2){
+    return Promise.all([ getDaily(tx), fetchThermo() ]).then(function(rs2){
       var daily = rs2[0];
+      var dj = rs2[1];                          // 温度计 data.json 快照（margin 仅 T-1 来源）
       I.daily = daily;
-      I.thermo = mergeThermo(rs2[1], rs2[2]);   // 两融来自 data.json(T-1)，行业/期指取东财实时，缺失再降级快照
-      I.breadth = rs2[2];                        // 东财实时广度（驱动①-b 面板 + 条件1 板块/期指）
+      I.thermo = mergeThermo(dj, null);         // 先用快照兜底建环境(sector/basis 缺则 na)——首屏不等东财广度
       var cur = I.snap ? I.snap.price : tr.today[tr.today.length-1].close;
       if(!isFinite(I.preClose) && daily && daily.length >= 2) I.preClose = daily[daily.length-2].close;
       preClose = I.preClose;
@@ -2561,21 +2592,16 @@ function loadIndex(){
       var yw = ywAnalyze(tr.today);
       var yws = ywState(yw, preClose);
       I.vc = vc; I.slope = slope; I.yw = yw; I.yws = yws;
-      var near = nearestLevels(I.lv, cur);
-      var ctx = {
-        mp: mp, win: win, yw: yw, yws: yws, vc: vc, slope: slope, lv: I.lv, near: near,
-        preClose: preClose, snap: snap, now: now, cur: cur, openP: openP,
-        prevAmp: I.lv ? I.lv.prevAmp : NaN,
-        boxPos: I.lv ? I.lv.boxPos : NaN,
-        prevHigh: I.lv ? I.lv.prevHigh : NaN,
-        thermo: I.thermo
-      };
+      var ctx = makeCtx(I, cur);
       I.ruleOut = buildTRules(ctx);
       I.sum = summarizeT(I.ruleOut, ctx);
       console.log('[量能雷达] 大盘(' + src + ') 分时条数=' + tr.today.length + ' 昨日=' + tr.yest.length +
         ' 同期量比=' + (isFinite(vc.ratio)?vc.ratio.toFixed(3):'NA') +
         ' 黄白差=' + (isFinite(yws.diffPct)?yws.diffPct.toFixed(3)+'%':'NA') +
         ' 规则: ok=' + I.sum.ok + ' warn=' + I.sum.warn + ' bad=' + I.sum.bad);
+      // 广度/实时板块/期指 → 后台异步拉取并回流，不阻塞主卡首屏（慢加载修复）
+      fetchBreadth().then(function(brd){ onBreadth(I, dj, brd); })
+        .catch(function(e){ console.warn('[广度] 东财实时层不可用，规则保持快照口径：', (e && e.message) || e); });
     });
   });
 }
@@ -2685,14 +2711,7 @@ function recomputeMetric(){
   var vc = volCompare(I.trends.today, I.trends.yest, STATE.metric);
   I.yestAvail = !vc.unavail;
   I.vc = vc;
-  var near = nearestLevels(I.lv, cur);
-  var ctx = {
-    mp: I.mp, win: I.win, yw: I.yw, yws: I.yws, vc: vc, slope: I.slope, lv: I.lv, near: near,
-    preClose: I.preClose, snap: I.snap, now: I.now, cur: cur, openP: I.openP,
-    prevAmp: I.lv ? I.lv.prevAmp : NaN,
-    boxPos: I.lv ? I.lv.boxPos : NaN,
-    prevHigh: I.lv ? I.lv.prevHigh : NaN
-  };
+  var ctx = makeCtx(I, cur);
   I.ruleOut = buildTRules(ctx);
   I.sum = summarizeT(I.ruleOut, ctx);
   renderIndex();
