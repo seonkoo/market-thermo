@@ -85,6 +85,11 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .wline{flex:0 0 100%;font-size:11px;color:var(--txt2);display:flex;flex-wrap:wrap;gap:2px 12px;border-top:1px dashed var(--line);padding-top:6px;margin-top:2px;line-height:1.7}
 .wline b{color:var(--txt1);font-weight:600}
 .wline .sep{color:var(--txt3)}
+.wflow{flex:0 0 100%;font-size:11px;color:var(--txt2);display:flex;flex-wrap:wrap;gap:2px 12px;border-top:1px dashed var(--line);padding-top:5px;margin-top:1px;line-height:1.7;align-items:center}
+.wflow b{color:var(--txt1);font-weight:600}
+.wflow .fltag{font-size:10px;padding:0 6px;border-radius:8px;margin-left:2px}
+.wflow .fltag.in{background:rgba(217,43,43,.10);color:var(--up)}
+.wflow .fltag.out{background:rgba(15,157,88,.10);color:var(--down)}
 .wact{flex:0 0 auto;display:flex;gap:4px}
 @media (max-width:640px){ .big{font-size:27px} body{padding:10px 9px 30px} .col{min-width:100%} .wprice b{font-size:16px} .wcard{padding:8px 10px;gap:4px 10px} .wstate{min-width:0} }
 </style>
@@ -315,7 +320,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
       ⚠️ <b>能力边界（务必看清）</b>：提醒<b>只在本页保持打开时生效</b>——关闭标签页、切到后台被系统冻结或手机息屏即停止。这是静态页，<b>没有后台、没有服务端、没有推送</b>，它不会在你不在时喊你。<br>
       · A 线判据含「同期量比 ≥<span id="wVolUp">120</span>%」，量比每 5 分钟重算一次，价格每秒级变化、量比分钟级变化，30s 轮询对两者都够用。<br>
       · A/B 线在<b>加入观察池时锁定</b>（不随价格滚动），跨交易日自动重置；同一天内 A、B 各只提醒一次，避免反复弹窗。<br>
-      · 提醒仅为<b>你自己的规则被触发</b>的技术提示，非买卖建议。
+      · 提醒仅为<b>你自己的规则被触发</b>的技术提示，非买卖建议。<br>
+      · <b>主力资金列</b>：东财口径（主力 = 超大单 + 大单，单位亿），「今」为当日累计（盘中实时、收盘定格），「5日 / 20日」为最近交易日主力净额<b>累计</b>；与市场温度计同源。资金流是<b>事后统计</b>（你看到时钱已花完），只描述「谁在进/出」，不预测下一步。
     </div>
     <div id="wBody" class="wcards" style="margin-top:10px"></div>
   </div>
@@ -2334,6 +2340,35 @@ function wRemove(code){
   STATE.watch.items = STATE.watch.items.filter(function(it){ return it.code !== code; });
   wSave(); renderWatch();
 }
+// 主力资金流：东财个股历史主力资金流 daykline（与温度计 thermo.py 同源 push2his）
+// 主源 push2his 返回完整历史 → 聚合 5/10/20 日；断连/限流时降级 push2delay（只回当日一条）。
+// resolve 形态：{today,d5,d10,d20,days,lastD} 完整 | {today,d5:null,d10:null,d20:null,days:1} 仅今 | null 两源全失败
+// 数值单位：元（渲染处转亿）。
+function fetchFlow(secid){
+  var hurl = 'https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=21&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + secid;
+  var durl = 'https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=1&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + secid;
+  var parse = function(d){
+    var ks = d && d.data && d.data.klines;
+    if(!ks || !ks.length) throw new Error('FLOW_EMPTY');
+    var arr = ks.map(function(l){ var p = l.split(','); return {d: p[0], m: parseFloat(p[1])}; })
+                .filter(function(r){ return r.d && isFinite(r.m); });
+    if(!arr.length) throw new Error('FLOW_BAD');
+    var n = Math.min(20, arr.length);
+    var sumN = function(k){ var s = 0; for(var i = 0; i < k && i < arr.length; i++) s += arr[arr.length - 1 - i].m; return s; };
+    return {today: sumN(1), d5: sumN(5), d10: sumN(10), d20: sumN(n), days: n, lastD: arr[arr.length - 1].d};
+  };
+  return jsonpCb(hurl, 6000).then(parse).catch(function(){
+    // 历史主机不可达 → 降级只读当日（push2delay 实测仅回最近一条）
+    return jsonpCb(durl, 5000).then(function(d){
+      var ks = d && d.data && d.data.klines;
+      if(!ks || !ks.length) throw new Error('FLOW_EMPTY2');
+      var p = ks[ks.length - 1].split(',');
+      var m = parseFloat(p[1]);
+      if(!isFinite(m)) throw new Error('FLOW_BAD2');
+      return {today: m, d5: null, d10: null, d20: null, days: 1, lastD: p[0]};
+    }).catch(function(){ return null; });
+  });
+}
 // 初始化：拉全量（快照 + 分时 + 日线），锁定 A/B 线
 function wInit(it){
   it.ready = false; it.err = '';
@@ -2349,6 +2384,13 @@ function wInit(it){
               vc: volCompare(tr.today, tr.yest, STATE.metric),
               _trg: {}, _snapTs: nowHM()};
       it.ready = true;
+      // 主力资金流后台异步加载：不阻塞 A/B 线主链；带代际号，重算后旧请求不覆盖新值
+      var gen = (it._fgen || 0) + 1; it._fgen = gen; it.flow = undefined;
+      fetchFlow(it.secid).then(function(f){
+        if(!it._fgen || it._fgen !== gen) return;
+        it.flow = f;
+        renderWatch();
+      });
     });
   }).catch(function(e){ it.err = (e && e.message) ? e.message : String(e); it.ready = false; });
 }
@@ -2462,6 +2504,27 @@ function renderWatch(){
     var r = S.vc ? S.vc.ratio : NaN;
     var bg = t.cls === 'ok' ? '#f2fbf6' : (t.cls === 'bad' ? '#fff5f5' : (t.cls === 'warn' ? '#fffbf0' : '#fff'));
     var nm = (S.snap && S.snap.name) ? '<small>' + esc(S.snap.name) + '</small>' : '';
+    // 主力资金流行：undefined=加载中 / null|err=失败 / {today,...}=数据（单位元，此处转亿）
+    var fl = it.flow, flowRow;
+    if(fl === undefined){
+      flowRow = '<div class="wflow" style="color:var(--txt3)">主力资金 · 加载中…</div>';
+    } else if(fl === null || fl.err){
+      flowRow = '<div class="wflow" style="color:var(--txt3)">主力资金 · 接口不可用（不影响 A/B 判定）</div>';
+    } else {
+      var fcell = function(lb, v){
+        if(v === null) return '<span>' + lb + ' <b class="flat">—</b></span>';
+        var s = (v >= 0 ? '+' : '') + (v / 1e8).toFixed(2);
+        return '<span>' + lb + ' <b class="' + cls(v) + '">' + s + '亿</b></span>';
+      };
+      var ftag = '';
+      if(fl.d20 !== null && fl.d20 !== 0) ftag = '<span class="fltag ' + (fl.d20 > 0 ? 'in' : 'out') + '">20日偏' + (fl.d20 > 0 ? '流入' : '流出') + '</span>';
+      else if(fl.today !== null && fl.today !== 0) ftag = '<span class="fltag ' + (fl.today > 0 ? 'in' : 'out') + '">今偏' + (fl.today > 0 ? '流入' : '流出') + '</span>';
+      flowRow = '<div class="wflow"><b>主力</b>' +
+        fcell('今', fl.today) +
+        (fl.d5 !== null ? fcell('5日', fl.d5) : '') +
+        (fl.d10 !== null ? fcell('10日', fl.d10) : '') +
+        (fl.d20 !== null ? fcell('20日', fl.d20) : '') + ftag + '</div>';
+    }
     html += '<div class="wcard" style="background:' + bg + '">' +
       '<div class="wcode"><b>' + esc(it.code) + '</b>' + nm + '</div>' +
       '<div class="wprice"><b>' + fx(cur) + '</b><span class="wchg ' + cls(pc) + '">' + pctS(pc) + '</span></div>' +
@@ -2475,6 +2538,7 @@ function renderWatch(){
         '<span class="sep">·</span>' +
         '<span>' + esc(S._snapTs || '') + '</span>' +
       '</div>' +
+      flowRow +
       '<div class="wact"><button class="etfbtn" data-re="' + esc(it.code) + '">重算</button> <button class="etfbtn" data-rm="' + esc(it.code) + '">移除</button></div>' +
       '</div>';
   }
