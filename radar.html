@@ -2346,7 +2346,8 @@ function wRemove(code){
 // 数值单位：元（渲染处转亿）。
 function fetchFlow(secid){
   // 主源：东财 fflow 历史 daykline，多主机顺序轮询（push2his 常按主机限流/抽风，换主机往往能成）
-  var path = '/api/qt/stock/fflow/daykline/get?lmt=21&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + secid;
+  // ut 为东财官方资金流页(zjlx/stock.js)写死的公共访问令牌——不带会被网关拒连，表现为 reset/超时
+  var path = '/api/qt/stock/fflow/daykline/get?lmt=21&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&ut=b2884a393a59ad64002292a3e90d46a5&secid=' + secid;
   var durl = 'https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=1&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + secid;
   var parse = function(d){
     var ks = d && d.data && d.data.klines;
