@@ -435,6 +435,9 @@ var CFG = {
   // 本地 file:// 打开时 fetch 必然被 CORS 拦掉 → 一律降级为 null，不影响原有任何功能。
   THERMO_URL: 'data.json',
   THERMO_TTL: 600000,      // data.json 盘中不变，缓存 10 分钟
+  // 主力资金流历史反代（Cloudflare Worker，可选）。填 https://xxx.workers.dev，空字符串=不启用。
+  // Worker 服务端转发东财 fflow（Referer 可控），绕开手机浏览器直连被拒的问题——观察池任意代码即时可查。
+  FLOW_PROXY: '',
   // 两融（数据源：温度计 margin，T-1 口径，与准则里"昨日数据"一致）
   MARGIN_CHG: 1.0,         // 融资余额 5 日变动绝对值 >1% 视为杠杆明显加/减
   // 期指基差（口径替代：持仓排名无免费源）
@@ -2353,12 +2356,9 @@ function wRemove(code){
 // resolve 形态：{today,d5,d10,d20,days,lastD} 完整 | {today,d5:null,d10:null,d20:null,days:1} 仅今 | null 两源全失败
 // 数值单位：元（渲染处转亿）。
 function fetchFlow(secid){
-  // 主源：东财 fflow 历史 daykline，多主机顺序轮询（push2his 常按主机限流/抽风，换主机往往能成）
-  // ut 为东财官方资金流页(zjlx/stock.js)写死的公共访问令牌——不带会被网关拒连，表现为 reset/超时
-  var path = '/api/qt/stock/fflow/daykline/get?lmt=21&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&ut=b2884a393a59ad64002292a3e90d46a5&secid=' + secid;
-  var durl = 'https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=1&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + secid;
-  var parse = function(d){
-    var ks = d && d.data && d.data.klines;
+  // 归一化东财 fflow daykline → 5/10/20 聚合。raw: {data:{klines:["日期,主力净额(元)",...]}}
+  function parse(raw){
+    var ks = raw && raw.data && raw.data.klines;
     if(!ks || !ks.length) throw new Error('FLOW_EMPTY');
     var arr = ks.map(function(l){ var p = l.split(','); return {d: p[0], m: parseFloat(p[1])}; })
                 .filter(function(r){ return r.d && isFinite(r.m); });
@@ -2366,9 +2366,22 @@ function fetchFlow(secid){
     var n = Math.min(20, arr.length);
     var sumN = function(k){ var s = 0; for(var i = 0; i < k && i < arr.length; i++) s += arr[arr.length - 1 - i].m; return s; };
     return {today: sumN(1), d5: sumN(5), d10: sumN(10), d20: sumN(n), days: n, lastD: arr[arr.length - 1].d};
-  };
-  return tryHosts(EM_HOSTS, path, function(raw){ return parse(raw); }, 6000).catch(function(){
-    // 所有东财历史主机不可达 → 降级只读当日（push2delay 实测仅回最近一条）
+  }
+  // 0) Cloudflare Worker 反代：服务端转发东财 fflow，无浏览器 Referer 墙——唯一可靠历史通道
+  function fromProxy(){
+    if(!CFG.FLOW_PROXY) return Promise.reject(new Error('NO_PROXY'));
+    var u = CFG.FLOW_PROXY + (CFG.FLOW_PROXY.indexOf('?') >= 0 ? '&' : '?')
+          + 'secid=' + encodeURIComponent(secid) + '&lmt=25';
+    return jsonpCb(u, 8000).then(parse);
+  }
+  // 1) 东财 fflow 历史直连（多主机轮询）——保留：万一直连恢复仍可走通
+  function fromEM(){
+    var path = '/api/qt/stock/fflow/daykline/get?lmt=21&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&ut=b2884a393a59ad64002292a3e90d46a5&secid=' + secid;
+    return tryHosts(EM_HOSTS, path, parse, 6000);
+  }
+  // 2) push2delay 当日一条（东财实测该接口仅回最近一条，非历史序列）
+  function fromDelay(){
+    var durl = 'https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=1&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + secid;
     return jsonpCb(durl, 5000).then(function(d){
       var ks = d && d.data && d.data.klines;
       if(!ks || !ks.length) throw new Error('FLOW_EMPTY2');
@@ -2376,8 +2389,9 @@ function fetchFlow(secid){
       var m = parseFloat(p[1]);
       if(!isFinite(m)) throw new Error('FLOW_BAD2');
       return {today: m, d5: null, d10: null, d20: null, days: 1, lastD: p[0]};
-    }).catch(function(){ return null; });
-  });
+    });
+  }
+  return fromProxy().catch(fromEM).catch(fromDelay).catch(function(){ return null; });
 }
 // 初始化：拉全量（快照 + 分时 + 日线），锁定 A/B 线
 function wInit(it){
