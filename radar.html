@@ -2345,7 +2345,8 @@ function wRemove(code){
 // resolve 形态：{today,d5,d10,d20,days,lastD} 完整 | {today,d5:null,d10:null,d20:null,days:1} 仅今 | null 两源全失败
 // 数值单位：元（渲染处转亿）。
 function fetchFlow(secid){
-  var hurl = 'https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=21&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + secid;
+  // 主源：东财 fflow 历史 daykline，多主机顺序轮询（push2his 常按主机限流/抽风，换主机往往能成）
+  var path = '/api/qt/stock/fflow/daykline/get?lmt=21&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + secid;
   var durl = 'https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=1&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + secid;
   var parse = function(d){
     var ks = d && d.data && d.data.klines;
@@ -2357,8 +2358,8 @@ function fetchFlow(secid){
     var sumN = function(k){ var s = 0; for(var i = 0; i < k && i < arr.length; i++) s += arr[arr.length - 1 - i].m; return s; };
     return {today: sumN(1), d5: sumN(5), d10: sumN(10), d20: sumN(n), days: n, lastD: arr[arr.length - 1].d};
   };
-  return jsonpCb(hurl, 6000).then(parse).catch(function(){
-    // 历史主机不可达 → 降级只读当日（push2delay 实测仅回最近一条）
+  return tryHosts(EM_HOSTS, path, function(raw){ return parse(raw); }, 6000).catch(function(){
+    // 所有东财历史主机不可达 → 降级只读当日（push2delay 实测仅回最近一条）
     return jsonpCb(durl, 5000).then(function(d){
       var ks = d && d.data && d.data.klines;
       if(!ks || !ks.length) throw new Error('FLOW_EMPTY2');
