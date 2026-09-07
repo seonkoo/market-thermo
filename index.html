@@ -755,21 +755,39 @@ function render(d) {
     renderBreadthCount(d) + renderEmotion(d) +
     renderLiquidity(d) + renderMargin(d) + renderSector(d);
   const metaEl = document.getElementById("meta");
+  /* 快照新鲜度角标：data.json 的生成日期 vs 今天。
+     非今日 → 红色警示，避免拿旧快照的结论当今日判读（曾导致 GitHub/WorkBuddy 两版结论相反）。 */
+  const genAt = d.generated_at || "";
+  const genDay = genAt.slice(0, 10);
+  const _nd = new Date();
+  const _p2 = n => String(n).padStart(2, "0");
+  const todayDay = `${_nd.getFullYear()}-${_p2(_nd.getMonth() + 1)}-${_p2(_nd.getDate())}`;
+  const isFresh = !!genDay && genDay === todayDay;
+  const freshBadge = isFresh
+    ? `<span class="ftag f-live">快照 ${genDay}（今日）</span>`
+    : `<span class="ftag f-unset">⚠ 快照 ${genDay || "未知"}（非今日·结论可能失效）</span>`;
   if (d._rt && d._rt_ts) {
     const p2 = n => String(n).padStart(2, "0");
     const t = d._rt_ts;
-    metaEl.textContent =
+    metaEl.innerHTML =
       `⚡ 实时 ${p2(t.getHours())}:${p2(t.getMinutes())}:${p2(t.getSeconds())}` +
-      ` · ${d.scope_note || SCOPE_NOTE} · 快照基线 ${d.generated_at || ""}`;
+      ` · ${d.scope_note || SCOPE_NOTE} · 快照基线 ${genAt} ${freshBadge}`;
   } else {
-    metaEl.textContent =
-      `${d.generated_at || ""} · ${d.scope_note || SCOPE_NOTE} · 耗时 ${d.elapsed||"?"}s`;
+    metaEl.innerHTML =
+      `${genAt} · ${d.scope_note || SCOPE_NOTE} · 耗时 ${d.elapsed||"?"}s ${freshBadge}`;
   }
   const fw = document.getElementById("footnote");
+  let fwHtml = "";
+  if (!isFresh) {
+    fwHtml += `<div class="warn-box">⚠ <b>快照数据不是今天的</b>：data.json 生成于 <b>${genAt || "未知"}</b>，` +
+      `今天是 ${todayDay}。主力视角 / 仓位 / 风格 / 主线等结论基于旧快照，<b>不可用于今日实盘判读</b>。` +
+      `请运行 <b>thermo.py</b> 重新生成 data.json 后刷新页面。</div>`;
+  }
   if (d.warnings && d.warnings.length) {
-    fw.innerHTML = `<div class="warn-box">⚠ 本次计算提示：<br>` +
+    fwHtml += `<div class="warn-box">⚠ 本次计算提示：<br>` +
       d.warnings.map(w => "· " + w).join("<br>") + `</div>`;
-  } else { fw.innerHTML = ""; }
+  }
+  fw.innerHTML = fwHtml;
 }
 
 document.getElementById("refreshBtn").onclick = () => location.reload();
