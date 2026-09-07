@@ -1363,6 +1363,15 @@ def _hm_to_min(hm):
     return int(h) * 60 + int(m)
 
 
+def _save_tl(tl):
+    """落盘 timeline.json + JSONP 兜底 timeline.js（两处必须同步，页面二选一读取）。"""
+    with open(TL_PATH, "w", encoding="utf-8") as f:
+        json.dump(tl, f, ensure_ascii=False, indent=1)
+    tl_js = os.path.join(BASE, "timeline.js")
+    with open(tl_js, "w", encoding="utf-8") as f:
+        f.write("window.THERMO_TIMELINE = " + json.dumps(tl, ensure_ascii=False) + ";\n")
+
+
 def append_timeline(data):
     """把本轮主力 regime 追加进当日轨迹 timeline.json（只留当日，跨日重置）。
 
@@ -1378,8 +1387,6 @@ def append_timeline(data):
     hm = now.strftime("%H:%M")
     # 只在交易时段采样：上午 09:30-11:30，下午 13:00-15:00；跳过盘前/午休/盘后
     sid = _session_of(hm)
-    if not sid:
-        return
     tl = {"date": today, "segments": []}
     if os.path.exists(TL_PATH):
         try:
@@ -1390,6 +1397,17 @@ def append_timeline(data):
         except Exception:
             pass
     segs = tl.setdefault("segments", [])
+    if not sid:
+        # 盘后运行（>15:00）：不新增采样点，但把当日最后一段延伸到其所属时段收盘，
+        # 否则最后一次盘中采样（如 13:30）之后到 15:00 之间会整块缺失。
+        if tl.get("date") == today and segs:
+            last = segs[-1]
+            last_sid = _session_of(last["e"])
+            close_hm = "15:00" if last_sid == "pm" else ("11:30" if last_sid == "am" else None)
+            if close_hm and _hm_to_min(last["e"]) < _hm_to_min(close_hm):
+                last["e"] = close_hm
+                _save_tl(tl)
+        return
     conf = cr.get("confidence", 0)
     if segs and segs[-1]["regime"] == regime:
         last_sid = _session_of(segs[-1]["e"])
@@ -1417,12 +1435,7 @@ def append_timeline(data):
                 prev["e"] = hm
             # prev_sid != sid 时上一段已在跨时段分支里收在时段收盘，保持不动
         segs.append({"s": hm, "e": hm, "regime": regime, "confidence": conf})
-    with open(TL_PATH, "w", encoding="utf-8") as f:
-        json.dump(tl, f, ensure_ascii=False, indent=1)
-    # JSONP 兜底（file:// 双击 / 实时模式直读本地）
-    tl_js = os.path.join(BASE, "timeline.js")
-    with open(tl_js, "w", encoding="utf-8") as f:
-        f.write("window.THERMO_TIMELINE = " + json.dumps(tl, ensure_ascii=False) + ";\n")
+    _save_tl(tl)
 
 
 # ---------------------------------------------------------------- main
