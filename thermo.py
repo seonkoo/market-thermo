@@ -1348,6 +1348,16 @@ def build_freshness():
 
 
 # ---------------------------------------------------------------- 主力状态当日轨迹
+def _session_of(hm):
+    """返回 hm(HH:MM) 所属交易时段：'am' 上午 / 'pm' 下午 / None 非交易时段。
+    靠零填充字符串字典序即可比较（09:30 <= hm <= 11:30 等）。"""
+    if "09:30" <= hm <= "11:30":
+        return "am"
+    if "13:00" <= hm <= "15:00":
+        return "pm"
+    return None
+
+
 def append_timeline(data):
     """把本轮主力 regime 追加进当日轨迹 timeline.json（只留当日，跨日重置）。
 
@@ -1361,6 +1371,10 @@ def append_timeline(data):
     now = datetime.now(timezone(timedelta(hours=8)))
     today = now.strftime("%Y-%m-%d")
     hm = now.strftime("%H:%M")
+    # 只在交易时段采样：上午 09:30-11:30，下午 13:00-15:00；跳过盘前/午休/盘后
+    sid = _session_of(hm)
+    if not sid:
+        return
     tl = {"date": today, "segments": []}
     if os.path.exists(TL_PATH):
         try:
@@ -1373,11 +1387,21 @@ def append_timeline(data):
     segs = tl.setdefault("segments", [])
     conf = cr.get("confidence", 0)
     if segs and segs[-1]["regime"] == regime:
-        # 状态未变：合并进最后一段（时间延伸）；同分钟则完全跳过
-        if segs[-1]["e"] == hm:
-            return
-        segs[-1]["e"] = hm
-        segs[-1]["confidence"] = conf
+        last_sid = _session_of(segs[-1]["e"])
+        if last_sid == sid:
+            # 同一交易时段内：合并延伸；同分钟则完全跳过
+            if segs[-1]["e"] == hm:
+                return
+            segs[-1]["e"] = hm
+            segs[-1]["confidence"] = conf
+        else:
+            # 跨午休/跨日：把上一段收在其所属时段收盘，新开一段从本时段开盘
+            if last_sid == "am":
+                segs[-1]["e"] = "11:30"
+            elif last_sid == "pm":
+                segs[-1]["e"] = "15:00"
+            segs.append({"s": "09:30" if sid == "am" else "13:00", "e": hm,
+                         "regime": regime, "confidence": conf})
     else:
         segs.append({"s": hm, "e": hm, "regime": regime, "confidence": conf})
     with open(TL_PATH, "w", encoding="utf-8") as f:
