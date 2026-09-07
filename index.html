@@ -510,7 +510,7 @@ function renderEmotion(d) {
        <span class="big ${cls(e.score-50)}">${e.score}</span>
        <span class="badge ${lvCls}">${e.level}</span>
      </div>
-     <div class="note">上涨 ${e.up||0} ｜ 下跌 ${e.down||0} ｜ 涨停 ${e.limit_up||0} ｜ 跌停 ${e.limit_down||0}</div>
+     <div class="note">上涨 ${e.up||0} ｜ 下跌 ${e.down||0} ｜ 平 ${e.flat||0} ｜ 涨停 ${e.limit_up||0} ｜ 跌停 ${e.limit_down||0}</div>
      <div class="sub">${subs}</div>
      <div class="note">${e.note}</div>`, "emotion");
 }
@@ -571,6 +571,21 @@ function renderCapitalRead(d) {
   const evs = (c.evidence || []).map(e => `<div>· ${e}</div>`).join("");
   const acts = (c.actions || []).map(a => `<div>· ${a}</div>`).join("");
   const caus = (c.cautions || []).map(a => `<div>· ${a}</div>`).join("");
+  /* 信号模糊提示：第一名与第二名分差过小时，状态机在两种解读间摇摆，
+     此时「置信度 XX%」具有误导性（71 vs 68 也显示 71%），必须显式告知，
+     否则实盘会把一个接近五五开的判读当成明确方向。 */
+  let ambHtml = "";
+  const sc = c.scores || {};
+  const ranked = Object.keys(sc).map(k => ({ k: k, v: sc[k] })).sort((a, b) => b.v - a.v);
+  if (ranked.length >= 2) {
+    const gap = ranked[0].v - ranked[1].v;
+    if (gap < 15) {
+      ambHtml = `<div class="warn-box" style="margin-top:8px">⚠ <b>信号模糊，勿当明确方向</b>：` +
+        `当前判读 <b>${c.regime}(${ranked[0].v})</b> 与次优 <b>${ranked[1].k}(${ranked[1].v})</b> 仅差 <b>${gap} 分</b>，` +
+        `状态机在两种解读间摇摆。此时「置信度 ${c.confidence}%」<b>不代表方向可靠</b>，` +
+        `建议降低仓位决策权重，等更明确的信号。</div>`;
+    }
+  }
   return `<div class="card capital">
     <h2>🧭 主力视角 · 散户应对 <span class="tag">订单流状态机 · 非点位预测</span>${freshTag("capital_read")}</h2>
     <div class="regime" style="color:${t.c}">${c.regime}</div>
@@ -582,6 +597,7 @@ function renderCapitalRead(d) {
     <div class="conf">判断置信度 <b style="color:${confColor}">${c.confidence}%</b>
       <div class="conf-track"><div class="conf-fill" style="width:${c.confidence}%;background:${confColor}"></div></div>
     </div>
+    ${ambHtml}
     <div class="sec-h" style="color:var(--sub)">主力在干什么（证据）</div>
     <div class="evi">${evs || "<div>—</div>"}</div>
     <div class="sec-h" style="color:var(--ok)">散户怎么应对</div>
