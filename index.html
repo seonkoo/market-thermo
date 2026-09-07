@@ -596,7 +596,8 @@ function renderCapitalRead(d) {
 const TL_SESS = [["09:30","11:30"],["13:00","15:00"]];
 function _tlToMin(t){ const [h,m]=(t||"0:0").split(":").map(Number); return h*60+m; }
 function _tlToHm(m){ const h=Math.floor(m/60), mm=m%60; return String(h).padStart(2,"0")+":"+String(mm).padStart(2,"0"); }
-// 把任意来源的轨迹段裁剪到交易时段内：跨午休的段拆成两段，盘后/盘前的整段丢弃
+// 把任意来源的轨迹段裁剪到交易时段内：跨午休的段拆成两段，盘后/盘前的整段丢弃；
+// 再把零宽段延伸到「下一次切换时刻」或「本时段收盘」，避免 13:33~13:33 这类无意义段
 function cleanTimelineSegs(raw){
   const out=[];
   (raw||[]).forEach(s=>{
@@ -607,6 +608,17 @@ function cleanTimelineSegs(raw){
     });
   });
   out.sort((x,y)=>_tlToMin(x.s)-_tlToMin(y.s));
+  const closeOf = s => (_tlToMin(s) <= _tlToMin("11:30")) ? "11:30" : "15:00";
+  for(let i=0;i<out.length;i++){
+    const cur=out[i], curClose=closeOf(cur.s);
+    if(i+1<out.length){
+      const nxt=out[i+1];
+      // 同一交易时段内：把段末延伸到下一次状态切换时刻
+      if(_tlToMin(nxt.s) <= _tlToMin(curClose) && _tlToMin(nxt.s) > _tlToMin(cur.e)) cur.e=nxt.s;
+    } else {
+      cur.e = curClose; // 当日最后一段：延伸到本时段收盘
+    }
+  }
   return out;
 }
 function renderTimeline(d) {
