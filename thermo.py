@@ -1358,6 +1358,11 @@ def _session_of(hm):
     return None
 
 
+def _hm_to_min(hm):
+    h, m = (hm or "0:0").split(":")
+    return int(h) * 60 + int(m)
+
+
 def append_timeline(data):
     """把本轮主力 regime 追加进当日轨迹 timeline.json（只留当日，跨日重置）。
 
@@ -1403,6 +1408,14 @@ def append_timeline(data):
             segs.append({"s": "09:30" if sid == "am" else "13:00", "e": hm,
                          "regime": regime, "confidence": conf})
     else:
+        # regime 切换（或首日首个）：先把上一段收在「切换时刻」，再开新段，
+        # 这样每个段 [s,e] 表示该 regime 从 s 一直持续到 e（下一次切换/收盘），不留零宽段
+        if segs:
+            prev = segs[-1]
+            prev_sid = _session_of(prev["e"])
+            if prev_sid == sid and _hm_to_min(prev["e"]) < _hm_to_min(hm):
+                prev["e"] = hm
+            # prev_sid != sid 时上一段已在跨时段分支里收在时段收盘，保持不动
         segs.append({"s": hm, "e": hm, "regime": regime, "confidence": conf})
     with open(TL_PATH, "w", encoding="utf-8") as f:
         json.dump(tl, f, ensure_ascii=False, indent=1)
