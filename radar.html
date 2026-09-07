@@ -123,7 +123,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .pzt-chip b:hover{color:var(--down)}
 .pzt-chart{position:relative;border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,#fff,#f7f9fb);overflow:hidden;min-height:160px;margin-bottom:12px}
 .pzt-chart svg{display:block;width:100%;height:auto}
-.pzt-tip{position:absolute;z-index:20;min-width:190px;max-width:280px;max-height:420px;overflow-y:auto;background:rgba(255,255,255,0.97);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);font-size:12px;color:var(--txt);pointer-events:none;display:none}
+.pzt-tip{position:fixed;z-index:9999;min-width:190px;max-width:280px;max-height:420px;overflow-y:auto;background:rgba(255,255,255,0.97);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);font-size:12px;color:var(--txt);pointer-events:none;display:none}
 .pzt-tip h4{margin:0 0 8px;font-size:13px;color:var(--txt);font-weight:600}
 .pzt-tip .row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 0}
 .pzt-tip .dot{width:7px;height:7px;border-radius:50%;margin-right:6px;display:inline-block;vertical-align:middle}
@@ -3320,11 +3320,11 @@ rzStart();
   }
   function pztAttachHover(axis, seriesList){
     var W=1024,H=520,ML=58,MR=210,MT=30,MB=40,pw=W-ML-MR,ph=H-MT-MB,nx=Math.max(axis.length-1,1);
-    var chart=document.getElementById('pztChart'), svgDiv=document.getElementById('pztSvg');
+    var svgDiv=document.getElementById('pztSvg');
     var svg=svgDiv.querySelector('svg'); if(!svg||!axis.length) return;
     var line=document.getElementById('pztHoverLine'), timeLbl=document.getElementById('pztHoverTime');
     var tip=document.getElementById('pztTip');
-    if(!tip){ tip=document.createElement('div'); tip.id='pztTip'; tip.className='pzt-tip'; chart.appendChild(tip); }
+    if(!tip){ tip=document.createElement('div'); tip.id='pztTip'; tip.className='pzt-tip'; document.body.appendChild(tip); }
     var hit=document.getElementById('pztHit'); if(!hit) return;
     var maps=seriesList.map(function(r){ var m={}; for(var i=0;i<r[1].length;i++) m[r[1][i][0]]=r[1][i][1]; return [r[0],m,r[1]]; });
     function colorFor(i){ var hue=215*(i/Math.max(seriesList.length-1,1)); return hslHex(hue,0.78,0.48); }
@@ -3352,10 +3352,10 @@ rzStart();
         h+='<div class="row"><span><span class="dot" style="background:'+items[j][2]+'"></span><span class="name">'+esc2(items[j][0])+'</span></span><span class="val '+(items[j][1]>=0?'in':'out')+'">'+(items[j][1]>=0?'+':'')+items[j][1].toFixed(2)+'亿</span></div>';
       }
       tip.innerHTML=h;
-      var rect=chart.getBoundingClientRect();
-      var left=e.clientX-rect.left+14, top=e.clientY-rect.top+14;
-      if(left+260>rect.width) left=e.clientX-rect.left-270;
-      if(top+tip.offsetHeight>rect.height) top=e.clientY-rect.top-tip.offsetHeight-10;
+      var left=e.clientX+14, top=e.clientY+14;
+      if(left+tip.offsetWidth>window.innerWidth-10) left=e.clientX-tip.offsetWidth-14;
+      if(top+tip.offsetHeight>window.innerHeight-10) top=e.clientY-tip.offsetHeight-14;
+      if(left<10) left=10; if(top<10) top=10;
       tip.style.left=left+'px'; tip.style.top=top+'px'; tip.style.display='block';
     });
     hit.addEventListener('mouseleave',function(){ line.style.display='none'; if(timeLbl) timeLbl.style.display='none'; tip.style.display='none'; });
