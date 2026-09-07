@@ -2867,19 +2867,29 @@ function rzMarket(force){
     return m;
   }).catch(function(){ return RZ.board.data || null; });
 }
-// 行业板块实时资金榜（f14名 -> {f14,f3涨跌,f62主力净额}），90s 缓存
+// 行业板块实时资金榜（f14名 -> {f14,f3涨跌,f62主力净额}）。
+// 东财 clist 单页上限 100，496 个行业板块需 5 页拉全再索引（pz=700 会被截断到 100）。
+// 全量索引缓存 5 分钟（5 页×5 个请求/次，不宜过频）。
 function rzBoard(force){
   var now = Date.now();
-  if(!force && RZ.blist.idx && now - RZ.blist.ts < 90000) return Promise.resolve(RZ.blist.idx);
-  var path = '/api/qt/clist/get?fid=f62&po=1&pz=700&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:2+f:!50&fields=f12,f14,f3,f62';
-  return rzGet(path, function(d){
-    var diff = d && d.data && d.data.diff;
-    if(!diff || !diff.length) throw new Error('EMPTY');
+  if(!force && RZ.blist.idx && now - RZ.blist.ts < 300000) return Promise.resolve(RZ.blist.idx);
+  var path = '/api/qt/clist/get?fid=f62&po=1&pz=100&np=1&fltt=2&invt=2&fs=m:90+t:2+f:!50&fields=f12,f14,f3,f62';
+  var reqs = [];
+  for(var pn = 1; pn <= 5; pn++){
+    reqs.push(rzGet(path + '&pn=' + pn, function(d){
+      var diff = d && d.data && d.data.diff;
+      if(!diff || !diff.length) throw new Error('EMPTY');
+      return diff;
+    }, 10000).catch(function(){ return []; }));
+  }
+  return Promise.all(reqs).then(function(pages){
     var idx = {};
-    diff.forEach(function(x){ if(x.f14) idx[x.f14] = { name: x.f14, pct: num(x.f3), flow: num(x.f62) }; });
+    pages.forEach(function(diff){
+      diff.forEach(function(x){ if(x.f14) idx[x.f14] = { name: x.f14, pct: num(x.f3), flow: num(x.f62) }; });
+    });
     RZ.blist = { ts: Date.now(), idx: idx };
     return idx;
-  }, 12000).catch(function(){ return RZ.blist.idx; });
+  }).catch(function(){ return RZ.blist.idx; });
 }
 // 个股行业归属 f127（12h 缓存）
 function rzIndustry(secid){
