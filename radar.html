@@ -353,8 +353,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
         <div class="col">
           <div class="kv"><span>今日累计</span><b id="sVNow">—</b></div>
           <div class="kv"><span>昨日同期</span><b id="sVSame">—</b></div>
-          <div class="kv"><span>同期比</span><b id="sVRatio">—</b></div>
-          <div class="kv"><span>官方量比</span><b id="sVR">—</b></div>
+          <div class="kv"><span>今日量比昨日</span><b id="sVRatio">—</b></div>
+          <div class="kv"><span>官方量比（5日均）</span><b id="sVR">—</b></div>
         </div>
         <div class="col">
           <div class="kv"><span>均价线（黄线）</span><b id="sAvg" class="ylwc">—</b></div>
@@ -1054,7 +1054,16 @@ function fetchTrends(secid, tx, isIndex){
           return {tr: tr, src: (em1m && em1m.yest && em1m.yest.length) ? 'tx+em1m' : 'tx'};
         });
       }).catch(function(){
-        return apiTrendsTx(tx, leadTx, isIndex, aw, ay).then(function(tr){ return {tr: tr, src: 'tx'}; });
+        return apiTrendsTx(tx, leadTx, isIndex, aw, ay).then(function(tr){
+          // 分钟级昨日量仍不可得：用腾讯日K的「昨日全天总量」做降级，至少能给出「今日/昨日」的直观对比
+          if(!tr.yest || !tr.yest.length){
+            return buildDailyFallback(tx, tr.today, 'amt').then(function(fb){
+              tr.yest = fb;
+              return {tr: tr, src: 'tx+daily'};
+            }).catch(function(){ return {tr: tr, src: 'tx'}; });
+          }
+          return {tr: tr, src: 'tx'};
+        });
       });
     });
   });
@@ -1082,6 +1091,27 @@ var apiTrendsEM1m = function(secid){
     '&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=1&fqt=0&end=20500101&lmt=480';
   return tryHosts(EM_HOSTS, path, function(raw){ var t = parseKline1m(raw); if(!t || !t.today.length) throw new Error('EMPTY'); return t; }, 6000);
 };
+
+// 当东财/腾讯昨日分钟量都不可得时，用腾讯日K的「昨日全天总量」做降级量能比。
+// 构造一个只有一项的 yest 数组，并打上 _fallback 标记；volCompare 识别后会显示「今日/昨日全天（日K）」。
+function buildDailyFallback(tx, today, field){
+  field = field || 'amt';
+  return apiDaily(tx).then(function(dk){
+    var d = parseDaily(dk);
+    if(!d || d.length < 2) throw new Error('NO_DAILY');
+    var yest = d[d.length - 2];
+    if(!yest || !isFinite(yest.vol) || yest.vol <= 0) throw new Error('ZERO_YEST');
+    // 腾讯日K只有 vol，没有 amt。若调用方要 amt，用 (open+close)/2 * vol 近似。
+    var approxAmt = yest.vol * ((isFinite(yest.open) ? yest.open : yest.close) + (isFinite(yest.close) ? yest.close : yest.open)) / 2;
+    var fallback = [{
+      d: yest.d, t: '15:00',
+      open: yest.open, close: yest.close, high: yest.high, low: yest.low,
+      vol: yest.vol, amt: isFinite(approxAmt) ? approxAmt : 0, ylw: NaN,
+      _fallback: true
+    }];
+    return fallback;
+  });
+}
 
 // 解析 trends2 → {today:[], yest:[], preClose, name, code}
 function parseTrends(data){
@@ -1216,27 +1246,37 @@ function segAvg(vols, piv, k){
 }
 
 /* ============ 核心量能计算 ============ */
-// 同期量/额对比：返回 {curVol, sameVol, ratio, yestTotal, projVol, projRatio, n, unavail}
+// 同期量/额对比：返回 {curVol, sameVol, ratio, yestTotal, projVol, projRatio, n, unavail, fallback, fallbackLabel}
 // field: 'vol'(手) | 'amt'(元)，默认成交量。放量/缩量阈值按同口径比例判定。
+// 当 yest 来自 buildDailyFallback 时（数组只有一项且带 _fallback=true），按「今日累计 ÷ 昨日全天」计算，并标记 fallback。
 function volCompare(today, yest, field){
   field = field || 'vol';
   var n = today.length;
   var cur = 0;
   for(var i = 0; i < n; i++) cur += today[i][field];
   var hasYest = !!(yest && yest.length);
+  var isFallback = hasYest && !!yest[0]._fallback;
   var same = 0;
   if(hasYest){
-    var m = Math.min(n, yest.length);
-    for(var j = 0; j < m; j++) same += yest[j][field];
+    if(isFallback){
+      same = yest[0][field] || 0;
+    } else {
+      var m = Math.min(n, yest.length);
+      for(var j = 0; j < m; j++) same += yest[j][field];
+    }
   }
   var yTotal = 0;
-  if(hasYest) for(var k = 0; k < yest.length; k++) yTotal += yest[k][field];
+  if(hasYest){
+    if(isFallback) yTotal = same;
+    else for(var k = 0; k < yest.length; k++) yTotal += yest[k][field];
+  }
   var ratio = (hasYest && same > 0) ? cur / same : NaN;
-  // 投影：用昨日同期占比外推（贴合日内 U 型分布）
-  var proj = (hasYest && yTotal > 0 && same > 0) ? cur * yTotal / same : NaN;
+  // 投影：用昨日同期占比外推（贴合日内 U 型分布）。fallback 是昨日全天，无需也不应再投影。
+  var proj = (hasYest && !isFallback && yTotal > 0 && same > 0) ? cur * yTotal / same : NaN;
   return {
     curVol: cur, sameVol: hasYest ? same : NaN, ratio: ratio, yestTotal: yTotal,
-    projVol: proj, projRatio: (yTotal > 0 ? proj / yTotal : NaN), n: n, unavail: !hasYest
+    projVol: proj, projRatio: (yTotal > 0 ? proj / yTotal : NaN), n: n, unavail: !hasYest,
+    fallback: isFallback, fallbackLabel: isFallback ? '今日/昨日全天（日K）' : null
   };
 }
 // 量能斜率：近5分钟均量 / 前15分钟均量
@@ -1298,7 +1338,7 @@ function detectPatterns(ctx){
   var last = today[n-1];
   var preClose = ctx.preClose;
   var chgPct = isFinite(preClose) && preClose ? (last.close - preClose) / preClose * 100 : NaN;
-  var ratio = ctx.vc.ratio;
+  var ratio = ctx.vc && ctx.vc.fallback ? NaN : ctx.vc.ratio;   // fallback（今日/昨日全天）只作参考，不参与阈值判定
   var rising = last.close > preClose;
 
   // 1-4 量价四象限
@@ -1544,7 +1584,7 @@ function buildTRules(ctx){
   else add('yw', '条件3 黄白线', 'na', '—');
 
   // --- 条件4：量能 + 现象1/现象2 ---
-  var ratio = vc.ratio;
+  var ratio = vc && vc.fallback ? NaN : vc.ratio;   // fallback（今日/昨日全天）只作参考，不参与阈值判定
   var openGap = (isFinite(ctx.preClose) && ctx.preClose > 0 && isFinite(ctx.openP)) ? (ctx.openP - ctx.preClose) / ctx.preClose * 100 : NaN;
   var gapTxt = isFinite(openGap) ? (openGap > 0.05 ? '高开 ' + openGap.toFixed(2) + '%' : (openGap < -0.05 ? '低开 ' + Math.abs(openGap).toFixed(2) + '%' : '平开')) : '开盘状态未知';
   var volTxtS = isFinite(ratio) ? '同期量比 ' + (ratio*100).toFixed(0) + '%（' + (ratio >= CFG.VOL_UP ? '放量' : (ratio <= CFG.VOL_DN ? '缩量' : '平量')) + '）' : '量能数据不足';
@@ -1940,8 +1980,10 @@ function renderIndex(){
   var bar = $('vBar');
   bar.style.width = w.toFixed(1) + '%';
   bar.style.background = (r >= CFG.VOL_UP ? 'var(--up)' : (r <= CFG.VOL_DN ? 'var(--down)' : 'var(--info)'));
-  $('vBarTxt').textContent = '已走 ' + vc.n + ' 分钟 · 今日 ' + _vf(vc.curVol) + ' vs 昨日同期 ' + _vf(vc.sameVol) +
+  var vBarNote = vc.fallback ?
+    ' · 昨日分钟量不可得，显示「今日/昨日全天（日K）」参考比' :
     ' · 投影全天 ' + (isFinite(vc.projRatio) ? (vc.projRatio*100).toFixed(0) + '%' : '—') + ' of 昨日全天';
+  $('vBarTxt').textContent = '已走 ' + vc.n + ' 分钟 · 今日 ' + _vf(vc.curVol) + ' vs ' + (vc.fallback ? '昨日全天（日K）' : '昨日同期 ') + _vf(vc.sameVol) + vBarNote;
 
   var mp = I.mp;
   $('mktTag').textContent = mp.label;
@@ -1989,10 +2031,12 @@ function renderStock(){
     $('sVSame').innerHTML = '<span class="warn">主源限流·暂不可用</span>';
     $('sVRatio').innerHTML = '— <span class="pill na">量能数据不足</span> <span class="warn">（刷新重试）</span>';
   } else {
-    $('sVSame').textContent = _vf(vc.sameVol);
+    $('sVSame').innerHTML = vc.fallback ? '<span class="hint" title="昨日分钟量不可得，用日K昨日全天总量对比">日K昨日全天</span>' : _vf(vc.sameVol);
     var r = vc.ratio;
-    $('sVRatio').innerHTML = '<span class="' + (isFinite(r)?cls(r-1):'flat') + '">' + (isFinite(r)?(r*100).toFixed(0)+'%':'—') + '</span>' +
+    var rTag = vc.fallback ?
+      ' <span class="pill warn" title="昨日分钟量不可得，改用日K昨日全天总量做对比">日K</span>' :
       ' <span class="pill ' + (r>=CFG.VOL_UP?'ok':(r<=CFG.VOL_DN?'warn':'na')) + '">' + (r>=CFG.VOL_UP?'放量':(r<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
+    $('sVRatio').innerHTML = '<span class="' + (isFinite(r)?cls(r-1):'flat') + '">' + (isFinite(r)?(r*100).toFixed(0)+'%':'—') + '</span>' + rTag;
   }
   $('sVR').textContent = snap && isFinite(snap.vr) ? snap.vr.toFixed(2) : '—';
   $('sAvg').textContent = fx(last.ylw);
@@ -2043,7 +2087,7 @@ function renderStock(){
 
 function stockAdvice(S, nl, cur, preClose){
   var I = STATE.idx;
-  var vc = S.vc, r = vc.ratio, pats = S.pats;
+  var vc = S.vc, r = (vc && vc.fallback) ? NaN : vc.ratio, pats = S.pats;
   var hasTop = false, hasBot = false, dryUp = false, stag = false;
   for(var i = 0; i < pats.length; i++){
     if(pats[i].k === '顶背离') hasTop = true;
@@ -2080,7 +2124,7 @@ function buildTrig(S, nl, cur, st){
     return {cls:'na', label:'— 日K不足', body:'需 ≥21 根日K才能生成 20日箱体/压力 参考线。请稍后重试，或确认代码有效。',
             A:null, B:null};
   }
-  var r = S.vc ? S.vc.ratio : NaN;
+  var r = (S.vc && !S.vc.fallback) ? S.vc.ratio : NaN;   // fallback（今日/昨日全天）只作参考，不参与阈值判定
   var ratioOk = isFinite(r) && r >= CFG.VOL_UP;
   var volTxt2 = isFinite(r) ? (r*100).toFixed(0) + '%' : '量能待查';
   var sup = (nl && nl.sup) || null;
