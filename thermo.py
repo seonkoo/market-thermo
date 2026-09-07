@@ -675,6 +675,10 @@ def compute_emotion(cfg, spot, breadth, margin, idx_amount_ratio):
     parts, used = {}, {}
 
     up = sum(1 for x in spot if x["pct"] > 0)
+    # down/flat 必须与 breadth_count 同口径：down 只含真下跌，平盘单独计。
+    # 旧写法 down = len(spot) - up 把平盘算进下跌，导致情绪卡「下跌 2168」与广度卡「下跌 1987」对不上。
+    down = sum(1 for x in spot if x["pct"] < 0)
+    flat = sum(1 for x in spot if x["pct"] == 0)
     adv = up * 100.0 / len(spot) if spot else 50.0
     parts["advance"] = round(min(100.0, max(0.0, adv)), 1)
     used["advance"] = "上涨家数占比 %.1f%%" % adv
@@ -729,7 +733,7 @@ def compute_emotion(cfg, spot, breadth, margin, idx_amount_ratio):
         "score": score, "level": level, "note": note,
         "parts": parts, "why": used,
         "bands": {"hot": hot, "cold": cold},
-        "up": up, "down": len(spot) - up,
+        "up": up, "down": down, "flat": flat,
         "limit_up": lu, "limit_down": ld,
     }
 
