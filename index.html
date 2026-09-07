@@ -592,9 +592,26 @@ function renderCapitalRead(d) {
 }
 
 /* ---------- 今日状态轨迹（regime 盘中变化时间轴） ---------- */
+// 交易时段（午休/盘前/盘后都不画）：上午 09:30-11:30，下午 13:00-15:00
+const TL_SESS = [["09:30","11:30"],["13:00","15:00"]];
+function _tlToMin(t){ const [h,m]=(t||"0:0").split(":").map(Number); return h*60+m; }
+function _tlToHm(m){ const h=Math.floor(m/60), mm=m%60; return String(h).padStart(2,"0")+":"+String(mm).padStart(2,"0"); }
+// 把任意来源的轨迹段裁剪到交易时段内：跨午休的段拆成两段，盘后/盘前的整段丢弃
+function cleanTimelineSegs(raw){
+  const out=[];
+  (raw||[]).forEach(s=>{
+    const rs=_tlToMin(s.s), re=_tlToMin(s.e);
+    TL_SESS.forEach(([a,b])=>{
+      const cs=Math.max(rs,_tlToMin(a)), ce=Math.min(re,_tlToMin(b));
+      if(ce>=cs) out.push({s:_tlToHm(cs), e:_tlToHm(ce), regime:s.regime, confidence:s.confidence});
+    });
+  });
+  out.sort((x,y)=>_tlToMin(x.s)-_tlToMin(y.s));
+  return out;
+}
 function renderTimeline(d) {
   const tl = TIMELINE;
-  const segs = (tl && tl.segments) || [];
+  const segs = cleanTimelineSegs((tl && tl.segments) || []);
   if (!segs.length) return "";
   const todayStr = tl.date || "";
   // 时间轴只对「当天」有意义；若 data.json 与 timeline 不是同一天，多半是跨日/数据未更新
@@ -617,7 +634,7 @@ function renderTimeline(d) {
     return `<div class="tl-item"><span class="tl-dot" style="background:${t.c}"></span><span class="tl-time">${s.s} ~ ${s.e}</span><span class="tl-name" style="color:${t.c}">${s.regime}</span></div>`;
   }).join("");
   const note = fresh
-    ? "时段为 Python 状态机每次盘中采样的真实运行时刻；收盘后定格，盘中切换仅供参考。"
+    ? "时段已裁剪到交易时段（9:30-11:30 / 13:00-15:00），午休与盘后不计入；收盘后定格，盘中切换仅供参考。"
     : `轨迹日期 ${todayStr} 与当前数据日 ${d.generated_at.slice(0,10)} 不一致——数据可能未更新或已跨日。`;
   return `<div class="card tl-card">
     <h2>⏱ 今日状态轨迹 <span class="tag">主力 regime 盘中采样 · 每~30分钟</span>${fresh ? freshTag("capital_read") : ""}</h2>
