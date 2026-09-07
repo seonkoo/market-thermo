@@ -102,6 +102,9 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzok{color:var(--up);font-weight:700}
 .rzno{color:var(--down);font-weight:700}
 .rzna{color:var(--txt3)}
+.rzchart{margin:2px 0 1px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,#fafbfd,#f4f6f9);padding:4px 6px 2px;overflow:hidden}
+.rzchart svg{width:100%;height:auto;display:block}
+.rzchartcap{font-size:10px;color:var(--txt3);text-align:center;padding-top:1px}
 .rzbar{height:4px;border-radius:2px;background:#eef1f4;overflow:hidden}
 .rzbar i{display:block;height:100%;background:var(--up)}
 .wact{flex:0 0 auto;display:flex;gap:4px}
@@ -148,8 +151,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
     <div class="hint" id="rzHint" style="min-height:16px">—</div>
     <div id="rzBody" class="rzcards"></div>
     <div class="hint" style="color:var(--txt3);line-height:1.85;margin-top:8px">
-      <b>判读口径</b>：· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 前5日全天均量，午后趋近真实）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单）；· <b>标的</b> = 个股/ETF 自身涨跌。<br>
-      <b>共振</b> = 大市升 × 板块流入 × 标的升 三条同时成立。ETF/基金无行业归属时按「大市+标的」双线判读。<br>
+      <b>判读口径</b>：· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 前5日全天均量，午后趋近真实）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单），卡片内嵌「板块当日累计主力净流入」迷你曲线（绿=净流入/红=净流出）；· <b>标的</b> = 个股/ETF 自身涨跌。<br>
+      <b>共振</b> = 大市升 × 板块流入 × 标的升 三条同时成立。ETF/基金无行业归属时按名称关键词匹配板块（如「科创半导体ETF→半导体」「通信ETF→通信」，标「名推」为推断非精确行业），曲线照常显示。<br>
       <b>注意</b>：板块资金流与标的涨跌为东财口径、盘中实时；做T动作仍以 A/B 线与量比为准，本模块只提示方向共振。
     </div>
   </div>
@@ -2885,7 +2888,7 @@ function rzBoard(force){
   return Promise.all(reqs).then(function(pages){
     var idx = {};
     pages.forEach(function(diff){
-      diff.forEach(function(x){ if(x.f14) idx[x.f14] = { name: x.f14, pct: num(x.f3), flow: num(x.f62) }; });
+      diff.forEach(function(x){ if(x.f14) idx[x.f14] = { name: x.f14, code: x.f12, pct: num(x.f3), flow: num(x.f62) }; });
     });
     RZ.blist = { ts: Date.now(), idx: idx };
     return idx;
@@ -2914,6 +2917,90 @@ function rzMatchBoard(idx, ind){
   for(var k in idx){ if(k.replace(/[ⅠⅡⅢⅣⅤ]/g, '') === key) return idx[k]; }
   for(var k2 in idx){ if(idx[k2].name.indexOf(key) >= 0 || key.indexOf(idx[k2].name) >= 0) return idx[k2]; }
   return null;
+}
+// ETF/LOF 无行业归属(f127 为空)，改从名称关键词匹配板块榜。
+// 用户诉求：科创半导体ETF→半导体、通信ETF→通信。优先级=数组顺序（先命中先返回）。
+var RZ_ETF_KW = [
+  ['半导体','半导体','芯片'], ['芯片','半导体','芯片'],
+  ['通信','通信','通信设备'],
+  ['医药','医药','医疗','生物','中药','CXO'], ['医疗','医药','医疗','生物','中药'], ['中药','医药','中药'],
+  ['券商','证券','券商'], ['证券','证券','券商'], ['银行','银行'], ['保险','保险'],
+  ['酒','白酒'], ['白酒','白酒'], ['消费','消费','食品饮料'], ['食品','消费','食品饮料'],
+  ['新能源','新能源','光伏','电池','锂电','储能'], ['光伏','新能源','光伏'], ['电池','新能源','电池','锂电'],
+  ['汽车','汽车','新能源车'], ['军工','军工','国防'], ['化工','化工'], ['有色','有色金属','金属'], ['煤炭','煤炭'],
+  ['钢铁','钢铁'], ['地产','房地产','地产'], ['电力','电力'], ['养殖','农业','养殖'], ['农业','农业','养殖'],
+  ['传媒','传媒','游戏'], ['游戏','传媒','游戏'], ['计算机','计算机','软件','IT'], ['软件','计算机','软件'],
+  ['AI','计算机','人工智能'], ['环保','环保'], ['建材','建材','水泥'], ['机械','工程机械','机械'], ['黄金','贵金属']
+];
+function rzETFSector(name, idx){
+  if(!idx || !name) return null;
+  var nm = String(name);
+  for(var i = 0; i < RZ_ETF_KW.length; i++){
+    var keys = RZ_ETF_KW[i];
+    for(var j = 0; j < keys.length; j++){
+      if(nm.indexOf(keys[j]) >= 0){
+        // 该组目标板块名（keys[0] 或 keys[1]）
+        var targets = [keys[0], keys[1] || keys[0]];
+        // 优先精确 f14 命中，再 f14 含词
+        for(var t = 0; t < targets.length; t++){
+          if(idx[targets[t]]) return idx[targets[t]];
+        }
+        var hit = null;
+        for(var k in idx){ if(idx[k].name.indexOf(targets[0]) >= 0){ hit = idx[k]; break; } }
+        return hit;
+      }
+    }
+  }
+  return null;
+}
+// 板块当日累计主力净流入曲线（fflow/kline klt=1，逐分钟净额累加）
+function rzBoardFlow(code){
+  if(!code) return Promise.reject(new Error('NO_CODE'));
+  var path = '/api/qt/stock/fflow/kline/get?lmt=0&klt=1&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=90.' + code;
+  return rzGet(path, function(d){
+    var ks = d && d.data && d.data.klines;
+    if(!ks || !ks.length) throw new Error('EMPTY');
+    var acc = 0, ser = [];
+    for(var i = 0; i < ks.length; i++){
+      var p = ks[i].split(',');
+      if(p.length < 2) continue;
+      var v = parseFloat(p[1]); if(!isFinite(v)) continue;
+      acc += v / 1e8;
+      var ts = p[0].indexOf(' ') >= 0 ? p[0].split(' ')[1].slice(0, 5) : p[0].slice(0, 5);
+      ser.push([ts, acc]);
+    }
+    if(!ser.length) throw new Error('BAD');
+    return ser; // [[hhmm, 累计亿]]
+  }, 10000).catch(function(){ return null; });
+}
+// 单板块累计净流入迷你曲线（viewBox 自适应宽，高 96）
+function rzFlowSVG(ser, flowYi){
+  if(!ser || ser.length < 2) return '';
+  var W = 600, H = 96, ML = 34, MR = 8, MT = 8, MB = 16, pw = W - ML - MR, ph = H - MT - MB;
+  var vals = ser.map(function(s){ return s[1]; });
+  var vmin = Math.min.apply(null, vals), vmax = Math.max.apply(null, vals);
+  if(vmax - vmin < 0.01){ vmin -= 0.5; vmax += 0.5; }
+  var pad = (vmax - vmin) * 0.1; vmin -= pad; vmax += pad;
+  var nx = ser.length - 1;
+  var X = function(i){ return ML + pw * i / nx; };
+  var Y = function(v){ return MT + ph * (vmax - v) / (vmax - vmin); };
+  var pts = ser.map(function(s, i){ return X(i).toFixed(1) + ',' + Y(s[1]).toFixed(1); }).join(' ');
+  var last = ser[ser.length - 1], lx = X(nx), ly = Y(last[1]);
+  var zeroY = (vmin < 0 && vmax > 0) ? Y(0) : (vmax <= 0 ? MT + ph : MT);
+  var up = last[1] >= 0;
+  var col = up ? '#2bd67b' : '#ff6f83';
+  var area = 'M' + X(0).toFixed(1) + ',' + zeroY.toFixed(1) + ' L' + pts.replace(/ /g, ' L') + ' L' + lx.toFixed(1) + ',' + zeroY.toFixed(1) + ' Z';
+  var lbl = (up ? '+' : '') + last[1].toFixed(2) + '亿';
+  var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="none" style="display:block">';
+  g += '<line x1="' + ML + '" y1="' + zeroY.toFixed(1) + '" x2="' + (ML + pw) + '" y2="' + zeroY.toFixed(1) + '" stroke="rgba(125,154,211,0.35)" stroke-width="1"/>';
+  g += '<path d="' + area + '" fill="' + col + '" opacity="0.12"/>';
+  g += '<polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="1.6" stroke-linejoin="round"/>';
+  g += '<circle cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="2.4" fill="' + col + '"/>';
+  g += '<text x="' + (lx - 4) + '" y="' + (ly - 5) + '" font-size="11" fill="' + col + '" text-anchor="end">' + lbl + '</text>';
+  g += '<text x="' + ML + '" y="' + (H - 3) + '" font-size="9" fill="#7e93b8">09:30</text>';
+  g += '<text x="' + (ML + pw - 2) + '" y="' + (H - 3) + '" font-size="9" fill="#7e93b8" text-anchor="end">' + last[0] + '</text>';
+  g += '</svg>';
+  return g;
 }
 // 三线判读
 function rzVerdict(mkt, bd, it){
@@ -2969,7 +3056,8 @@ function rzRender(){
       '<button class="rzbtn" data-rz-re="' + code + '">重算</button><button class="rzbtn" data-rz-rm="' + code + '">移除</button></div>';
     html += '<div class="rzcard">' + head +
       '<div class="rzrow"><span class="rk">大市</span><b>上证</b> ' + (mk ? pctS(mk.pct) + (mk.volTag ? ' <b>' + esc(mk.volTag) + '</b>' : '') : '<span class="rzna">—</span>') + (mk ? ' ' + rzY(mk.pct > 0) : '') + '</div>' +
-      '<div class="rzrow"><span class="rk">板块</span>' + (bd ? esc(bd.name) + ' ' + pctS(bd.pct) + ' · 主力 ' + (bd.flow >= 0 ? '+' : '') + (bd.flow / 1e8).toFixed(2) + '亿' : '<span class="rzna">基金/无行业归属</span>') + (bd ? ' ' + rzY(bd.flow > 0) : '') + '</div>' +
+      '<div class="rzrow"><span class="rk">板块</span>' + (bd ? esc(bd.name) + (o.etfMatch ? '<span class="rzna">（名推）</span>' : '') + ' ' + pctS(bd.pct) + ' · 主力 ' + (bd.flow >= 0 ? '+' : '') + (bd.flow / 1e8).toFixed(2) + '亿' : '<span class="rzna">基金/无行业归属</span>') + (bd ? ' ' + rzY(bd.flow > 0) : '') + '</div>' +
+      (bd && o.bdChart ? '<div class="rzchart">' + o.bdChart + '<div class="rzchartcap">板块当日累计主力净流入（盘中实时）</div></div>' : '') +
       '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
       (bd ? '' : ' <span class="rzna">ETF 按「大市+标的」双线</span>') + '</div></div>';
   });
@@ -2988,18 +3076,33 @@ function rzOne(code, force){
   o.err = null;
   Promise.all([
     rzMarket(!!force).then(function(m){ o.market = m; }, function(){ o.market = null; }),
-    rzBoard(!!force).then(function(idx){
-      return rzIndustry(secid).then(function(ind){
-        o.boardRow = rzMatchBoard(idx, ind);
-        return true;
-      });
-    }, function(){ o.boardRow = null; }),
+    rzBoard(!!force),
     rzQuote(secid).then(function(q){ o.quote = q; }, function(){ o.quote = null; })
-  ]).then(function(){
-    if(!o.market){ o.v = { mUp: false, bUp: false, iUp: false, txt: '大盘数据不可用', cls: 'bad' }; }
-    else if(!o.quote){ o.v = { mUp: o.market.pct > 0, bUp: !!(o.boardRow && o.boardRow.flow > 0), iUp: false, txt: '标的数据不可用', cls: 'warn' }; }
-    else o.v = rzVerdict(o.market, o.boardRow, o.quote);
-    rzRender();
+  ]).then(function(res){
+    var idx = res[1];
+    function finish(){
+      if(!o.market){ o.v = { mUp: false, bUp: false, iUp: false, txt: '大盘数据不可用', cls: 'bad' }; }
+      else if(!o.quote){ o.v = { mUp: o.market.pct > 0, bUp: !!(o.boardRow && o.boardRow.flow > 0), iUp: false, txt: '标的数据不可用', cls: 'warn' }; }
+      else o.v = rzVerdict(o.market, o.boardRow, o.quote);
+      rzRender();
+      // 板块当日累计主力净流入曲线（异步补渲染）
+      if(o.boardRow && o.boardRow.code){
+        rzBoardFlow(o.boardRow.code).then(function(ser){
+          o.bdChart = rzFlowSVG(ser, o.boardRow.flow / 1e8);
+          rzRender();
+        }).catch(function(){ /* 曲线缺失不影响主判读 */ });
+      } else { o.bdChart = null; }
+    }
+    // 个股 f127 精确优先；ETF 无 f127 时按名称关键词匹配板块（半导体/通信…）
+    rzIndustry(secid).then(function(ind){
+      var m1 = rzMatchBoard(idx, ind);
+      if(m1){ o.boardRow = m1; o.etfMatch = false; finish(); return; }
+      if(isETFCode(code) && o.quote && o.quote.name){
+        o.boardRow = rzETFSector(o.quote.name, idx);
+        o.etfMatch = !!o.boardRow;
+      } else { o.boardRow = null; o.etfMatch = false; }
+      finish();
+    }).catch(function(){ o.boardRow = null; o.etfMatch = false; finish(); });
   });
 }
 function rzRefresh(force){
