@@ -136,10 +136,12 @@
   .tl-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--chip); margin-bottom: 4px; }
   .tl-seg { height: 100%; min-width: 4px; }
   .tl-ticks { display: flex; font-size: 10px; color: var(--sub); margin-bottom: 6px; }
-  .tl-ticks span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tl-steps { font-size: 11.5px; line-height: 1.9; color: var(--sub); }
-  .tl-steps .st { color: var(--txt); font-weight: 600; font-variant-numeric: tabular-nums; }
-  .tl-steps .arr { margin: 0 4px; color: var(--line); }
+  .tl-ticks span { flex: 0 0 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+  .tl-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .tl-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .tl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tl-time { color: var(--sub); font-variant-numeric: tabular-nums; min-width: 92px; }
+  .tl-name { color: var(--txt); font-weight: 600; }
   .tl-note { font-size: 10.5px; color: var(--sub); margin-top: 4px; }
 </style>
 </head>
@@ -606,11 +608,14 @@ function renderTimeline(d) {
     const col = regimeTone(s.regime).c;
     return `<div class="tl-seg" style="width:${w}%;background:${col}" title="${s.s}~${s.e} ${s.regime}"></div>`;
   }).join("");
-  const ticks = segs.map(s => `<span>${s.s}</span>`).join("");
-  const steps = segs.map((s, i) =>
-    (i > 0 ? `<span class="arr">→</span>` : "") +
-    `<span class="st" style="color:${regimeTone(s.regime).c}">${s.s}~${s.e} ${s.regime}</span>`
-  ).join("");
+  const ticks = segs.map(s => {
+    const w = Math.min((toMin(s.e) - toMin(s.s) + 1) / span * 100, 100);
+    return `<span style="width:${w}%">${s.s}</span>`;
+  }).join("");
+  const list = segs.map(s => {
+    const t = regimeTone(s.regime);
+    return `<div class="tl-item"><span class="tl-dot" style="background:${t.c}"></span><span class="tl-time">${s.s} ~ ${s.e}</span><span class="tl-name" style="color:${t.c}">${s.regime}</span></div>`;
+  }).join("");
   const note = fresh
     ? "时段为 Python 状态机每次盘中采样的真实运行时刻；收盘后定格，盘中切换仅供参考。"
     : `轨迹日期 ${todayStr} 与当前数据日 ${d.generated_at.slice(0,10)} 不一致——数据可能未更新或已跨日。`;
@@ -618,7 +623,7 @@ function renderTimeline(d) {
     <h2>⏱ 今日状态轨迹 <span class="tag">主力 regime 盘中采样 · 每~30分钟</span>${fresh ? freshTag("capital_read") : ""}</h2>
     <div class="tl-bar">${bar}</div>
     <div class="tl-ticks">${ticks}</div>
-    <div class="tl-steps">${steps}</div>
+    <div class="tl-list">${list}</div>
     <div class="tl-note">${note}</div>
   </div>`;
 }
