@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>盘中信息台 · 板块资金流</title>
+<style>
+ :root{
+   --bg:#08111f; --bg-soft:#0d1830;
+   --panel:rgba(13,24,48,0.82); --panel-2:rgba(15,28,57,0.92);
+   --line:rgba(125,154,211,0.18); --line-strong:rgba(125,154,211,0.32);
+   --text:#e8f1ff; --muted:#90a7cf;
+   --blue:#5fa8ff; --cyan:#39d9ff; --teal:#38d0c3; --green:#2bd67b;
+   --red:#ff6f83; --amber:#ffb85c; --violet:#8c7dff;
+   --shadow:0 18px 50px rgba(1,9,22,0.35); --radius:18px;
+ }
+ *{box-sizing:border-box}
+ body{
+   margin:0;color:var(--text);
+   font-family:"Inter","PingFang SC","Microsoft YaHei",sans-serif;
+   background:
+     radial-gradient(circle at top left,rgba(80,136,255,0.16),transparent 32%),
+     radial-gradient(circle at 90% 0%,rgba(57,217,255,0.12),transparent 24%),
+     linear-gradient(180deg,#06101c 0%,#08111f 44%,#091522 100%);
+   min-height:100vh;
+ }
+ body::before{content:"";position:fixed;inset:0;pointer-events:none;
+   background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),
+     linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);
+   background-size:28px 28px;
+   mask-image:linear-gradient(180deg,rgba(255,255,255,0.5),transparent 85%);opacity:.2}
+ .app{max-width:1320px;margin:0 auto;padding:26px 18px 40px;position:relative;z-index:1}
+
+ /* hero */
+ .hero{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;
+   padding:22px 26px;margin-bottom:18px;border:1px solid var(--line);border-radius:26px;
+   background:linear-gradient(135deg,rgba(21,38,79,0.92),rgba(9,18,39,0.85));
+   box-shadow:var(--shadow);backdrop-filter:blur(14px);flex-wrap:wrap}
+ .hero h1{margin:0;font-size:30px;letter-spacing:.02em}
+ .hero p{margin:8px 0 0;color:var(--muted);line-height:1.6;max-width:760px;font-size:13px}
+ .hero-badge-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+ .badge{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;
+   border:1px solid rgba(140,170,228,.2);background:rgba(255,255,255,.04);color:#d9e8ff;font-size:12px}
+ .hero-side{min-width:260px;display:flex;flex-direction:column;gap:10px;align-items:stretch}
+ .global-status{padding:13px 16px;border:1px solid var(--line);border-radius:16px;
+   background:rgba(255,255,255,.04);color:var(--muted);font-size:13px;line-height:1.7}
+ .global-status b{color:var(--text)}
+ .btn-row{display:flex;flex-wrap:wrap;gap:10px}
+ .btn{border:0;border-radius:12px;padding:9px 15px;color:#fff;cursor:pointer;font:inherit;
+   background:linear-gradient(135deg,#4a86ff,#38d9ff);box-shadow:0 10px 28px rgba(68,131,255,.22);
+   font-weight:700;transition:transform .18s,box-shadow .18s,opacity .18s}
+ .btn:hover{transform:translateY(-1px)}
+ .btn.secondary{background:rgba(255,255,255,.06);color:#dbe9ff;border:1px solid var(--line);box-shadow:none}
+
+ /* tabs（加新功能就在这加一个 tab-btn + 一个 section）*/
+ .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+ .tab-btn{flex:1;min-width:200px;text-align:left;padding:14px 18px;background:rgba(255,255,255,.04);
+   border:1px solid var(--line);border-radius:18px;color:var(--muted);cursor:pointer;transition:all .2s;font:inherit}
+ .tab-btn strong{display:block;color:var(--text);margin-bottom:4px;font-size:15px}
+ .tab-btn.active{background:linear-gradient(135deg,rgba(72,121,255,.2),rgba(56,217,255,.12));
+   border-color:rgba(94,168,255,.38);color:#cfe1ff;transform:translateY(-1px)}
+ .section{display:none}.section.active{display:block}
+
+ /* module */
+ .module-header{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+ .module-title h2{margin:0;font-size:22px}
+ .module-title p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.6}
+ .timestamp{color:#b4cbf4;font-size:12px;line-height:1.55;text-align:right;min-width:160px}
+
+ .grid-cards{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px;margin-bottom:14px}
+ @media(max-width:820px){.grid-cards{grid-template-columns:repeat(2,1fr)}}
+ .card{background:linear-gradient(160deg,rgba(20,34,69,.92),rgba(12,21,44,.92));border:1px solid var(--line);
+   border-radius:var(--radius);padding:15px 16px;box-shadow:var(--shadow);overflow:hidden;position:relative}
+ .card::after{content:"";position:absolute;inset:auto -30px -40px auto;width:110px;height:110px;border-radius:50%;
+   background:radial-gradient(circle,rgba(94,168,255,.16),transparent 68%);pointer-events:none}
+ .card .label{color:var(--muted);font-size:12px;margin-bottom:8px}
+ .card .value{font-size:24px;font-weight:800;line-height:1.1;position:relative;z-index:1}
+ .card .meta{margin-top:7px;font-size:12px;color:#bdd1f2;line-height:1.5;position:relative;z-index:1}
+
+ .panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:16px;
+   box-shadow:var(--shadow);backdrop-filter:blur(10px);margin-bottom:14px}
+ .panel h3{margin:0 0 4px;font-size:16px;color:#dce8ff}
+ .panel-sub{color:var(--muted);font-size:12px;margin:0 0 12px;line-height:1.6}
+ .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+ @media(max-width:820px){.two-col{grid-template-columns:1fr}}
+ .two-col>*{min-width:0}
+
+ .chart{width:100%;border:1px solid rgba(123,156,221,.18);border-radius:16px;position:relative;
+   background:linear-gradient(180deg,rgba(9,17,34,.82),rgba(8,15,29,.95));overflow:hidden;min-height:120px}
+ .chart svg{display:block;width:100%;height:auto}
+ #crosshair{position:absolute;top:0;bottom:0;width:1px;background:rgba(125,154,211,.55);pointer-events:none;display:none;z-index:2}
+ .hover-box{position:absolute;pointer-events:none;display:none;z-index:3;min-width:150px;max-width:240px;
+   padding:8px 10px;border-radius:10px;border:1px solid rgba(123,156,221,.28);
+   background:rgba(8,14,27,.94);backdrop-filter:blur(4px);font-size:12px;color:#d5e6ff;line-height:1.55;
+   box-shadow:0 10px 26px rgba(0,0,0,.45)}
+ .hover-box .t{color:#b4cbf4;margin-bottom:5px;font-weight:600}
+ .hover-box .row{display:flex;justify-content:space-between;gap:14px;white-space:nowrap}
+ .hover-box .row .nm{overflow:hidden;text-overflow:ellipsis}
+
+ table{width:100%;border-collapse:collapse;font-size:13px}
+ td{padding:5px 6px;border-bottom:1px solid rgba(118,149,204,.12)}
+ td.v{text-align:right;font-variant-numeric:tabular-nums}
+ .in{color:var(--red)}.out{color:var(--cyan)}
+ .empty{color:var(--muted);padding:8px 2px}
+ td.x{text-align:right;width:24px}
+ td.x .b{cursor:pointer;color:var(--muted);opacity:.5;font-size:12px;padding:0 4px}
+ td.x .b:hover{opacity:1;color:var(--red)}
+ .blockbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+ .blockbar input{flex:1;min-width:180px;border-radius:10px;border:1px solid var(--line);
+   background:rgba(255,255,255,.05);color:var(--text);padding:8px 12px;font:inherit;font-size:13px}
+ .chips{display:flex;flex-wrap:wrap;gap:6px}
+ .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+   border:1px solid var(--line);background:rgba(255,255,255,.05);color:#cfe1ff;font-size:12px}
+ .chip b{cursor:pointer;color:var(--muted)}.chip b:hover{color:var(--red)}
+ footer{margin-top:8px;color:var(--muted);font-size:12px;line-height:1.6}
+ a{color:var(--blue)}
+</style>
+</head>
+<body>
+<div class="app">
+
+ <header class="hero">
+  <div>
+   <h1>盘中信息台</h1>
+   <p>A 股盘中实时信息台。当前模块：跟踪各板块 / 概念的主力资金动向——当日累计净流入排行、分时累计曲线，并自动监测近 5 分钟的资金异动（急流入 / 急流出）。</p>
+   <div class="hero-badge-row">
+    <span class="badge" id="kindBadge">概念板块</span>
+    <span class="badge">主力 = 超大单+大单净额</span>
+    <span class="badge">每 5 分钟自刷新</span>
+    <span class="badge">已剔风格/股价/业绩篮子</span>
+   </div>
+  </div>
+  <div class="hero-side">
+   <div class="global-status">
+    <div>状态　<b id="status">加载中…</b></div>
+    <div>更新　<b id="updated">—</b>（截至 <span id="lastt">—</span>）</div>
+    <div>下次刷新　<b id="countdown">—</b></div>
+   </div>
+   <div class="btn-row">
+    <button class="btn" id="refreshBtn">↻ 立即刷新</button>
+    <button class="btn secondary" id="kindBtn">切换 概念/行业</button>
+   </div>
+  </div>
+ </header>
+
+ <!-- 加新功能：复制一个 tab-btn（data-tab=xxx）+ 一个 <section id="sec-xxx"> 即可 -->
+ <nav class="tabs">
+  <button class="tab-btn active" data-tab="flow"><strong>板块资金流</strong>主力净流入累计曲线 + 异动监测</button>
+ </nav>
+
+ <!-- ============ 模块一：板块资金流 ============ -->
+ <section class="section active" id="sec-flow">
+  <div class="module-header">
+   <div class="module-title">
+    <h2>板块资金流 · 盘中</h2>
+    <p>当日累计主力资金净流入（亿元），每条线一个板块，末端标注金额；右侧异动按近 5 分钟 Δ净流入排名。</p>
+   </div>
+   <div class="timestamp" id="modTime">—</div>
+  </div>
+
+  <div class="grid-cards">
+   <div class="card"><div class="label">最强流入板块</div><div class="value in" id="cardIn">—</div><div class="meta" id="cardInMeta">—</div></div>
+   <div class="card"><div class="label">最强流出板块</div><div class="value out" id="cardOut">—</div><div class="meta" id="cardOutMeta">—</div></div>
+   <div class="card"><div class="label">近 5 分钟异动</div><div class="value" id="cardAnom">—</div><div class="meta" id="cardAnomMeta">盘中才计</div></div>
+   <div class="card"><div class="label">板块资金广度</div><div class="value" id="cardBreadth">—</div><div class="meta" id="cardBreadthMeta">净流入 / 净流出 板块数</div></div>
+  </div>
+
+  <div class="panel">
+   <div class="blockbar">
+    <strong style="font-size:13px;white-space:nowrap">屏蔽板块</strong>
+    <input id="blockInput" placeholder="输入板块名回车屏蔽（如 半导体 / CPO概念）；或点榜单里的 ✕">
+    <button id="blockBtn" class="btn secondary">屏蔽</button>
+   </div>
+   <div class="chips" id="blockChips" style="margin-top:10px"></div>
+  </div>
+
+  <div class="panel">
+   <h3>主力资金净流入 · 累计分时曲线</h3>
+   <p class="panel-sub">分钟级更新、几十秒延迟。暖色 = 流入端、冷色 = 流出端，按末端金额排序。鼠标悬停看各板块该时刻数值。</p>
+   <div class="chart" id="chart">
+    <div id="chartsvg">加载曲线中…（首次抓取约需数秒）</div>
+    <div id="crosshair"></div>
+    <div class="hover-box" id="tooltip"></div>
+   </div>
+  </div>
+
+  <div class="two-col">
+   <div class="panel"><h3>累计净流入榜</h3><table id="lb"><tr><td class="empty">加载中…</td></tr></table></div>
+   <div class="panel"><h3 id="anomh">⚡ 近 5 分钟异动（Δ净流入）</h3><div id="anom"><div class="empty">加载中…</div></div></div>
+  </div>
+ </section>
+
+ <footer>
+  数据来源：东方财富（主力 = 超大单 + 大单净额，分钟级、几十秒延迟）。已剔除风格 / 股价 / 业绩等统计类「伪板块」。仅供研究，不构成投资建议。
+ </footer>
+</div>
+
+<script>
+/* ============ 配置 ============ */
+const CFG = {
+  industry:false, top:8, intervalSec:300,
+  anomalyWin:5, anomalyRank:3, anomalyFloor:2.0,
+  host:"https://push2delay.eastmoney.com",
+};
+const TRADE26 = "0105,0106,0107,0108,0109,0112,0113,0114,0115,0116,0119,0120,0121,0122,0123,0126,0127,0128,0129,0130,0202,0203,0204,0205,0206,0209,0210,0211,0212,0213,0224,0225,0226,0227,0302,0303,0304,0305,0306,0309,0310,0311,0312,0313,0316,0317,0318,0319,0320,0323,0324,0325,0326,0327,0330,0331,0401,0402,0403,0407,0408,0409,0410,0413,0414,0415,0416,0417,0420,0421,0422,0423,0424,0427,0428,0429,0430,0506,0507,0508,0511,0512,0513,0514,0515,0518,0519,0520,0521,0522,0525,0526,0527,0528,0529,0601,0602,0603,0604,0605,0608,0609,0610,0611,0612,0615,0616,0617,0618,0622,0623,0624,0625,0626,0629,0630,0701,0702,0703,0706,0707,0708,0709,0710,0713,0714,0715,0716,0717,0720,0721,0722,0723,0724,0727,0728,0729,0730,0731,0803,0804,0805,0806,0807,0810,0811,0812,0813,0814,0817,0818,0819,0820,0821,0824,0825,0826,0827,0828,0831,0901,0902,0903,0904,0907,0908,0909,0910,0911,0914,0915,0916,0917,0918,0921,0922,0923,0924,0928,0929,0930,1008,1009,1012,1013,1014,1015,1016,1019,1020,1021,1022,1023,1026,1027,1028,1029,1030,1102,1103,1104,1105,1106,1109,1110,1111,1112,1113,1116,1117,1118,1119,1120,1123,1124,1125,1126,1127,1130,1201,1202,1203,1204,1207,1208,1209,1210,1211,1214,1215,1216,1217,1218,1221,1222,1223,1224,1225,1228,1229,1230,1231".split(",");
+
+/* ============ 篮子过滤（与 sector_fundflow.py BLOCK_SUBSTR 同步）============ */
+const BLOCK = ["融资融券","富时","罗素","MSCI","标普","道琼斯","股通","北向","北上",
+ "大盘","中盘","小盘","沪深300","上证50","上证180","中证","创业板综","科创板","AH股",
+ "含H股","含B股","含可转债","重仓","预盈","预增","预减","预亏","高送转","破净","国企改革",
+ "央企","标准普尔","权重","深成","HS300","沪深","深证","上证","全指","成份","成分",
+ "百元股","热股","振幅","昨日","涨停","跌停","连板","近端次新","次新股","龙头","白马股","蓝筹",
+ "风格","趋势股","茅指数","组合","微盘","ST股","低价","举牌","红利","扭亏","季报","年报","中报"];
+const isBasket = n => BLOCK.some(k => n.includes(k));
+
+/* 行业白名单：对齐东财 App 自有行业（近似）。基线=申万二级，
+   并按用户确认的东财口径修正：电力设备/有色金属 用整体聚合（删其子行业避免重复）、补入机器人。
+   东财精确名单只在 push2(s:4) 拿不到，此为按已确认数据锚定的近似——若某行业与东财 App 不符，按名增删此表即可。*/
+const SW2 = new Set(["IT服务Ⅱ","一般零售","专业工程","专业服务","专业连锁Ⅱ","专用设备","个护用品","中药Ⅱ","乘用车","互联网电商","休闲食品","体育Ⅱ","保险Ⅱ","元件","光学光电子","其他家电Ⅱ","其他电子Ⅱ","养殖业","军工电子Ⅱ","农业综合Ⅱ","农产品加工","农化制品","冶钢原料","出版","动物保健Ⅱ","包装印刷","化妆品","化学制品","化学制药","化学原料","化学纤维","医疗器械","医疗服务","医疗美容","医药商业","半导体","厨卫电器","商用车","地面兵装Ⅱ","基础建设","塑料","多元金融","家居用品","家电零部件Ⅱ","小家电","工程咨询服务Ⅱ","工程机械","广告营销","影视院线","房地产开发","房地产服务","房屋建设Ⅱ","摩托车及其他","教育","数字媒体","旅游及景区","旅游零售Ⅱ","普钢","服装家纺","林业Ⅱ","橡胶","水泥","汽车服务","汽车零部件","油服工程","油气开采Ⅱ","消费电子","渔业","游戏Ⅱ","炼化及贸易","焦炭Ⅱ","煤炭开采","照明设备Ⅱ","燃气Ⅱ","物流","特钢Ⅱ","环保设备Ⅱ","环境治理","玻璃玻纤","生物制品","电力","电子化学品Ⅱ","电视广播Ⅱ","白色家电","白酒Ⅱ","种植业","纺织制造","综合Ⅱ","自动化设备","航天装备Ⅱ","航海装备Ⅱ","航空机场","航空装备Ⅱ","航运港口","装修建材","装修装饰Ⅱ","计算机设备","证券Ⅱ","调味发酵品Ⅱ","贸易Ⅱ","轨交设备Ⅱ","软件开发","通信服务","通信设备","通用设备","造纸","酒店餐饮","铁路公路","非白酒","非金属材料Ⅱ","食品加工","饮料乳品","饰品","饲料","黑色家电","电力设备","有色金属","机器人","银行"]);
+/* 用户在页面手动屏蔽的板块（按显示名，存浏览器本地，刷新/重开保留）*/
+let BLOCKED = new Set();
+try{ BLOCKED = new Set(JSON.parse(localStorage.getItem('sf_blocked')||'[]')); }catch(e){}
+function saveBlocked(){ try{ localStorage.setItem('sf_blocked',JSON.stringify([...BLOCKED])); }catch(e){} }
+
+/* 是否保留某板块：概念=剔篮子；行业=东财行业白名单；再剔掉用户手动屏蔽的 */
+const accept = n => (CFG.industry ? SW2.has(n) : !isBasket(n)) && !BLOCKED.has(cleanName(n));
+/* 显示名：行业去掉申万的 Ⅱ/Ⅲ 后缀，更接近 App 习惯 */
+const cleanName = n => CFG.industry ? n.replace(/[ⅡⅢ]+$/,"") : n;
+
+/* ============ JSONP 取数 ============ */
+let _ji=0;
+function jsonp(url){
+  return new Promise((resolve,reject)=>{
+    const cb="__sfcb"+(++_ji)+"_"+Date.now();
+    const s=document.createElement("script");let done=false;
+    const clean=()=>{try{delete window[cb];}catch(e){window[cb]=undefined;}s.remove();};
+    window[cb]=d=>{done=true;clean();resolve(d);};
+    s.onerror=()=>{if(!done){clean();reject(new Error("网络/跨域失败"));}};
+    s.src=url+(url.includes("?")?"&":"?")+"cb="+cb;
+    setTimeout(()=>{if(!done){clean();reject(new Error("超时"));}},20000);
+    document.body.appendChild(s);
+  });
+}
+async function fetchAllSectors(industry){
+  const fs=industry?"m:90+t:2":"m:90+t:3";const merged={};
+  for(let pn=1;pn<=8;pn++){
+    const url=`${CFG.host}/api/qt/clist/get?fid=f62&po=1&pz=100&pn=${pn}&np=1&fltt=2&invt=2&fs=${fs}&fields=f12,f14,f62`;
+    let d;try{d=await jsonp(url);}catch(e){break;}
+    const diff=(d.data&&d.data.diff)||[];if(!diff.length)break;
+    for(const x of diff){merged[x.f12]=[x.f12,x.f14,+x.f62];}
+    if(diff.length<100)break;
+  }
+  return Object.values(merged).sort((a,b)=>b[2]-a[2]);
+}
+async function fetchIntraday(code){
+  const url=`${CFG.host}/api/qt/stock/fflow/kline/get?lmt=0&klt=1&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65&secid=90.${code}`;
+  const d=await jsonp(url);const kl=(d.data&&d.data.klines)||[];const ser=[];
+  for(const ln of kl){const p=ln.split(",");if(p.length<2)continue;
+    const ts=p[0];const hhmm=ts.includes(" ")?ts.split(" ").pop().slice(0,5):ts.slice(0,5);
+    const v=parseFloat(p[1]);if(!isNaN(v))ser.push([hhmm,v/1e8]);}
+  return ser;
+}
+function selectSectors(sectors,top){
+  const real=sectors.filter(r=>accept(r[1]));
+  const head=real.slice(0,top),tail=real.slice(-top);const seen=new Set(),out=[];
+  for(const r of head.concat(tail)){if(!seen.has(r[0])){seen.add(r[0]);out.push([r[0],cleanName(r[1])]);}}
+  return out;
+}
+
+/* ============ SVG 绘图（深色版，融入面板）============ */
+function hslHex(h,s,l){const c=(1-Math.abs(2*l-1))*s,x=c*(1-Math.abs((h/60)%2-1)),m=l-c/2;let r,g,b;
+  if(h<60){r=c;g=x;b=0;}else if(h<120){r=x;g=c;b=0;}else if(h<180){r=0;g=c;b=x;}
+  else if(h<240){r=0;g=x;b=c;}else if(h<300){r=x;g=0;b=c;}else{r=c;g=0;b=x;}
+  const H=v=>("0"+Math.round((v+m)*255).toString(16)).slice(-2);return "#"+H(r)+H(g)+H(b);}
+function niceStep(span,target=6){if(span<=0)return 1;const raw=span/target;
+  const mag=raw>=1?Math.pow(10,String(Math.floor(raw)).length-1):0.1;
+  for(const mm of [1,2,2.5,5,10])if(raw<=mm*mag)return mm*mag;return 10*mag;}
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function renderSVG(seriesList,title){
+  const W=1024,H=520,ML=58,MR=210,MT=30,MB=40,pw=W-ML-MR,ph=H-MT-MB;
+  const axis=[],seen=new Set();
+  for(const [,s] of seriesList)for(const [t] of s)if(!seen.has(t)){seen.add(t);axis.push(t);}
+  if(!axis.length){LASTCHART=null;return '<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="120"><text x="20" y="60" fill="#90a7cf" font-family="Microsoft YaHei">暂无分时数据（非交易时段或数据未就绪）</text></svg>';}
+  const xidx={};axis.forEach((t,i)=>xidx[t]=i);const nx=Math.max(axis.length-1,1);
+  let vals=[];for(const [,s] of seriesList)for(const [,v] of s)vals.push(v);
+  let vmin=Math.min(...vals),vmax=Math.max(...vals);const pad=(vmax-vmin)*0.06||1;vmin-=pad;vmax+=pad;
+  const X=i=>ML+pw*i/nx,Y=v=>MT+ph*(vmax-v)/(vmax-vmin);
+  const P=['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" font-family="Inter, Microsoft YaHei, sans-serif">'];
+  const step=niceStep(vmax-vmin);let g=(Math.floor(vmin/step)-1)*step;
+  while(g<=vmax){if(g>=vmin&&g<=vmax){const y=Y(g),zero=Math.abs(g)<1e-9;
+    P.push('<line x1="'+ML+'" y1="'+y.toFixed(1)+'" x2="'+(ML+pw)+'" y2="'+y.toFixed(1)+'" stroke="'+(zero?'rgba(125,154,211,0.45)':'rgba(125,154,211,0.13)')+'" stroke-width="1"/>');
+    const lbl=zero?"0":(g>0?"+":"")+g.toFixed(1)+"亿";
+    P.push('<text x="'+(ML-6)+'" y="'+(y+4).toFixed(1)+'" font-size="11" fill="#7e93b8" text-anchor="end">'+lbl+'</text>');}g+=step;}
+  axis.forEach((t,i)=>{const mm=t.split(":");if(mm.length===2&&["00","15","30","45"].includes(mm[1])){const x=X(i);
+    P.push('<line x1="'+x.toFixed(1)+'" y1="'+MT+'" x2="'+x.toFixed(1)+'" y2="'+(MT+ph)+'" stroke="rgba(125,154,211,0.08)" stroke-width="1"/>');
+    P.push('<text x="'+x.toFixed(1)+'" y="'+(MT+ph+16)+'" font-size="11" fill="#7e93b8" text-anchor="middle">'+t+'</text>');}});
+  const n=seriesList.length,labels=[];
+  seriesList.forEach((row,rank)=>{const [name,s,final]=row;const hue=215*(rank/Math.max(n-1,1));const color=hslHex(hue,0.7,0.6);
+    const pts=s.filter(([t])=>t in xidx).map(([t,v])=>X(xidx[t]).toFixed(1)+","+Y(v).toFixed(1)).join(" ");if(!pts)return;
+    P.push('<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.7" stroke-linejoin="round" opacity="0.95"/>');
+    const [lt,lv]=s[s.length-1],ex=X(xidx[lt]),ey=Y(lv);
+    P.push('<circle cx="'+ex.toFixed(1)+'" cy="'+ey.toFixed(1)+'" r="2.6" fill="'+color+'"/>');labels.push([ey,name,final,color]);});
+  labels.sort((a,b)=>a[0]-b[0]);
+  for(let i=1;i<labels.length;i++)if(labels[i][0]-labels[i-1][0]<14)labels[i][0]=labels[i-1][0]+14;
+  const overflow=labels.length?labels[labels.length-1][0]-(H-6):0;if(overflow>0)labels.forEach(r=>r[0]-=overflow);
+  const lx=ML+pw+10;
+  for(const [y,name,final,color] of labels)
+    P.push('<text x="'+lx+'" y="'+(y+4).toFixed(1)+'" font-size="12" fill="'+color+'">'+esc(name)+' '+(final>=0?"+":"")+final.toFixed(2)+'亿</text>');
+  P.push('<text x="'+ML+'" y="18" font-size="13" fill="#dce8ff" font-weight="bold">'+esc(title)+'</text>');
+  P.push("</svg>");
+  // 暴露给悬停：时间轴 + 各序列在每个时刻的值 + 颜色 + 坐标映射参数
+  LASTCHART={W:W,ML:ML,pw:pw,nx:nx,axis:axis,series:seriesList.map(function(row,rank){
+    var hue=215*(rank/Math.max(n-1,1));var m={};row[1].forEach(function(p){m[p[0]]=p[1];});
+    return {name:row[0],color:hslHex(hue,0.7,0.6),map:m};
+  })};
+  return P.join("\n");
+}
+let LASTCHART=null;
+
+/* ============ 异动 ============ */
+const HISTORY=[];
+function pickHistory(now,winMin){const target=now-winMin*60000;let best=null;
+  for(const h of HISTORY)if(h.t.getTime()<=target)best=h.snap;return best;}
+function scanAnom(curr,prev,rank,floor){if(!prev)return [[],[]];const ds=[];
+  for(const code in curr){if(code in prev){ds.push([curr[code][0],curr[code][1]-prev[code][1],curr[code][1]]);}}
+  return [ds.filter(x=>x[1]>=floor).sort((a,b)=>b[1]-a[1]).slice(0,rank),
+          ds.filter(x=>x[1]<=-floor).sort((a,b)=>a[1]-b[1]).slice(0,rank)];}
+
+/* ============ 状态 ============ */
+function pad2(n){return (n<10?"0":"")+n;}
+function isTradingDay(d){return TRADE26.includes(pad2(d.getMonth()+1)+pad2(d.getDate()))&&d.getFullYear()===2026;}
+function tradingNow(d){const t=d.getHours()*60+d.getMinutes();return isTradingDay(d)&&((t>=570&&t<=690)||(t>=780&&t<=900));}
+function statusText(d){if(!isTradingDay(d))return "⚪ 非交易日（最近收盘）";
+  if(tradingNow(d))return "🟢 盘中实时";const t=d.getHours()*60+d.getMinutes();
+  if(t>690&&t<780)return "🟡 午间休市";return "🔵 盘前/已收盘";}
+
+/* ============ 主刷新 ============ */
+let nextAt=0,busy=false;
+function fmt(v){return (v>=0?"+":"")+v.toFixed(1)+"亿";}
+async function refresh(){
+  if(busy)return;busy=true;
+  document.getElementById("status").textContent="⏳ 抓取中…";
+  try{
+    const sectors=await fetchAllSectors(CFG.industry);
+    const curr={};let nin=0,nout=0;
+    for(const [c,n,v] of sectors){if(accept(n)){const yi=v/1e8;curr[c]=[cleanName(n),yi];if(yi>=0)nin++;else nout++;}}
+    const picked=selectSectors(sectors,CFG.top);
+    const got=await Promise.all(picked.map(([c,n])=>fetchIntraday(c).then(s=>[n,s]).catch(()=>[n,null])));
+    const seriesList=[];for(const [n,s] of got)if(s&&s.length)seriesList.push([n,s,s[s.length-1][1]]);
+    seriesList.sort((a,b)=>b[2]-a[2]);
+
+    const now=new Date();const kind=CFG.industry?"行业":"概念";
+    const lastT=seriesList.length?seriesList[0][1][seriesList[0][1].length-1][0]:"—";
+    document.getElementById("chartsvg").innerHTML=renderSVG(seriesList,kind+"板块 主力资金净流入（累计·亿元）  截至 "+lastT);
+
+    // 榜单
+    const lin=seriesList.filter(r=>r[2]>=0).slice(0,CFG.top);
+    const lout=seriesList.filter(r=>r[2]<0).slice(-CFG.top).reverse();
+    let h="";lin.forEach(r=>h+=`<tr><td class="in">▲ ${r[0]}</td><td class="v in">${fmt(r[2])}</td><td class="x"><span class="b" data-n="${r[0]}" title="屏蔽此板块">✕</span></td></tr>`);
+    lout.forEach(r=>h+=`<tr><td class="out">▼ ${r[0]}</td><td class="v out">${fmt(r[2])}</td><td class="x"><span class="b" data-n="${r[0]}" title="屏蔽此板块">✕</span></td></tr>`);
+    document.getElementById("lb").innerHTML=h||'<tr><td class="empty">暂无</td></tr>';
+
+    // 异动
+    let ain=[],aout=[];
+    if(tradingNow(now)){const prev=pickHistory(now,CFG.anomalyWin);[ain,aout]=scanAnom(curr,prev,CFG.anomalyRank,CFG.anomalyFloor);}
+    HISTORY.push({t:now,snap:curr});const cutoff=now-Math.max(40,CFG.anomalyWin*4)*60000;
+    while(HISTORY.length&&HISTORY[0].t.getTime()<cutoff)HISTORY.shift();
+    document.getElementById("anomh").textContent="⚡ 近 "+CFG.anomalyWin+" 分钟异动（Δ净流入）";
+    let a="";
+    if(ain.length){a+="<table>";ain.forEach(x=>a+=`<tr><td class="in">⚡▲ ${x[0]}</td><td class="v in">+${x[1].toFixed(1)}亿/${CFG.anomalyWin}m</td><td class="v empty">累计${fmt(x[2])}</td></tr>`);a+="</table>";}
+    if(aout.length){a+="<table>";aout.forEach(x=>a+=`<tr><td class="out">⚡▼ ${x[0]}</td><td class="v out">${x[1].toFixed(1)}亿/${CFG.anomalyWin}m</td><td class="v empty">累计${fmt(x[2])}</td></tr>`);a+="</table>";}
+    if(!ain.length&&!aout.length)a=`<div class="empty">${tradingNow(now)?"近期无超阈异动":"非盘中，不计异动"}</div>`;
+    document.getElementById("anom").innerHTML=a;
+
+    // 概览卡片
+    const topIn=seriesList.find(r=>r[2]>=0), topOut=[...seriesList].reverse().find(r=>r[2]<0);
+    document.getElementById("cardIn").textContent=topIn?topIn[0]:"—";
+    document.getElementById("cardInMeta").textContent=topIn?fmt(topIn[2]):"—";
+    document.getElementById("cardOut").textContent=topOut?topOut[0]:"—";
+    document.getElementById("cardOutMeta").textContent=topOut?fmt(topOut[2]):"—";
+    document.getElementById("cardAnom").textContent=(ain.length+aout.length)+" 个";
+    document.getElementById("cardAnomMeta").textContent=tradingNow(now)?`急流入 ${ain.length} · 急流出 ${aout.length}`:"盘中才计";
+    document.getElementById("cardBreadth").textContent=nin+" / "+nout;
+    document.getElementById("cardBreadthMeta").textContent=`净流入 ${nin} · 净流出 ${nout}（共 ${nin+nout} 板块）`;
+
+    // 头部时间/状态
+    const stxt=statusText(now);
+    document.getElementById("status").textContent=stxt;
+    document.getElementById("kindBadge").textContent=kind+"板块";
+    document.getElementById("updated").textContent=now.toLocaleTimeString("zh-CN");
+    document.getElementById("lastt").textContent=lastT;
+    document.getElementById("modTime").innerHTML=`更新 ${now.toLocaleTimeString("zh-CN")}<br>截至 ${lastT} · ${stxt}`;
+    nextAt=Date.now()+CFG.intervalSec*1000;
+  }catch(e){
+    document.getElementById("status").textContent="❌ 抓取失败："+e.message+"（检查能否直连东财）";
+  }finally{busy=false;}
+}
+function tick(){if(nextAt){let s=Math.max(0,Math.round((nextAt-Date.now())/1000));
+  document.getElementById("countdown").textContent=Math.floor(s/60)+"分"+pad2(s%60)+"秒";
+  if(s<=0&&!busy)refresh();}}
+
+/* tab 切换 */
+document.querySelectorAll(".tab-btn").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tab-btn").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");document.getElementById("sec-"+b.dataset.tab).classList.add("active");
+});
+document.getElementById("kindBtn").onclick=()=>{CFG.industry=!CFG.industry;HISTORY.length=0;refresh();};
+document.getElementById("refreshBtn").onclick=()=>{if(!busy)refresh();};
+
+/* 屏蔽板块：手动输入 / 点榜单✕ / 点 chip 取消，存本地、即时生效 */
+function renderBlocked(){
+  document.getElementById("blockChips").innerHTML=[...BLOCKED].sort().map(n=>
+    `<span class="chip">${n}<b data-un="${n}" title="取消屏蔽">✕</b></span>`).join("")
+    || '<span class="empty" style="padding:0">未屏蔽任何板块</span>';
+}
+function addBlock(n){n=(n||"").trim();if(n&&!BLOCKED.has(n)){BLOCKED.add(n);saveBlocked();renderBlocked();if(!busy)refresh();}}
+function unBlock(n){if(BLOCKED.delete(n)){saveBlocked();renderBlocked();if(!busy)refresh();}}
+document.getElementById("blockBtn").onclick=()=>{var i=document.getElementById("blockInput");addBlock(i.value);i.value="";};
+document.getElementById("blockInput").addEventListener("keydown",e=>{if(e.key==="Enter"){addBlock(e.target.value);e.target.value="";}});
+document.getElementById("lb").addEventListener("click",e=>{var b=e.target.closest(".b[data-n]");if(b)addBlock(b.dataset.n);});
+document.getElementById("blockChips").addEventListener("click",e=>{var b=e.target.closest("b[data-un]");if(b)unBlock(b.dataset.un);});
+renderBlocked();
+
+/* 悬停十字线 + 该时刻各板块数值/时间提示 */
+(function(){
+  var chartEl=document.getElementById("chart"),cross=document.getElementById("crosshair"),tip=document.getElementById("tooltip");
+  function hide(){cross.style.display="none";tip.style.display="none";}
+  chartEl.addEventListener("mousemove",function(e){
+    if(!LASTCHART||!LASTCHART.series.length){hide();return;}
+    var svg=document.getElementById("chartsvg").querySelector("svg");if(!svg){hide();return;}
+    var sr=svg.getBoundingClientRect(),cr=chartEl.getBoundingClientRect();
+    var vbX=(e.clientX-sr.left)/sr.width*LASTCHART.W;
+    var i=Math.round((vbX-LASTCHART.ML)/LASTCHART.pw*LASTCHART.nx);
+    i=Math.max(0,Math.min(LASTCHART.nx,i));
+    var t=LASTCHART.axis[i];if(!t){hide();return;}
+    var rows=LASTCHART.series.map(function(s){return {name:s.name,color:s.color,v:s.map[t]};})
+      .filter(function(x){return x.v!=null;}).sort(function(a,b){return b.v-a.v;});
+    if(!rows.length){hide();return;}
+    var chartX=(LASTCHART.ML+LASTCHART.pw*i/LASTCHART.nx)/LASTCHART.W*sr.width;
+    cross.style.left=((sr.left-cr.left)+chartX)+"px";cross.style.display="block";
+    tip.innerHTML='<div class="t">'+t+'</div>'+rows.map(function(x){
+      return '<div class="row"><span class="nm"><span style="color:'+x.color+'">●</span> '+x.name+'</span><span>'+(x.v>=0?'+':'')+x.v.toFixed(1)+'亿</span></div>';
+    }).join('');
+    tip.style.display="block";
+    var tx=(e.clientX-cr.left)+14,ty=(e.clientY-cr.top)+12;
+    if(tx+tip.offsetWidth>cr.width)tx=Math.max(4,(e.clientX-cr.left)-tip.offsetWidth-14);
+    if(ty+tip.offsetHeight>cr.height)ty=Math.max(4,cr.height-tip.offsetHeight-4);
+    tip.style.left=tx+"px";tip.style.top=ty+"px";
+  });
+  chartEl.addEventListener("mouseleave",hide);
+})();
+
+refresh();setInterval(tick,1000);
+</script>
+</body>
+</html>
