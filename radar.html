@@ -85,6 +85,25 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .wline{flex:0 0 100%;font-size:11px;color:var(--txt2);display:flex;flex-wrap:wrap;gap:2px 12px;border-top:1px dashed var(--line);padding-top:6px;margin-top:2px;line-height:1.7}
 .wline b{color:var(--txt1);font-weight:600}
 .wline .sep{color:var(--txt3)}
+/* 三体共振：大市量能 × 行业主力 × 个股/ETF */
+.rzcards{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.rzcard{border:1px solid var(--line);border-radius:10px;padding:8px 10px 7px;background:#fff;display:flex;flex-direction:column;gap:5px}
+.rzhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rznm{font-size:15px;font-weight:700}
+.rzpx{font-size:14px;font-weight:700}
+.rzsub{font-size:11px;color:var(--txt3)}
+.rzrow{font-size:11px;color:var(--txt2);display:flex;flex-wrap:wrap;gap:2px 14px;align-items:center}
+.rzrow .rk{color:var(--txt3)}
+.rzbadge{margin-left:auto;font-size:11px;padding:1px 8px;border-radius:10px;background:#eef1f4;color:#334155;font-weight:600;white-space:nowrap}
+.rzbadge.good{background:rgba(217,43,43,.10);color:var(--up)}
+.rzbadge.warn{background:rgba(245,158,11,.16);color:#d97706}
+.rzbadge.bad{background:rgba(15,157,88,.10);color:var(--down)}
+.rzbtn{margin-left:4px;font-size:11px;padding:1px 8px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--txt2);cursor:pointer}
+.rzok{color:var(--up);font-weight:700}
+.rzno{color:var(--down);font-weight:700}
+.rzna{color:var(--txt3)}
+.rzbar{height:4px;border-radius:2px;background:#eef1f4;overflow:hidden}
+.rzbar i{display:block;height:100%;background:var(--up)}
 .wact{flex:0 0 auto;display:flex;gap:4px}
 @media (max-width:640px){ .big{font-size:27px} body{padding:10px 9px 30px} .col{min-width:100%} .wprice b{font-size:16px} .wcard{padding:8px 10px;gap:4px 10px} .wstate{min-width:0} }
 </style>
@@ -116,6 +135,23 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
       </div>
     </div>
     <div id="globalErr" class="err" style="display:none"></div>
+  </div>
+
+  <!-- 三体共振：大市量能 × 板块主力 × 个股/ETF -->
+  <div class="card" id="rzRoot">
+    <h2>◎ 三体共振 <span class="tag">大市量能 × 行业主力 × 个股/ETF</span> <span id="rzTag" class="pill na">—</span></h2>
+    <div class="hint" style="margin-bottom:6px">自选个股/ETF，自动判定所属行业板块并实时拉取该板块主力资金流，与上证指数量能、标的自身涨跌做三线共振判读。三条全绿 = 顺势跟主力；出现背离 = 警惕。</div>
+    <div style="display:flex;gap:6px;margin-bottom:4px">
+      <input id="rzInp" placeholder="输入 6 位代码，如 600667 / 588170" maxlength="6" style="flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+      <button class="primary" id="rzAdd" type="button">添加</button>
+    </div>
+    <div class="hint" id="rzHint" style="min-height:16px">—</div>
+    <div id="rzBody" class="rzcards"></div>
+    <div class="hint" style="color:var(--txt3);line-height:1.85;margin-top:8px">
+      <b>判读口径</b>：· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 前5日全天均量，午后趋近真实）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单）；· <b>标的</b> = 个股/ETF 自身涨跌。<br>
+      <b>共振</b> = 大市升 × 板块流入 × 标的升 三条同时成立。ETF/基金无行业归属时按「大市+标的」双线判读。<br>
+      <b>注意</b>：板块资金流与标的涨跌为东财口径、盘中实时；做T动作仍以 A/B 线与量比为准，本模块只提示方向共振。
+    </div>
   </div>
 
   <!-- 大盘 -->
@@ -2783,6 +2819,219 @@ $('wBody').addEventListener('click', function(e){
   setTimer();
   wStart();
 })();
+
+/* ============ ◎ 三体共振：大市量能 × 行业主力 × 个股/ETF ============
+   浏览器 jsonp 实测可用通道：
+     · 个股/指数行情 + 行业归属(f127) + 行业资金流榜：push2delay(备 push2)
+     · 上证日K量能：腾讯 ifzq fqkline day（末根含当日实时量）
+   共振 = 大市升(上证涨) × 板块主力流入 × 标的涨，三条同绿=顺势跟主力。 */
+var RZ = {
+  list: [], state: {},
+  board: { ts: 0, data: null },   // 大盘 60s 缓存
+  blist: { ts: 0, idx: null },    // 行业板块榜 90s 缓存
+  ind: {},                        // secid -> 行业名（12h）
+  timer: null, gen: 0
+};
+function rzLoad(){ try{ RZ.list = JSON.parse(localStorage.getItem('rz_watch') || '[]'); }catch(e){ RZ.list = []; } if(!Array.isArray(RZ.list)) RZ.list = []; }
+function rzSave(){ try{ localStorage.setItem('rz_watch', JSON.stringify(RZ.list)); }catch(e){} }
+// 多主机 jsonp 轮询（东财限流按主机独立）
+function rzGet(path, parser, t){
+  var hosts = ['push2delay.eastmoney.com', 'push2.eastmoney.com'], i = 0;
+  function go(){
+    if(i >= hosts.length) return Promise.reject(new Error('RZ_HOST_FAIL'));
+    var h = hosts[i++];
+    return jsonpCb('https://' + h + path, t || 8000).then(function(raw){ return parser(raw); }).catch(function(){ return go(); });
+  }
+  return go();
+}
+// 大盘：上证现价/涨跌 + 量能比（实时累计量 ÷ 前5日全天均量）
+function rzMarket(force){
+  var now = Date.now();
+  if(!force && RZ.board.data && now - RZ.board.ts < 60000) return Promise.resolve(RZ.board.data);
+  var p = rzGet('/api/qt/stock/get?secid=1.000001&fields=f43,f57,f58,f60&fltt=2&invt=2',
+    function(d){ var v = d && d.data; if(!v || !v.f60) throw new Error('EMPTY'); return { px: v.f43, pct: (v.f43 - v.f60) / v.f60 * 100 }; }, 8000);
+  var q = jsonpVar('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sh000001,day,,,6,', 9000)
+    .then(function(dk){
+      var raw = dk && dk.data && dk.data.sh000001;
+      var arr = (raw && (raw.day || raw.qfqday)) || null;
+      if(!arr || arr.length < 3) return NaN;
+      var vol = function(x){ return Array.isArray(x) ? (+x[5] || 0) : 0; };
+      var cur = vol(arr[arr.length - 1]), sum = 0;
+      for(var i = 0; i < arr.length - 1; i++) sum += vol(arr[i]);
+      return (sum > 0 && cur > 0) ? cur / (sum / (arr.length - 1)) : NaN;
+    }).catch(function(){ return NaN; });
+  return Promise.all([p, q]).then(function(r){
+    var m = r[0]; m.vr = r[1];
+    m.volTag = (!isFinite(m.vr) || m.vr <= 0) ? '' : (m.vr >= 1.15 ? '放量 ' + m.vr.toFixed(2) + 'x' : (m.vr >= 0.85 ? '平量 ' + m.vr.toFixed(2) + 'x' : '缩量 ' + m.vr.toFixed(2) + 'x'));
+    RZ.board = { ts: Date.now(), data: m };
+    return m;
+  }).catch(function(){ return RZ.board.data || null; });
+}
+// 行业板块实时资金榜（f14名 -> {f14,f3涨跌,f62主力净额}），90s 缓存
+function rzBoard(force){
+  var now = Date.now();
+  if(!force && RZ.blist.idx && now - RZ.blist.ts < 90000) return Promise.resolve(RZ.blist.idx);
+  var path = '/api/qt/clist/get?fid=f62&po=1&pz=700&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:2+f:!50&fields=f12,f14,f3,f62';
+  return rzGet(path, function(d){
+    var diff = d && d.data && d.data.diff;
+    if(!diff || !diff.length) throw new Error('EMPTY');
+    var idx = {};
+    diff.forEach(function(x){ if(x.f14) idx[x.f14] = { name: x.f14, pct: num(x.f3), flow: num(x.f62) }; });
+    RZ.blist = { ts: Date.now(), idx: idx };
+    return idx;
+  }, 12000).catch(function(){ return RZ.blist.idx; });
+}
+// 个股行业归属 f127（12h 缓存）
+function rzIndustry(secid){
+  var c = RZ.ind[secid];
+  if(c && Date.now() - c.ts < 12 * 3600 * 1000) return Promise.resolve(c.name);
+  return rzGet('/api/qt/stock/get?secid=' + secid + '&fields=f57,f58,f127&invt=2', function(d){
+    var nm = (d && d.data && d.data.f127) ? String(d.data.f127).trim() : '';
+    RZ.ind[secid] = { ts: Date.now(), name: nm };
+    return nm;
+  }, 8000).catch(function(){ RZ.ind[secid] = { ts: Date.now(), name: '' }; return ''; });
+}
+// 个股/ETF 实时行情
+function rzQuote(secid){
+  return rzGet('/api/qt/stock/get?secid=' + secid + '&fields=f43,f57,f58,f60&fltt=2&invt=2',
+    function(d){ var v = d && d.data; if(!v || !v.f60 || !v.f43) throw new Error('EMPTY'); return { name: v.f58, px: v.f43, pct: (v.f43 - v.f60) / v.f60 * 100 }; }, 8000);
+}
+// 行业名 → 榜单行（精确 > 去ⅠⅡ后缀 > 含名匹配）
+function rzMatchBoard(idx, ind){
+  if(!idx || !ind) return null;
+  if(idx[ind]) return idx[ind];
+  var key = ind.replace(/[ⅠⅡⅢⅣⅤ]/g, '');
+  for(var k in idx){ if(k.replace(/[ⅠⅡⅢⅣⅤ]/g, '') === key) return idx[k]; }
+  for(var k2 in idx){ if(idx[k2].name.indexOf(key) >= 0 || key.indexOf(idx[k2].name) >= 0) return idx[k2]; }
+  return null;
+}
+// 三线判读
+function rzVerdict(mkt, bd, it){
+  var mUp = !!(mkt && mkt.pct > 0);
+  var bUp = !!(bd && bd.flow > 0);
+  var iUp = !!(it && it.pct > 0);
+  var v, cls;
+  if(bd){
+    if(mUp && bUp && iUp)      { v = '三线共振 · 顺势跟主力'; cls = 'good'; }
+    else if(mUp && bUp && !iUp){ v = '板块强标的弱 · 等转强'; cls = 'warn'; }
+    else if(mUp && !bUp && iUp){ v = '个股独立 · 逆板块慎追'; cls = 'warn'; }
+    else if(mUp && !bUp && !iUp){ v = '大市升·非本板块 · 弱'; cls = 'bad'; }
+    else if(!mUp && bUp && iUp){ v = '逆市板块强 · 轻仓博'; cls = 'warn'; }
+    else if(!mUp && bUp && !iUp){ v = '大盘弱板块孤军 · 观望'; cls = 'warn'; }
+    else if(!mUp && !bUp && iUp){ v = '逆势拉升 · 防诱多'; cls = 'warn'; }
+    else                         { v = '三重背离 · 回避'; cls = 'bad'; }
+  } else {
+    if(mUp && iUp)   { v = '双线共振(大市+标的)'; cls = 'good'; }
+    else if(mUp && !iUp){ v = '大市升标的跌 · 弱'; cls = 'bad'; }
+    else if(!mUp && iUp){ v = '逆市强 · 防诱多'; cls = 'warn'; }
+    else                { v = '双弱 · 回避'; cls = 'bad'; }
+  }
+  return { mUp: mUp, bUp: bUp, iUp: iUp, txt: v, cls: cls };
+}
+function rzY(b){ return b ? '<span class="rzok">✓</span>' : '<span class="rzno">✗</span>'; }
+function rzRender(){
+  var body = $('rzBody'), tag = $('rzTag');
+  if(!body) return;
+  if(!RZ.list.length){ body.innerHTML = '<div class="hint" style="color:var(--txt3);padding:6px 0">暂无自选，输入代码点「添加」开始。</div>'; if(tag){ tag.textContent = '空'; tag.className = 'pill na'; } return; }
+  var html = '', ok = 0;
+  RZ.list.forEach(function(code){
+    var o = RZ.state[code] || (RZ.state[code] = {});
+    if(o.v && o.v.cls === 'good') ok++;
+    var head;
+    if(o.err){
+      head = '<div class="rzhead"><span class="rznm">' + esc(code) + '</span><span class="rzbadge bad">加载失败</span>' +
+        '<button class="rzbtn" data-rz-re="' + code + '">重试</button><button class="rzbtn" data-rz-rm="' + code + '">移除</button></div>';
+      html += '<div class="rzcard">' + head + '<div class="rzrow" style="color:var(--down)">' + esc(o.err) + '</div></div>';
+      return;
+    }
+    if(!o.v){
+      head = '<div class="rzhead"><span class="rznm">' + esc(code) + '</span><span class="rzbadge">加载中…</span>' +
+        '<button class="rzbtn" data-rz-rm="' + code + '">移除</button></div>';
+      html += '<div class="rzcard">' + head + '<div class="rzrow"><span class="rk">拉取大盘/板块/标的实时数据…</span></div></div>';
+      return;
+    }
+    var mk = o.market, bd = o.boardRow, q = o.quote, v = o.v;
+    var qName = q ? q.name : code, qPx = q ? (fx(q.px) + ' ' + pctS(q.pct)) : '—', qPct = q ? pctS(q.pct) : '—';
+    var qChk = q ? rzY(q.pct > 0) : '';
+    head = '<div class="rzhead"><span class="rznm">' + esc(qName) + ' <span class="rzsub">' + esc(code) + '</span></span>' +
+      '<span class="rzpx ' + (q ? cls(q.pct) : '') + '">' + qPx + '</span>' +
+      '<span class="rzbadge ' + v.cls + '">' + esc(v.txt) + '</span>' +
+      '<button class="rzbtn" data-rz-re="' + code + '">重算</button><button class="rzbtn" data-rz-rm="' + code + '">移除</button></div>';
+    html += '<div class="rzcard">' + head +
+      '<div class="rzrow"><span class="rk">大市</span><b>上证</b> ' + (mk ? pctS(mk.pct) + (mk.volTag ? ' <b>' + esc(mk.volTag) + '</b>' : '') : '<span class="rzna">—</span>') + (mk ? ' ' + rzY(mk.pct > 0) : '') + '</div>' +
+      '<div class="rzrow"><span class="rk">板块</span>' + (bd ? esc(bd.name) + ' ' + pctS(bd.pct) + ' · 主力 ' + (bd.flow >= 0 ? '+' : '') + (bd.flow / 1e8).toFixed(2) + '亿' : '<span class="rzna">基金/无行业归属</span>') + (bd ? ' ' + rzY(bd.flow > 0) : '') + '</div>' +
+      '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
+      (bd ? '' : ' <span class="rzna">ETF 按「大市+标的」双线</span>') + '</div></div>';
+  });
+  body.innerHTML = html;
+  if(tag){
+    if(ok === RZ.list.length && ok > 0){ tag.textContent = ok + '/' + RZ.list.length + ' 共振'; tag.className = 'pill ok'; }
+    else if(ok > 0){ tag.textContent = ok + '/' + RZ.list.length + ' 共振'; tag.className = 'pill warn'; }
+    else if(RZ.list.length){ tag.textContent = RZ.list.length + ' 只观察'; tag.className = 'pill na'; }
+    else { tag.textContent = '空'; tag.className = 'pill na'; }
+  }
+}
+function rzOne(code, force){
+  var o = RZ.state[code] = RZ.state[code] || {};
+  var secid = secidOf(code);
+  if(!secid){ o.err = '代码无法识别（需 6 位数字）'; rzRender(); return; }
+  o.err = null;
+  Promise.all([
+    rzMarket(!!force).then(function(m){ o.market = m; }, function(){ o.market = null; }),
+    rzBoard(!!force).then(function(idx){
+      return rzIndustry(secid).then(function(ind){
+        o.boardRow = rzMatchBoard(idx, ind);
+        return true;
+      });
+    }, function(){ o.boardRow = null; }),
+    rzQuote(secid).then(function(q){ o.quote = q; }, function(){ o.quote = null; })
+  ]).then(function(){
+    if(!o.market){ o.v = { mUp: false, bUp: false, iUp: false, txt: '大盘数据不可用', cls: 'bad' }; }
+    else if(!o.quote){ o.v = { mUp: o.market.pct > 0, bUp: !!(o.boardRow && o.boardRow.flow > 0), iUp: false, txt: '标的数据不可用', cls: 'warn' }; }
+    else o.v = rzVerdict(o.market, o.boardRow, o.quote);
+    rzRender();
+  });
+}
+function rzRefresh(force){
+  if(!RZ.list.length) return;
+  RZ.list.forEach(function(code){ rzOne(code, force); });
+}
+function rzAdd(codeRaw){
+  var c = String(codeRaw || '').trim();
+  if(!c) return;
+  var m = c.match(/^(sh|sz|bj)?(\d{6})$/i);
+  if(!m){ var h = $('rzHint'); if(h) h.textContent = '格式不对：请输入 6 位数字（如 600667 / 588170）。'; return; }
+  c = m[2];
+  if(RZ.list.indexOf(c) >= 0){ var h2 = $('rzHint'); if(h2) h2.textContent = c + ' 已在列表中。'; return; }
+  RZ.list.push(c);
+  rzSave();
+  var h3 = $('rzHint'); if(h3) h3.textContent = '';
+  rzOne(c, true);
+  if(!RZ.timer){ RZ.timer = setInterval(function(){ rzRefresh(false); }, 30000); }
+}
+function rzRemove(code){
+  RZ.list = RZ.list.filter(function(x){ return x !== code; });
+  delete RZ.state[code];
+  rzSave();
+  rzRender();
+}
+function rzStart(){
+  rzLoad();
+  var a = $('rzAdd'), inp = $('rzInp'), body = $('rzBody');
+  if(!a || !inp || !body) return;
+  a.addEventListener('click', function(){ rzAdd(inp.value); inp.value = ''; });
+  inp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ rzAdd(inp.value); inp.value = ''; } });
+  body.addEventListener('click', function(e){
+    var b = e.target;
+    if(!b || b.tagName !== 'BUTTON') return;
+    var rm = b.getAttribute('data-rz-rm'), re = b.getAttribute('data-rz-re');
+    if(rm) rzRemove(rm); else if(re) rzRe(re);
+  });
+  rzRender();
+  if(RZ.list.length){ rzRefresh(true); RZ.timer = setInterval(function(){ rzRefresh(false); }, 30000); }
+}
+function rzRe(code){ rzOne(code, true); }
+rzStart();
 </script>
 </body>
 </html>
