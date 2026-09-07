@@ -3335,8 +3335,8 @@ rzStart();
         document.getElementById("pztLb").innerHTML=h||'<tr><td class="empty">暂无</td></tr>';
         var ain=[],aout=[];
         if(tradingNow(now)){ var prev=pickHistory(now,CFG.anomalyWin); var an=scanAnom(curr,prev,CFG.anomalyRank,CFG.anomalyFloor); ain=an[0]; aout=an[1]; }
-        HISTORY.push({t:now,snap:curr}); var cutoff=now-Math.max(40,CFG.anomalyWin*4)*60000;
-        while(HISTORY.length&&HISTORY[0].t.getTime()<cutoff.getTime())HISTORY.shift();
+        HISTORY.push({t:now,snap:curr}); var cutoff=now.getTime()-Math.max(40,CFG.anomalyWin*4)*60000;
+        while(HISTORY.length&&HISTORY[0].t.getTime()<cutoff)HISTORY.shift();
         document.getElementById("pztAnomH").textContent="⚡ 近 "+CFG.anomalyWin+" 分钟异动（Δ净流入）";
         var a="";
         if(ain.length){ a+="<table>"; ain.forEach(function(x){ a+='<tr><td class="in">⚡▲ '+x[0]+'</td><td class="v in">+'+x[1].toFixed(1)+'亿/'+CFG.anomalyWin+'m</td><td class="v empty">累计'+fmt(x[2])+'</td></tr>'; }); a+="</table>"; }
