@@ -3015,21 +3015,20 @@ function rzETFSector(name, idx){
   }
   return null;
 }
-// 板块当日累计主力净流入曲线（fflow/kline klt=1，逐分钟净额累加）
+// 板块当日累计主力净流入曲线（fflow/kline klt=1，f51 已是当日累计净额，单位元 → 转亿）
 function rzBoardFlow(code){
   if(!code) return Promise.reject(new Error('NO_CODE'));
   var path = '/api/qt/stock/fflow/kline/get?lmt=0&klt=1&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=90.' + code;
   return rzGet(path, function(d){
     var ks = d && d.data && d.data.klines;
     if(!ks || !ks.length) throw new Error('EMPTY');
-    var acc = 0, ser = [];
+    var ser = [];
     for(var i = 0; i < ks.length; i++){
       var p = ks[i].split(',');
       if(p.length < 2) continue;
       var v = parseFloat(p[1]); if(!isFinite(v)) continue;
-      acc += v / 1e8;
       var ts = p[0].indexOf(' ') >= 0 ? p[0].split(' ')[1].slice(0, 5) : p[0].slice(0, 5);
-      ser.push([ts, acc]);
+      ser.push([ts, v / 1e8]);
     }
     if(!ser.length) throw new Error('BAD');
     return ser; // [[hhmm, 累计亿]]
