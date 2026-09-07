@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-07 21:38:23 GMT+8",
+ "generated_at": "2026-09-07 23:01:20 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [],
  "indices": [
@@ -103,9 +103,9 @@
    "name": "美元指数",
    "group": "欧美",
    "code": "UDI",
-   "price": 98.93,
-   "pct": -0.22,
-   "change": -0.22
+   "price": 98.86,
+   "pct": -0.29,
+   "change": -0.29
   }
  ],
  "breadth": {
@@ -392,7 +392,8 @@
    "cold": 30.0
   },
   "up": 3040,
-  "down": 2168,
+  "down": 1987,
+  "flat": 181,
   "limit_up": 143,
   "limit_down": 5
  },
@@ -662,5 +663,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 115.4
+ "elapsed": 36.9
 }
