@@ -321,7 +321,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
       · A 线判据含「同期量比 ≥<span id="wVolUp">120</span>%」，量比每 5 分钟重算一次，价格每秒级变化、量比分钟级变化，30s 轮询对两者都够用。<br>
       · A/B 线在<b>加入观察池时锁定</b>（不随价格滚动），跨交易日自动重置；同一天内 A、B 各只提醒一次，避免反复弹窗。<br>
       · 提醒仅为<b>你自己的规则被触发</b>的技术提示，非买卖建议。<br>
-      · <b>主力资金列</b>：东财口径（主力 = 超大单 + 大单，单位亿），「今」为当日累计（盘中实时、收盘定格），「5日 / 20日」为最近交易日主力净额<b>累计</b>；与市场温度计同源。资金流是<b>事后统计</b>（你看到时钱已花完），只描述「谁在进/出」，不预测下一步。
+      · <b>主力资金列</b>：东财口径（主力 = 超大单 + 大单，单位亿）。数据源 daykline <b>盘中定格在最近已收盘交易日</b>（不含今日盘中，页面滞后时会标注「至MM-DD」）：第一列即该日净额，5/10/20日 为该日起回推的累计——适合看<b>趋势</b>。若需今日盘中实时主力净流入，以东财 App 为准（两者时间维度不同，数值不对比）。资金流是<b>事后统计</b>（你看到时钱已花完），只描述「谁在进/出」，不预测下一步。
     </div>
     <div id="wBody" class="wcards" style="margin-top:10px"></div>
   </div>
@@ -2543,17 +2543,19 @@ function renderWatch(){
       var ftag = '';
       if(fl.d20 !== null && fl.d20 !== 0) ftag = '<span class="fltag ' + (fl.d20 > 0 ? 'in' : 'out') + '">20日偏' + (fl.d20 > 0 ? '流入' : '流出') + '</span>';
       else if(fl.today !== null && fl.today !== 0) ftag = '<span class="fltag ' + (fl.today > 0 ? 'in' : 'out') + '">今偏' + (fl.today > 0 ? '流入' : '流出') + '</span>';
-      // 数据真实日期标注：东财 fflow daykline 盘中可能滞后(返回上一交易日收盘值)，
-      // 若末条日期非今日，明示「至MM-DD」，避免把旧值误当今日实时主力。
+      // 数据真实日期标注：东财 fflow daykline 盘中滞后——返回的是「最近已收盘交易日」的定格值，
+      // 不含今日盘中。滞后时「今」列标签改为真实日期，行尾加「至MM-DD」，避免把旧值当今日实时。
       var flD = fl.lastD || '', _td = new Date(), tS = _td.getFullYear() + '-' +
         String(_td.getMonth() + 1).replace(/^(\d)$/, '0$1') + '-' +
         String(_td.getDate()).replace(/^(\d)$/, '0$1');
-      var staleNote = (flD && flD !== tS) ? '<small style="color:var(--txt3)">至' + flD.slice(5) + '</small>' : '';
+      var stale = !!(flD && flD !== tS);
+      var todayLb = stale ? flD.slice(5) : '今';
+      var staleNote = stale ? '<small style="color:var(--txt3)">至' + flD.slice(5) + '</small>' : '';
       flowRow = '<div class="wflow"><b>主力</b>' +
-        fcell('今', fl.today) + staleNote +
+        fcell(todayLb, fl.today) +
         (fl.d5 !== null ? fcell('5日', fl.d5) : '') +
         (fl.d10 !== null ? fcell('10日', fl.d10) : '') +
-        (fl.d20 !== null ? fcell('20日', fl.d20) : '') + ftag + '</div>';
+        (fl.d20 !== null ? fcell('20日', fl.d20) : '') + ftag + staleNote + '</div>';
     }
     html += '<div class="wcard" style="background:' + bg + '">' +
       '<div class="wcode"><b>' + esc(it.code) + '</b>' + nm + '</div>' +
