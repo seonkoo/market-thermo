@@ -3144,6 +3144,15 @@ function rzVerdict(mkt, bd, it){
   return { mUp: mUp, bUp: bUp, iUp: iUp, txt: v, cls: cls };
 }
 function rzY(b){ return b ? '<span class="rzok">✓</span>' : '<span class="rzno">✗</span>'; }
+// 标的自身量能（今日累计 ÷ 昨日同期累计）。与「大市量能」并列展示，避免再把大市量能误读成标的量能。
+function stkVolHtml(vc){
+  if(!vc || vc.unavail || !isFinite(vc.ratio)) return ' <span class="rzna">量能待查</span>';
+  var r = vc.ratio;
+  var lab = r >= CFG.VOL_UP ? '放量' : (r <= CFG.VOL_DN ? '缩量' : '平量');
+  var col = r >= CFG.VOL_UP ? 'up' : (r <= CFG.VOL_DN ? 'down' : 'flat');
+  return ' <b class="' + col + '">量能 ' + r.toFixed(2) + 'x ' + lab + '</b>' +
+    (vc.fallback ? '<span class="rzna">（今日/昨日全天·日K）</span>' : '<span class="rzna">（今日/昨日同期）</span>');
+}
 function rzRender(){
   var body = $('rzBody'), tag = $('rzTag');
   if(!body) return;
@@ -3177,6 +3186,7 @@ function rzRender(){
       '<div class="rzrow"><span class="rk">板块</span>' + (bd ? esc(bd.name) + (o.etfMatch ? '<span class="rzna">（名推）</span>' : '') + ' ' + pctS(bd.pct) + ' · 主力 ' + (bd.flow >= 0 ? '+' : '') + (bd.flow / 1e8).toFixed(2) + '亿' : '<span class="rzna">基金/无行业归属</span>') + (bd ? ' ' + rzY(bd.flow > 0) : '') + '</div>' +
       (bd && o.bdChart ? '<div class="rzchart">' + o.bdChart + '<div class="rzchartcap">板块当日累计主力净流入（盘中实时）</div></div>' : '') +
       '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
+      stkVolHtml(o.stkV) +
       (bd ? '' : ' <span class="rzna">ETF 按「大市+标的」双线</span>') + '</div></div>';
   });
   body.innerHTML = html;
@@ -3192,12 +3202,21 @@ function rzOne(code, force){
   var secid = secidOf(code);
   if(!secid){ o.err = '代码无法识别（需 6 位数字）'; rzRender(); return; }
   o.err = null;
+  var tx = txOf(code);
+  // 标的自身量能（今日/昨日同期）：仅首拉/重算计算，30s 轮询复用缓存，避免重复打东财
+  var volP = (force || !o.stkV)
+    ? fetchTrends(secid, tx, false).then(function(b){
+        return volCompare(b.tr.today, b.tr.yest, 'amt');
+      }).catch(function(){ return null; })
+    : Promise.resolve(o.stkV || null);
   Promise.all([
     rzMarket(!!force).then(function(m){ o.market = m; }, function(){ o.market = null; }),
     rzBoard(!!force),
-    rzQuote(secid).then(function(q){ o.quote = q; }, function(){ o.quote = null; })
+    rzQuote(secid).then(function(q){ o.quote = q; }, function(){ o.quote = null; }),
+    volP
   ]).then(function(res){
     var idx = res[1];
+    o.stkV = res[3] || o.stkV || null;
     function finish(){
       if(!o.market){ o.v = { mUp: false, bUp: false, iUp: false, txt: '大盘数据不可用', cls: 'bad' }; }
       else if(!o.quote){ o.v = { mUp: o.market.pct > 0, bUp: !!(o.boardRow && o.boardRow.flow > 0), iUp: false, txt: '标的数据不可用', cls: 'warn' }; }
