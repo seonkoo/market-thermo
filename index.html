@@ -365,6 +365,15 @@ function applyRealtime(d, rt) {
       up: rt.breadth.up, down: rt.breadth.down, flat: rt.breadth.flat,
       advance_pct: t ? +(rt.breadth.up / t * 100).toFixed(1) : 0
     });
+    // 情绪卡的涨跌家数与广度卡同源，必须一起刷新，
+    // 否则实时模式下广度卡显示实时值、情绪卡仍是快照值，同页两个「下跌」又会对不上。
+    if (d.emotion) {
+      d.emotion.up = rt.breadth.up;
+      d.emotion.down = rt.breadth.down;
+      d.emotion.flat = rt.breadth.flat;
+      d.emotion.limit_up = d.breadth_count.limit_up;
+      d.emotion.limit_down = d.breadth_count.limit_down;
+    }
   }
   if (rt.sector && rt.sector.top && rt.sector.top.length) {
     d.sector = Object.assign({}, d.sector, rt.sector);
