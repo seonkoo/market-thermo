@@ -140,6 +140,14 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
     <div id="globalErr" class="err" style="display:none"></div>
   </div>
 
+  <!-- 盘中信息台：板块资金流 -->
+  <div class="card" id="pztRoot">
+    <h2>◎ 盘中信息台 <span class="tag">板块资金流</span></h2>
+    <div style="margin:-6px 0 10px;color:var(--txt2);font-size:12px">全市场板块实时净流入排行 + 累计曲线。可切换 概念/行业，数据来自东方财富；底部可全屏。</div>
+    <iframe src="_pzt.html" style="width:100%;height:760px;border:1px solid var(--line);border-radius:10px;background:#08111f" loading="lazy"></iframe>
+    <div style="margin-top:8px"><a href="_pzt.html" target="_blank" style="color:var(--info);font-size:12px;text-decoration:none">↗ 全屏打开盘中信息台</a></div>
+  </div>
+
   <!-- 三体共振：大市量能 × 板块主力 × 个股/ETF -->
   <div class="card" id="rzRoot">
     <h2>◎ 三体共振 <span class="tag">大市量能 × 行业主力 × 个股/ETF</span> <span id="rzTag" class="pill na">—</span></h2>
@@ -484,7 +492,7 @@ function isETFCode(code){
   var c = String(code || '').replace(/^(sh|sz)/i, '');
   if(c.length !== 6) return false;
   if(c.startsWith('15') || c.startsWith('16')) return true;          // 深 ETF/LOF 159/160+
-  if(c.startsWith('5') && c.startsWith('5')===c[0]) return /^(510|511|512|513|515|516|517|518|560|56|58)/.test(c);
+  if(c[0] === '5') return /^5[015689]\d{4}$/.test(c);               // 沪 ETF/LOF：510-518、560-569、580-599（含科创 ETF 588）
   return false;
 }
 function num(v, d){ v = parseFloat(v); return isFinite(v) ? v : (d === undefined ? 0 : d); }
@@ -3102,7 +3110,14 @@ function rzOne(code, force){
         o.etfMatch = !!o.boardRow;
       } else { o.boardRow = null; o.etfMatch = false; }
       finish();
-    }).catch(function(){ o.boardRow = null; o.etfMatch = false; finish(); });
+    }).catch(function(){
+      // f127 拉取失败时，仍按 ETF 名称关键词回退匹配，避免网络抖动导致 ETF 无分类
+      if(isETFCode(code) && o.quote && o.quote.name){
+        o.boardRow = rzETFSector(o.quote.name, idx);
+        o.etfMatch = !!o.boardRow;
+      } else { o.boardRow = null; o.etfMatch = false; }
+      finish();
+    });
   });
 }
 function rzRefresh(force){
