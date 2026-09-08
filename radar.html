@@ -1297,6 +1297,21 @@ function calcAvg5(daily){
   if(n <= 0) return null;
   return { avg: sum / n, n: n, today: daily[daily.length - 1] };
 }
+// 个股/ETF：今日累计成交量 ÷ 近5日平均全天成交量（单位：手）。
+// 与大盘 5日均口径一致，均用成交量（手）避免错误金额锚。
+function stkAvg5Ratio(tx){
+  if(!tx) return Promise.resolve(null);
+  return getDaily(tx).then(function(daily){
+    var a5 = calcAvg5(daily);
+    if(!a5 || !isFinite(a5.avg) || a5.avg <= 0 || !a5.today || !isFinite(a5.today.vol) || a5.today.vol <= 0) return null;
+    var r = a5.today.vol / a5.avg;
+    var lab = r >= CFG.VOL_UP ? '放量' : (r <= CFG.VOL_DN ? '缩量' : '平量');
+    return {
+      curVol: a5.today.vol, avg5Vol: a5.avg, n5: a5.n, ratio: r,
+      label: lab, ts: Date.now()
+    };
+  }).catch(function(){ return null; });
+}
 // 量能斜率：近5分钟均量 / 前15分钟均量
 function volSlope(today){
   var n = today.length;
@@ -3246,15 +3261,24 @@ function rzAge(ts, stale, freshSec){
   var c = age <= (freshSec || 90) ? '' : (age <= 300 ? 'warn' : 'bad');
   return ' <span class="rzage ' + c + '">' + rzAgo(ts) + '</span>';
 }
-// 标的自身量能（今日累计 ÷ 昨日同期累计）。与「大市量能」并列展示，避免再把大市量能误读成标的量能。
-function stkVolHtml(vc){
-  if(!vc || vc.unavail || !isFinite(vc.ratio)) return ' <span class="rzna">量能待查</span>';
-  var r = vc.ratio;
-  var lab = r >= CFG.VOL_UP ? '放量' : (r <= CFG.VOL_DN ? '缩量' : '平量');
-  var col = r >= CFG.VOL_UP ? 'up' : (r <= CFG.VOL_DN ? 'down' : 'flat');
-  return ' <b class="' + col + '">量能 ' + r.toFixed(2) + 'x ' + lab + '</b>' +
-    (vc.fallback ? '<span class="rzna">（今日/昨日全天·日K）</span>' : '<span class="rzna">（今日/昨日同期）</span>') +
-    (vc.ts ? rzAge(vc.ts, false, 180) : '');
+// 标的自身量能：今日/昨日同期 + 今日/5日均（成交量口径，手）。两者并列，避免把大市量能误读成标的量能。
+function stkVolHtml(vc, v5){
+  var out = '';
+  if(!vc || vc.unavail || !isFinite(vc.ratio)){
+    out += ' <span class="rzna">量能待查</span>';
+  } else {
+    var r = vc.ratio;
+    var lab = r >= CFG.VOL_UP ? '放量' : (r <= CFG.VOL_DN ? '缩量' : '平量');
+    var col = r >= CFG.VOL_UP ? 'up' : (r <= CFG.VOL_DN ? 'down' : 'flat');
+    out += ' <b class="' + col + '">量能 ' + r.toFixed(2) + 'x ' + lab + '</b>' +
+      (vc.fallback ? '<span class="rzna">（今日/昨日全天·日K）</span>' : '<span class="rzna">（今日/昨日同期）</span>') +
+      (vc.ts ? rzAge(vc.ts, false, 180) : '');
+  }
+  if(v5 && isFinite(v5.ratio) && v5.avg5Vol > 0){
+    var col5 = v5.ratio >= CFG.VOL_UP ? 'up' : (v5.ratio <= CFG.VOL_DN ? 'down' : 'flat');
+    out += ' · <b class="' + col5 + '">' + v5.label + ' ' + v5.ratio.toFixed(2) + 'x（今' + volTxt(v5.curVol) + ' / 5日均' + volTxt(v5.avg5Vol) + '）</b>';
+  }
+  return out;
 }
 function rzRender(){
   var body = $('rzBody'), tag = $('rzTag');
@@ -3296,7 +3320,7 @@ function rzRender(){
       (bd && o.bdChart ? '<div class="rzchart">' + o.bdChart + '<div class="rzchartcap">板块当日累计主力净流入（亿）' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + '</div></div>' : '') +
       '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
       (q ? rzAge(q.qt, false, 90) : '') +
-      stkVolHtml(o.stkV) +
+      stkVolHtml(o.stkV, o.stkV5) +
       (bd ? '' : ' <span class="rzna">ETF 按「大市+标的」双线</span>') + '</div></div>';
   });
   body.innerHTML = html;
@@ -3324,15 +3348,21 @@ function rzOne(code, force){
         return vc;
       }).catch(function(){ return null; })
     : Promise.resolve(o.stkV || null);
+  // 标的 5日平均量能：与大盘口径一致，用腾讯日K成交量（手）计算。
+  var v5P = volNeed
+    ? stkAvg5Ratio(tx)
+    : Promise.resolve(o.stkV5 || null);
   Promise.all([
     rzMarket(!!force).then(function(m){ o.market = m; }, function(){ o.market = null; }),
     rzBoard(!!force),
     rzQuote(secid).then(function(q){ o.quote = q; }, function(){ o.quote = null; }),
-    volP
+    volP,
+    v5P
   ]).then(function(res){
     var idx = res[1];
     o.bdFail = !idx;          // 板块榜整体取数失败 ≠ 该标的不属于任何板块，措辞必须区分
     o.stkV = res[3] || o.stkV || null;
+    o.stkV5 = res[4] || o.stkV5 || null;
     function finish(){
       if(!o.market){ o.v = { mUp: false, bUp: false, iUp: false, txt: '大盘数据不可用', cls: 'bad' }; }
       else if(!o.quote){ o.v = { mUp: o.market.pct > 0, bUp: !!(o.boardRow && o.boardRow.flow > 0), iUp: false, txt: '标的数据不可用', cls: 'warn' }; }
