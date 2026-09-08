@@ -109,6 +109,22 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzchart{margin:2px 0 1px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,#fafbfd,#f4f6f9);padding:4px 6px 2px;overflow:hidden}
 .rzchart svg{width:100%;height:auto;display:block}
 .rzchartcap{font-size:10px;color:var(--txt3);text-align:center;padding-top:1px}
+/* 板块资金哨兵：持仓卡片内高亮警报 */
+.rzalert{margin:4px 0 2px;border-radius:8px;overflow:hidden}
+.rza{display:flex;flex-direction:column;gap:1px;padding:6px 9px;font-size:11.5px;line-height:1.5;border-left:3px solid}
+.rza b{font-size:12.5px}
+.rza span{color:var(--txt3);font-size:10.5px}
+.rza.bad{background:rgba(255,111,131,.14);border-color:var(--down);color:var(--down)}
+.rza.warn{background:rgba(224,138,0,.14);border-color:var(--warn);color:var(--warn)}
+.rza.ok{background:rgba(43,214,123,.12);border-color:var(--up);color:var(--up)}
+/* 板块资金变化时间轴（开盘/峰值/翻空/现在） */
+.rztl-wrap{overflow:visible;padding:0 10px;margin:2px 0 4px}
+.rztl{position:relative;height:48px;margin:8px 0 2px;border-top:1px dashed var(--line)}
+.rztl-n{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;white-space:nowrap}
+.rztl-dot{width:7px;height:7px;border-radius:50%;margin-top:-4px}
+.rztl-lb{font-size:10px;font-weight:700;margin-top:2px}
+.rztl-t{font-size:9.5px;color:var(--txt3)}
+.rztl-v{font-size:9.5px;color:var(--txt2)}
 .rzbar{height:4px;border-radius:2px;background:#eef1f4;overflow:hidden}
 .rzbar i{display:block;height:100%;background:var(--up)}
 .wact{flex:0 0 auto;display:flex;gap:4px}
@@ -540,9 +556,22 @@ var CFG = {
   MARGIN_CHG: 1.0,         // 融资余额 5 日变动绝对值 >1% 视为杠杆明显加/减
   // 期指基差（口径替代：持仓排名无免费源）
   BASIS_PREM: 0.10,        // 四大期指平均基差 > +0.10% 视为升水（主力偏多）
-  BASIS_DISC: -1.00        // < -1.00% 视为深度贴水（强烈避险）。
-                           // 注意：A股期指长期贴水是常态（今日 -0.70%），常态区间一律判 na 不参与红绿灯。
-                           // 上述阈值均未回测（沙箱取不到分钟级历史），实盘首周校准。
+  BASIS_DISC: -1.00,        // < -1.00% 视为深度贴水（强烈避险）。
+                            // 注意：A股期指长期贴水是常态（今日 -0.70%），常态区间一律判 na 不参与红绿灯。
+                            // 上述阈值均未回测（沙箱取不到分钟级历史），实盘首周校准。
+  // 板块资金哨兵（2026-09-08 用户拍板：持仓卡片内高亮 + 资金变化时间轴）
+  // 场景：持有方正科技/通信ETF 盘中涨得好没盯，等细看时所属板块资金已转负 —— 需在持仓卡片内直接报警。
+  // 数据：rzBoardFlow() 已返回【当日分钟级累计净流入】序列，以下阈值全部基于该序列计算，零新增请求。
+  // 口径提醒：累计曲线下行 = 该时段净流出；峰值回撤 = 主力已撤出的量。东财 push2delay 有几十秒延迟，
+  //          这是"提醒你去看一眼"的信号，不是实时成交依据。
+  FLOW_GUARD: {
+    ENABLED: true,
+    LOOK_MIN: 10,           // 急退回看窗口（分钟）：近 N 分钟累计净流入的减少量
+    DROP_ABS_YI: 1.5,       // 急退绝对阈值：近 N 分钟减少 >= 1.5 亿
+    DROP_PCT: 0.5,          // 急退相对阈值：从今日峰值回撤 >= 50%（大小板块体量差用相对口径兜住）
+    MIN_PEAK_YI: 1.0,       // 峰值门槛：今日峰值 >= 1.0 亿才算"真正流入过"，否则视为噪声不报警
+    TL_MAX_NODES: 5         // 时间轴最多显示几个关键节点
+  }
 };
 
 /* ============ 工具 ============ */
@@ -3178,7 +3207,8 @@ function rzBoardFlow(code){
   }, 10000).catch(function(){ return null; });
 }
 // 单板块累计净流入迷你曲线（viewBox 自适应宽，高 96）
-function rzFlowSVG(ser, flowYi){
+// a = analyzeFlow() 结果；传入后在曲线上标出峰值与翻空点
+function rzFlowSVG(ser, flowYi, a){
   if(!ser || ser.length < 2) return '';
   var W = 600, H = 96, ML = 34, MR = 8, MT = 8, MB = 16, pw = W - ML - MR, ph = H - MT - MB;
   var vals = ser.map(function(s){ return s[1]; });
@@ -3203,8 +3233,100 @@ function rzFlowSVG(ser, flowYi){
   g += '<text x="' + (lx - 4) + '" y="' + (ly - 5) + '" font-size="11" fill="' + col + '" text-anchor="end">' + lbl + '</text>';
   g += '<text x="' + ML + '" y="' + (H - 3) + '" font-size="9" fill="#7e93b8">09:30</text>';
   g += '<text x="' + (ML + pw - 2) + '" y="' + (H - 3) + '" font-size="9" fill="#7e93b8" text-anchor="end">' + last[0] + '</text>';
+  // 拐点标记：峰值（绿圈）与翻空点（红虚线）——一眼看出"从哪开始退的"
+  if(a){
+    if(a.bigPeak && a.peak.i > 0 && a.peak.i < nx){
+      var px = X(a.peak.i), py = Y(a.peak.v);
+      g += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3.2" fill="none" stroke="#2bd67b" stroke-width="1.4"/>';
+      g += '<text x="' + px.toFixed(1) + '" y="' + (py - 7).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="middle">峰值 ' + a.peak.t + '</text>';
+    }
+    if(a.flipDown && a.flipDown.i > 0 && a.flipDown.i <= nx){
+      var fx = X(a.flipDown.i);
+      g += '<line x1="' + fx.toFixed(1) + '" y1="' + MT + '" x2="' + fx.toFixed(1) + '" y2="' + (MT + ph) + '" stroke="#ff6f83" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
+      g += '<text x="' + (fx + 3).toFixed(1) + '" y="' + (MT + 10).toFixed(1) + '" font-size="9" fill="#ff6f83">翻空 ' + a.flipDown.t + '</text>';
+    }
+  }
   g += '</svg>';
   return g;
+}
+// 板块资金哨兵：从「当日分钟级累计净流入序列」提炼关键事件。
+// 序列是【累计值】：曲线下行＝该时段净流出；峰值回撤＝主力已撤出的量。
+function analyzeFlow(ser, G){
+  G = G || CFG.FLOW_GUARD;
+  if(!ser || ser.length < 2) return null;
+  var last = ser[ser.length - 1];
+  var peak = {v: -Infinity, t: ser[0][0], i: 0}, trough = {v: Infinity, t: ser[0][0], i: 0};
+  for(var i = 0; i < ser.length; i++){
+    var v = ser[i][1];
+    if(v > peak.v){ peak = {v: v, t: ser[i][0], i: i}; }
+    if(v < trough.v){ trough = {v: v, t: ser[i][0], i: i}; }
+  }
+  // 近 N 分钟变化（klt=1 → 1 点 = 1 分钟）
+  var lb = Math.min(G.LOOK_MIN, ser.length - 1);
+  var dN = last[1] - ser[ser.length - 1 - lb][1];
+  // 翻空/回流：最后一次穿过零轴的时刻
+  var flipDown = null, flipUp = null;
+  for(var j = 1; j < ser.length; j++){
+    if(ser[j-1][1] > 0 && ser[j][1] <= 0) flipDown = {t: ser[j][0], i: j};
+    if(ser[j-1][1] < 0 && ser[j][1] >= 0) flipUp = {t: ser[j][0], i: j};
+  }
+  var dd = peak.v - last[1];
+  var ddPct = (Math.abs(peak.v) >= 0.01) ? dd / Math.abs(peak.v) : 0;
+  var bigPeak = peak.v >= G.MIN_PEAK_YI;
+  var alerts = [];
+  if(flipDown && bigPeak){
+    alerts.push({type:'flip', level:'bad', text:'资金翻空 ' + flipDown.t,
+      detail:'累计净流入由峰值 +' + peak.v.toFixed(2) + '亿（' + peak.t + '）转为 ' + last[1].toFixed(2) + '亿，主力已净撤出'});
+  } else if(bigPeak && (dN <= -G.DROP_ABS_YI || ddPct >= G.DROP_PCT)){
+    alerts.push({type:'drop', level:'warn', text:'急退 ' + dN.toFixed(2) + '亿/' + G.LOOK_MIN + 'm',
+      detail:'从今日峰值 ' + peak.t + ' 的 +' + peak.v.toFixed(2) + '亿 回撤至 ' + last[1].toFixed(2) + '亿（-' + (ddPct*100).toFixed(0) + '%）'});
+  }
+  if(flipUp && last[1] > 0){
+    alerts.push({type:'up', level:'ok', text:'资金回流 ' + flipUp.t,
+      detail:'累计净流入由负转正，现 +' + last[1].toFixed(2) + '亿'});
+  }
+  return {last: last[1], lastT: last[0], peak: peak, trough: trough, dN: dN, dd: dd, ddPct: ddPct,
+          flipDown: flipDown, flipUp: flipUp, alerts: alerts, n: ser.length, bigPeak: bigPeak};
+}
+// 板块资金变化时间轴：把「开盘 / 峰值 / 翻空 / 回流 / 现在」压到同一条时间线上。
+// 解决"前面涨得好、后面没细看"——事后一眼看出资金是几点开始跑的。
+function flowTimeline(a, ser){
+  if(!a || !ser || ser.length < 2) return '';
+  var G = CFG.FLOW_GUARD;
+  var nodes = [{t: ser[0][0], i: 0, k: 'start', label: '开盘', v: ser[0][1], color: '#7e93b8'}];
+  if(a.bigPeak && a.peak.i > 0) nodes.push({t: a.peak.t, i: a.peak.i, k: 'peak', label: '峰值', v: a.peak.v, color: '#2bd67b'});
+  if(a.flipDown) nodes.push({t: a.flipDown.t, i: a.flipDown.i, k: 'flip', label: '翻空', v: 0, color: '#ff6f83'});
+  if(a.flipUp) nodes.push({t: a.flipUp.t, i: a.flipUp.i, k: 'up', label: '回流', v: 0, color: '#2bd67b'});
+  nodes.push({t: a.lastT, i: ser.length - 1, k: 'now', label: '现在', v: a.last, color: a.last >= 0 ? '#2bd67b' : '#ff6f83'});
+  // 同一时刻只留优先级高的节点，并限制总数
+  var pri = {now: 5, flip: 4, up: 4, peak: 3, start: 1}, byT = {}, uniq = [];
+  for(var i = 0; i < nodes.length; i++){
+    var nd = nodes[i], key = nd.t + '|' + nd.i;
+    if(byT[key] === undefined || pri[nd.k] > pri[byT[key].k]){ byT[key] = nd; }
+  }
+  for(var k in byT){ if(Object.prototype.hasOwnProperty.call(byT, k)) uniq.push(byT[k]); }
+  uniq.sort(function(x, y){ return x.i - y.i; });
+  if(uniq.length > G.TL_MAX_NODES){
+    var keep = [uniq[0]];
+    var mid = uniq.slice(1, uniq.length - 1);
+    mid.sort(function(x, y){ return pri[y.k] - pri[x.k]; });
+    keep = keep.concat(mid.slice(0, G.TL_MAX_NODES - 2), uniq[uniq.length - 1]);
+    keep.sort(function(x, y){ return x.i - y.i; });
+    uniq = keep;
+  }
+  var nx = Math.max(ser.length - 1, 1);
+  var h = '<div class="rztl">';
+  for(var m = 0; m < uniq.length; m++){
+    var n2 = uniq[m], pct = Math.max(0, Math.min(100, n2.i / nx * 100));
+    var vt = n2.k === 'flip' || n2.k === 'up' ? '跨0' : ((n2.v >= 0 ? '+' : '') + n2.v.toFixed(2) + '亿');
+    h += '<div class="rztl-n" style="left:' + pct.toFixed(1) + '%" title="' + esc(n2.label + ' ' + n2.t + ' ' + vt) + '">' +
+         '<span class="rztl-dot" style="background:' + n2.color + '"></span>' +
+         '<span class="rztl-lb" style="color:' + n2.color + '">' + n2.label + '</span>' +
+         '<span class="rztl-t">' + n2.t + '</span>' +
+         '<span class="rztl-v">' + vt + '</span></div>';
+  }
+  h += '</div>';
+  return h;
 }
 // 三线判读
 function rzVerdict(mkt, bd, it){
@@ -3318,6 +3440,12 @@ function rzRender(){
         (bd ? rzAge(RZ.blist.ts, RZ.blist.stale, 300) : '') +
         (RZ.blist.partial ? ' <span class="rzage bad" title="板块榜仅拉到 ' + RZ.blist.seen + '/' + RZ.blist.total + ' 个，个别板块可能匹配不到">⚠榜不全</span>' : '') + '</div>' +
       (bd && o.bdChart ? '<div class="rzchart">' + o.bdChart + '<div class="rzchartcap">板块当日累计主力净流入（亿）' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + '</div></div>' : '') +
+      // 板块资金哨兵：翻空/急退/回流，直接高亮在持仓卡片里
+      (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rzalert">' + o.bdAlert.alerts.map(function(al){
+          return '<div class="rza ' + al.level + '"><b>' + (al.level === 'bad' ? '⚠️' : (al.level === 'warn' ? '⚡' : '✅')) + ' ' + esc(al.text) + '</b><span>' + esc(al.detail) + '</span></div>';
+        }).join('') + '</div>' : '') +
+      // 板块资金变化时间轴：开盘 → 峰值 → 翻空 → 现在，事后一眼看出几点开始跑
+      (bd && o.bdSer && o.bdAlert ? '<div class="rztl-wrap">' + flowTimeline(o.bdAlert, o.bdSer) + '<div class="rzchartcap">板块资金变化时间轴（当日累计净流入）</div></div>' : '') +
       '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
       (q ? rzAge(q.qt, false, 90) : '') +
       stkVolHtml(o.stkV, o.stkV5) +
@@ -3368,14 +3496,16 @@ function rzOne(code, force){
       else if(!o.quote){ o.v = { mUp: o.market.pct > 0, bUp: !!(o.boardRow && o.boardRow.flow > 0), iUp: false, txt: '标的数据不可用', cls: 'warn' }; }
       else o.v = rzVerdict(o.market, o.boardRow, o.quote);
       rzRender();
-      // 板块当日累计主力净流入曲线（异步补渲染）
+      // 板块当日累计主力净流入曲线（异步补渲染）+ 资金哨兵分析
       if(o.boardRow && o.boardRow.code){
         rzBoardFlow(o.boardRow.code).then(function(ser){
-          o.bdChart = rzFlowSVG(ser, o.boardRow.flow / 1e8);
+          o.bdSer = ser;
+          o.bdAlert = (CFG.FLOW_GUARD.ENABLED && ser && ser.length) ? analyzeFlow(ser) : null;
+          o.bdChart = rzFlowSVG(ser, o.boardRow.flow / 1e8, o.bdAlert);
           o.bdTs = Date.now();
           rzRender();
         }).catch(function(){ /* 曲线缺失不影响主判读 */ });
-      } else { o.bdChart = null; }
+      } else { o.bdChart = null; o.bdSer = null; o.bdAlert = null; }
     }
     // 个股 f127 精确优先；ETF 无 f127 时按名称关键词匹配板块（半导体/通信…）
     rzIndustry(secid).then(function(ind){
