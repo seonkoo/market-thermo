@@ -198,12 +198,16 @@ function applyTheme(t) {
 
 /* ---------- 数据加载 ----------
    快照（data.json / timeline.json）由 GitHub Actions 在云端定时重算并推回仓库。
-   页面按顺序尝试：jsDelivr(国内可达) → GitHub Pages → 部署目录内的本地副本。
-   这样即使没重新部署，页面刷新也能拿到 Actions 产出的最新快照；
-   三个源都不可达时才回退本地，此时「新鲜度角标」会红色警示，不会静默误导。   */
+   页面按顺序尝试：GitHub Pages → raw.githubusercontent → 部署目录内的本地副本。
+
+   ⚠ 2026-09-08 实测踩坑（别再改回 jsDelivr）：
+   jsDelivr 响应头 `Cache-Control: s-maxage=43200`（12 小时），且**忽略未知 query 参数**，
+   即 `?t=Date.now()` 这种常见破缓存手法对它完全无效。实测同一时刻 GitHub 已是 10:16:13，
+   jsDelivr 无论带不带 ?t= 都返回 10:09:57。若把 jsDelivr 放首位，盘中全天都会读到旧快照。
+   Pages / raw 均实时回源，实测返回最新版本。                                        */
 const SNAP_SOURCES = [
-  "https://cdn.jsdelivr.net/gh/seonkoo/market-thermo@main/",
-  "https://seonkoo.github.io/market-thermo/"
+  "https://seonkoo.github.io/market-thermo/",
+  "https://raw.githubusercontent.com/seonkoo/market-thermo/main/"
 ];
 let SNAP_SRC = "本地副本";          // 实际生效的快照来源，展示在页头
 async function _fetchJSON(name) {
@@ -214,7 +218,8 @@ async function _fetchJSON(name) {
       if (!r.ok) continue;
       const j = await r.json();
       if (j && typeof j === "object") {
-        SNAP_SRC = base.indexOf("jsdelivr") >= 0 ? "云端(jsDelivr)" : "云端(GitHub Pages)";
+        SNAP_SRC = base.indexOf("github.io") >= 0 ? "云端(GitHub Pages)" :
+                   (base.indexOf("raw.githubusercontent") >= 0 ? "云端(GitHub raw)" : "云端");
         return j;
       }
     } catch (e) { /* 换下一个源 */ }
