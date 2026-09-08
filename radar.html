@@ -251,8 +251,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
         <div class="kv"><span>昨日同期量</span><b id="vSame">—</b></div>
         <div class="kv"><span>同期比</span><b id="vRatio">—</b></div>
         <div class="kv"><span>全天投影</span><b id="vProj">—</b></div>
-        <div class="kv"><span>5日平均全天量</span><b id="vAvg5">—</b></div>
-        <div class="kv"><span>今日 / 5日均</span><b id="vRatio5">—</b></div>
+        <div class="kv"><span>5日平均全天成交量</span><b id="vAvg5">—</b></div>
+        <div class="kv"><span>今日 / 5日均（成交量口径）</span><b id="vRatio5">—</b></div>
       </div>
       <div class="col">
         <div class="kv"><span>近5分钟 / 前15分钟</span><b id="vSlope">—</b></div>
@@ -1285,15 +1285,14 @@ function volCompare(today, yest, field){
     fallback: isFallback, fallbackLabel: isFallback ? '今日/昨日全天（日K）' : null
   };
 }
-// 从腾讯日K计算近5日平均全天量/额（不含今日）。field: 'vol' 取成交量(股)，'amt' 取成交额(元，用开收均价近似)。
-function calcAvg5(daily, field){
+// 从腾讯日K计算近5日平均全天成交量（不含今日）。
+// 注意：腾讯日K对指数只返回成交量（手），没有成交额；指数成交额不能简单用 vol*price 近似，
+// 因此5日均量统一用成交量口径展示，避免给用户一个错误的金额锚。
+function calcAvg5(daily){
   if(!daily || daily.length < 2) return null;
   var sum = 0, n = 0;
-  for(var i = daily.length - 2; i >= Math.max(0, daily.length - 7); i--){
-    var d = daily[i];
-    var v = d.vol || 0;
-    if(field === 'amt') v = v * ((d.open || d.close || 0) + (d.close || d.open || 0)) / 2;
-    sum += v; n++;
+  for(var i = daily.length - 2; i >= Math.max(0, daily.length - 6); i--){
+    sum += (daily[i].vol || 0); n++;
   }
   if(n <= 0) return null;
   return { avg: sum / n, n: n, today: daily[daily.length - 1] };
@@ -1985,11 +1984,13 @@ function renderIndex(){
       ' <span class="pill ' + (r>=CFG.VOL_UP?'ok':(r<=CFG.VOL_DN?'warn':'na')) + '">' + (r>=CFG.VOL_UP?'放量':(r<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
   }
   $('vProj').textContent = isFinite(vc.projVol) ? _vf(vc.projVol) + '（' + (vc.projRatio*100).toFixed(0) + '% of 昨）' : '—';
-  // 5日平均全天量/额：与今日累计对比，给用户一个跨交易日的量能锚。
+  // 5日平均全天成交量：腾讯日K只给成交量（手），因此统一用成交量口径跨日对比。
   var a5 = I.avg5;
   if(a5 && isFinite(a5.avg) && a5.avg > 0){
-    $('vAvg5').textContent = _vf(a5.avg) + '（近' + a5.n + '日）';
-    var r5 = vc.curVol / a5.avg;
+    var todayVol = 0;
+    for(var k = 0; k < I.trends.today.length; k++) todayVol += (I.trends.today[k].vol || 0);
+    $('vAvg5').textContent = volTxt(a5.avg) + '（近' + a5.n + '日）';
+    var r5 = todayVol / a5.avg;
     $('vRatio5').innerHTML = '<span class="' + (isFinite(r5) ? cls(r5-1) : 'flat') + '">' + (isFinite(r5) ? r5.toFixed(2) + 'x' : '—') + '</span>' +
       ' <span class="pill ' + (r5>=CFG.VOL_UP?'ok':(r5<=CFG.VOL_DN?'warn':'na')) + '">' + (r5>=CFG.VOL_UP?'放量':(r5<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
   } else {
@@ -2759,7 +2760,7 @@ function loadIndex(){
       var daily = rs2[0];
       var dj = rs2[1];                          // 温度计 data.json 快照（margin 仅 T-1 来源）
       I.daily = daily;
-      I.avg5 = calcAvg5(daily, STATE.metric);   // 近5日平均全天量/额，用于与今日累计对比
+      I.avg5 = calcAvg5(daily);                 // 近5日平均全天成交量（手），与今日累计成交量对比
       I.thermo = mergeThermo(dj, null);         // 先用快照兜底建环境(sector/basis 缺则 na)——首屏不等东财广度
       var cur = I.snap ? I.snap.price : tr.today[tr.today.length-1].close;
       if(!isFinite(I.preClose) && daily && daily.length >= 2) I.preClose = daily[daily.length-2].close;
@@ -2895,7 +2896,7 @@ function recomputeMetric(){
   var vc = volCompare(I.trends.today, I.trends.yest, STATE.metric);
   I.yestAvail = !vc.unavail;
   I.vc = vc;
-  I.avg5 = calcAvg5(I.daily, STATE.metric);   // 口径切换时重算5日均
+  I.avg5 = calcAvg5(I.daily);                 // 口径切换时重算5日均（成交量口径）
   var ctx = makeCtx(I, cur);
   I.ruleOut = buildTRules(ctx);
   I.sum = summarizeT(I.ruleOut, ctx);
@@ -3006,27 +3007,28 @@ function rzMarket(force){
     }
     return null;
   }).catch(function(){ return null; });
-  // 主口径：腾讯日K 计算今日累计 ÷ 近5日全天均额
+  // 主口径：腾讯日K 计算今日累计成交量 ÷ 近5日全天平均成交量（单位：手）。
+  // 腾讯日K对指数不返回成交额，故5日均统一用成交量口径，与①大盘量能区一致。
   var q5 = jsonpVar('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sh000001,day,,,10,', 9000).then(function(dk){
     var raw = dk && dk.data && dk.data.sh000001;
     var arr = (raw && (raw.day || raw.qfqday)) || null;
     if(!arr || arr.length < 3) return null;
-    var amt = function(x){ return Array.isArray(x) ? ((+x[5] || 0) * ((+x[1] || 0) + (+x[2] || 0)) / 2) : 0; };
-    var cur = amt(arr[arr.length - 1]), sum = 0, n = 0;
-    for(var i = arr.length - 2; i >= Math.max(0, arr.length - 6); i--){ sum += amt(arr[i]); n++; }
-    return { curAmt: cur, avg5Amt: n > 0 ? sum / n : NaN, n5: n };
+    var vol = function(x){ return Array.isArray(x) ? (+x[5] || 0) : 0; };
+    var cur = vol(arr[arr.length - 1]), sum = 0, n = 0;
+    for(var i = arr.length - 2; i >= Math.max(0, arr.length - 6); i--){ sum += vol(arr[i]); n++; }
+    return { curVol: cur, avg5Vol: n > 0 ? sum / n : NaN, n5: n };
   }).catch(function(){ return null; });
   return Promise.all([p, qSame, q5]).then(function(r){
     var m = r[0], same = r[1] || null, avg5 = r[2] || null;
-    // 优先用 5日平均 作主口径（与页面判读口径一致），并把具体金额写出来。
-    if(avg5 && avg5.n5 > 0 && avg5.avg5Amt > 0 && avg5.curAmt > 0){
-      m.vr = avg5.curAmt / avg5.avg5Amt;
-      m.curAmt = avg5.curAmt; m.avg5Amt = avg5.avg5Amt; m.avg5N = avg5.n5;
+    // 优先用 5日平均成交量 作主口径（与页面判读口径一致），并把具体手数写出来。
+    if(avg5 && avg5.n5 > 0 && avg5.avg5Vol > 0 && avg5.curVol > 0){
+      m.vr = avg5.curVol / avg5.avg5Vol;
+      m.curVol = avg5.curVol; m.avg5Vol = avg5.avg5Vol; m.avg5N = avg5.n5;
       var label5 = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
-      m.volTag = label5 + ' ' + m.vr.toFixed(2) + 'x（今' + amtTxt(avg5.curAmt) + ' / 5日均' + amtTxt(avg5.avg5Amt) + '）';
+      m.volTag = label5 + ' ' + m.vr.toFixed(2) + 'x（今' + volTxt(avg5.curVol) + ' / 5日均' + volTxt(avg5.avg5Vol) + '）';
     } else if(same && isFinite(same.vr)){
       // 5日数据拿不到时降级为同期量比，并诚实标注
-      m.vr = same.vr; m.curAmt = same.curAmt || NaN;
+      m.vr = same.vr; m.curVol = same.curAmt || NaN;
       var label = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
       m.volTag = label + ' ' + m.vr.toFixed(2) + 'x（今/昨日同期，5日均暂不可用）';
     } else {
