@@ -3313,6 +3313,25 @@ function rzIndexFlow(){
     return ser; // [[hhmm, 累计亿]]
   }, 10000).catch(function(){ return null; });
 }
+// 个股/ETF（secid=1./0.xxxxx）自身当日累计主力净流入曲线——与板块、上证同口径，自选卡组合图用。
+function rzStockFlow(secid){
+  if(!secid) return Promise.reject(new Error('NO_SECID'));
+  var path = '/api/qt/stock/fflow/kline/get?lmt=0&klt=1&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + secid;
+  return rzGet(path, function(d){
+    var ks = d && d.data && d.data.klines;
+    if(!ks || !ks.length) throw new Error('EMPTY');
+    var ser = [];
+    for(var i = 0; i < ks.length; i++){
+      var p = ks[i].split(',');
+      if(p.length < 2) continue;
+      var v = parseFloat(p[1]); if(!isFinite(v)) continue;
+      var ts = p[0].indexOf(' ') >= 0 ? p[0].split(' ')[1].slice(0, 5) : p[0].slice(0, 5);
+      ser.push([ts, v / 1e8]);
+    }
+    if(!ser.length) throw new Error('BAD');
+    return ser; // [[hhmm, 累计亿]]
+  }, 10000).catch(function(){ return null; });
+}
 // 置顶卡：上证量能双比 + 主力净流入曲线（与板块哨兵同口径）
 function rzIndexTop(force){
   rzMarket(!!force).then(function(m){
@@ -3705,6 +3724,8 @@ function rzRender(){
         (bd ? rzAge(RZ.blist.ts, RZ.blist.stale, 300) : '') +
         (RZ.blist.partial ? ' <span class="rzage bad" title="板块榜仅拉到 ' + RZ.blist.seen + '/' + RZ.blist.total + ' 个，个别板块可能匹配不到">⚠榜不全</span>' : '') + '</div>' +
       (bd && o.bdChart ? '<div class="rzchart">' + o.bdChart + '<div class="rzchartcap">板块当日累计主力净流入（亿）' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + '</div></div>' : '') +
+      // 个股自身：分线图（蓝）＋ 自身主力净流入（绿涨/红跌·亿）同框，复用上证置顶卡组合图器
+      (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert) + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（绿涨/红跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
       // 板块资金哨兵：翻空/急退/回流，直接高亮在持仓卡片里
       (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rzalert">' + o.bdAlert.alerts.map(function(al){
           return '<div class="rza ' + al.level + '"><b>' + (al.level === 'bad' ? '⚠️' : (al.level === 'warn' ? '⚡' : '✅')) + ' ' + esc(al.text) + '</b><span>' + esc(al.detail) + '</span></div>';
@@ -3734,13 +3755,16 @@ function rzOne(code, force){
   // 标的量能是累计值，会随时间变化。原逻辑「只有首拉/重算才计算」会导致
   // 全天盯盘时量能一直停在添加那一刻（假数据）。改为每 120s 至少刷新一次。
   var volNeed = !!force || !o.stkV || !o.stkV.ts || (Date.now() - o.stkV.ts > 120000);
-  var volP = volNeed
-    ? fetchTrends(secid, tx, false).then(function(b){
-        var vc = volCompare(b.tr.today, b.tr.yest, 'amt');
-        vc.ts = Date.now();
-        return vc;
-      }).catch(function(){ return null; })
-    : Promise.resolve(o.stkV || null);
+  // 标的分时序列（价格线）：每轮刷新，供自选卡组合图；量比仍按 volNeed(120s) 节流。
+  var trP = fetchTrends(secid, tx, false).then(function(b){
+    o.tr = b.tr;                                  // 保存分时序列 {today,yest,preClose}
+    if(volNeed){
+      var vc = volCompare(b.tr.today, b.tr.yest, 'amt');
+      vc.ts = Date.now();
+      return vc;
+    }
+    return o.stkV || null;
+  }).catch(function(){ return null; });
   // 标的 5日平均量能：与大盘口径一致，用腾讯日K成交量（手）计算。
   var v5P = volNeed
     ? stkAvg5Ratio(tx)
@@ -3749,7 +3773,7 @@ function rzOne(code, force){
     rzMarket(!!force).then(function(m){ o.market = m; }, function(){ o.market = null; }),
     rzBoard(!!force),
     rzQuote(secid).then(function(q){ o.quote = q; }, function(){ o.quote = null; }),
-    volP,
+    trP,
     v5P
   ]).then(function(res){
     var idx = res[1];
@@ -3771,6 +3795,13 @@ function rzOne(code, force){
           rzRender();
         }).catch(function(){ /* 曲线缺失不影响主判读 */ });
       } else { o.bdChart = null; o.bdSer = null; o.bdAlert = null; }
+      // 个股自身当日累计主力净流入（异步补渲染）+ 组合图（与板块资金互不依赖）
+      rzStockFlow(secid).then(function(ser){
+        o.stkSer = ser;
+        o.stkAlert = (CFG.FLOW_GUARD.ENABLED && ser && ser.length) ? analyzeFlow(ser) : null;
+        o.stkTs = Date.now();
+        rzRender();
+      }).catch(function(){ o.stkSer = null; o.stkAlert = null; rzRender(); });
     }
     // 个股 f127 精确优先；ETF 无 f127 时按名称关键词匹配板块（半导体/通信…）
     rzIndustry(secid).then(function(ind){
