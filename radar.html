@@ -88,6 +88,9 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 /* 三体共振：大市量能 × 行业主力 × 个股/ETF */
 .rzcards{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .rzcard{border:1px solid var(--line);border-radius:10px;padding:8px 10px 7px;background:#fff;display:flex;flex-direction:column;gap:5px}
+/* 置顶卡：大市总览，强调"先看大市再做T"，用左边框 + 淡蓝底区分于自选个股卡 */
+.rzcard-top{border-left:3px solid var(--info,#3b82f6);background:linear-gradient(180deg,#f5f8ff 0%,#fff 60%);box-shadow:0 1px 4px rgba(59,130,246,.08)}
+.rzcard-top .rk{font-weight:600;color:var(--txt2)}
 .rzhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .rznm{font-size:15px;font-weight:700}
 .rzpx{font-size:14px;font-weight:700}
@@ -225,6 +228,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
   <!-- 三体共振：大市量能 × 板块主力 × 个股/ETF -->
   <div class="card" id="rzRoot">
     <h2>◎ 三体共振 <span class="tag">大市量能 × 行业主力 × 个股/ETF</span> <span id="rzTag" class="pill na">—</span></h2>
+    <div id="rzIndexTop"></div>
     <div class="hint" style="margin-bottom:6px">自选个股/ETF，自动判定所属行业板块并实时拉取该板块主力资金流，与上证指数量能、标的自身涨跌做三线共振判读。三条全绿 = 顺势跟主力；出现背离 = 警惕。</div>
     <div style="display:flex;gap:6px;margin-bottom:4px">
       <input id="rzInp" placeholder="输入 6 位代码，如 600667 / 588170" maxlength="6" style="flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px">
@@ -3094,6 +3098,8 @@ var RZ = {
   board: { ts: 0, data: null },   // 大盘 60s 缓存
   blist: { ts: 0, idx: null },    // 行业板块榜 90s 缓存
   ind: {},                        // secid -> 行业名（12h）
+  mktTop: null,                   // 置顶卡共享的上证量能数据
+  idxFlow: null, idxAlert: null, idxTs: 0,  // 上证主力净流入曲线 + 哨兵
   timer: null, gen: 0
 };
 function rzLoad(){ try{ RZ.list = JSON.parse(localStorage.getItem('rz_watch') || '[]'); }catch(e){ RZ.list = []; } if(!Array.isArray(RZ.list)) RZ.list = []; }
@@ -3139,6 +3145,9 @@ function rzMarket(force){
   }).catch(function(){ return null; });
   return Promise.all([p, qSame, q5]).then(function(r){
     var m = r[0], same = r[1] || null, avg5 = r[2] || null;
+    // 置顶卡需要"今/昨日同期量比"，rzMarket 默认只把 5日均 留作主口径，这里显式补回。
+    m.sameVr = (same && isFinite(same.vr)) ? same.vr : NaN;
+    m.sameCurAmt = (same && isFinite(same.curAmt)) ? same.curAmt : NaN;
     // 优先用 5日平均成交量 作主口径（与页面判读口径一致），并把具体手数写出来。
     if(avg5 && avg5.n5 > 0 && avg5.avg5Amt > 0 && avg5.curAmt > 0){
       m.vr = avg5.curAmt / avg5.avg5Amt;
@@ -3281,7 +3290,90 @@ function rzBoardFlow(code){
     return ser; // [[hhmm, 累计亿]]
   }, 10000).catch(function(){ return null; });
 }
-// 单板块累计净流入迷你曲线（viewBox 自适应宽，高 96）
+// 上证指数（1.000001）当日累计主力净流入曲线——与板块同口径，置顶卡用。
+function rzIndexFlow(){
+  var path = '/api/qt/stock/fflow/kline/get?lmt=0&klt=1&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=1.000001';
+  return rzGet(path, function(d){
+    var ks = d && d.data && d.data.klines;
+    if(!ks || !ks.length) throw new Error('EMPTY');
+    var ser = [];
+    for(var i = 0; i < ks.length; i++){
+      var p = ks[i].split(',');
+      if(p.length < 2) continue;
+      var v = parseFloat(p[1]); if(!isFinite(v)) continue;
+      var ts = p[0].indexOf(' ') >= 0 ? p[0].split(' ')[1].slice(0, 5) : p[0].slice(0, 5);
+      ser.push([ts, v / 1e8]);
+    }
+    if(!ser.length) throw new Error('BAD');
+    return ser; // [[hhmm, 累计亿]]
+  }, 10000).catch(function(){ return null; });
+}
+// 置顶卡：上证量能双比 + 主力净流入曲线（与板块哨兵同口径）
+function rzIndexTop(force){
+  rzMarket(!!force).then(function(m){
+    RZ.mktTop = m;
+    renderRzIndexTop();
+    // 资金曲线异步补渲染
+    rzIndexFlow().then(function(ser){
+      RZ.idxFlow = ser;
+      RZ.idxAlert = (CFG.FLOW_GUARD.ENABLED && ser && ser.length) ? analyzeFlow(ser) : null;
+      RZ.idxTs = Date.now();
+      renderRzIndexTop();
+    }).catch(function(){ RZ.idxFlow = null; renderRzIndexTop(); });
+  }).catch(function(){ RZ.mktTop = null; renderRzIndexTop(); });
+}
+function renderRzIndexTop(){
+  var el = $('rzIndexTop');
+  if(!el) return;
+  var m = RZ.mktTop, ser = RZ.idxFlow, a = RZ.idxAlert;
+  // 头部：上证价/涨跌 + 数据新鲜度
+  var mktHtml;
+  if(!m){
+    mktHtml = '<span class="rzna">上证数据获取中…</span>';
+  } else {
+    var pc = m.pct, pcls = pc >= 0 ? 'up' : 'down';
+    mktHtml = '<b class="' + pcls + '">上证 ' + fx(m.px) + ' ' + (pc>=0?'+':'') + pc.toFixed(2) + '%</b>' +
+      (m.stale ? ' <span class="rzage bad" title="本次取数失败，显示上一轮缓存">⚠旧·' + rzAgo(m.ts) + '</span>' : rzAge(m.ts, false, 90));
+  }
+  // 量能双比：今/5日均（主口径）+ 今/昨日同期
+  var volHtml = '';
+  if(m){
+    var v5 = m.vr, s5 = isFinite(v5) ? (v5>=CFG.VOL_UP?'放量':(v5<=CFG.VOL_DN?'缩量':'平量')) : '—';
+    var c5 = isFinite(v5) ? (v5>=CFG.VOL_UP?'up':(v5<=CFG.VOL_DN?'down':'flat')) : 'flat';
+    var v5b = isFinite(v5)
+      ? '<b class="' + c5 + '">今/5日均 ' + v5.toFixed(2) + 'x ' + s5 + '</b> <span class="rzna">(今' + amtTxt(m.curAmt) + ' / 5日均' + amtTxt(m.avg5Amt) + ')</span>'
+      : '<span class="rzna">5日均量待查</span>';
+    var vs = m.sameVr, sS = isFinite(vs) ? (vs>=CFG.VOL_UP?'放量':(vs<=CFG.VOL_DN?'缩量':'平量')) : '—';
+    var cS = isFinite(vs) ? (vs>=CFG.VOL_UP?'up':(vs<=CFG.VOL_DN?'down':'flat')) : 'flat';
+    var vSb = isFinite(vs)
+      ? '<b class="' + cS + '">今/昨日同期 ' + vs.toFixed(2) + 'x ' + sS + '</b>'
+      : '<span class="rzna">昨日同期量待查</span>';
+    volHtml = v5b + '<br>' + vSb;
+  } else {
+    volHtml = '<span class="rzna">—</span>';
+  }
+  // 资金曲线
+  var flowHtml;
+  if(ser && ser.length){
+    var last = ser[ser.length - 1];
+    flowHtml = rzFlowSVG(ser, last[1], a);
+    if(a && a.alerts && a.alerts.length){
+      flowHtml += '<div class="rz-alerts">' + a.alerts.map(function(al){
+        return '<div class="rza ' + al.level + '"><b>' + (al.level === 'bad' ? '⚠️' : (al.level === 'warn' ? '⚡' : '✅')) + ' ' + esc(al.text) + '</b><span>' + esc(al.detail) + '</span></div>';
+      }).join('') + '</div>';
+    }
+  } else if(RZ.idxTs){
+    flowHtml = '<div class="rzna">上证主力净流入曲线暂不可用（东财限流，稍后自动重试）</div>';
+  } else {
+    flowHtml = '<div class="rzna">资金曲线加载中…</div>';
+  }
+  el.innerHTML = '<div class="rzcard rzcard-top">' +
+    '<div class="rzrow"><span class="rk">大市总览</span>' + mktHtml + '</div>' +
+    '<div class="rzrow"><span class="rk">量能</span>' + volHtml + '</div>' +
+    '<div class="rztl-wrap">' + flowHtml + '<div class="rzchartcap">上证主力净流入（当日累计·亿元）</div></div>' +
+  '</div>';
+}
+
 // a = analyzeFlow() 结果；传入后在曲线上标出峰值与翻空点
 function rzFlowSVG(ser, flowYi, a){
   if(!ser || ser.length < 2) return '';
@@ -3602,6 +3694,8 @@ function rzOne(code, force){
   });
 }
 function rzRefresh(force){
+  // 置顶卡与自选列表并行刷新；空列表时仍刷新置顶卡，保证无自选也能看大市。
+  rzIndexTop(force);
   if(!RZ.list.length) return;
   RZ.list.forEach(function(code){ rzOne(code, force); });
 }
