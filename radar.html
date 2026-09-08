@@ -779,7 +779,7 @@ function getDaily(tx){
   });
 }
 
-/* ============ // 近5日平均全天成交额（亿元）：走东财日K，指数/个股/ETF 都有真实成交额(amt)。
+// ============ 近5日平均全天成交额（亿元）：走东财日K，指数/个股/ETF 都有真实成交额(amt)。
 // 腾讯日K 不含 amt（仅 vol），故 5日均金额对比一律走东财，避免用「价格×成交量」编造错误金额锚。
 // amt 单位元，÷1e8 得亿元。5 分钟缓存，与 getDaily 同节奏。
 var DAILY_AMT_TTL = 5 * 60 * 1000;
@@ -817,7 +817,7 @@ function calcAvg5Amt(daily){
   return { avg: sum / n, n: n, today: daily[daily.length - 1] };
 }
 
-市场温度计 data.json（M1 融合：单向灌注） ============
+/* ============ 市场温度计 data.json（M1 融合：单向灌注） ============
    把温度计的 sector / margin / futures_basis 灌进本页，补上规则引擎原先缺的三项：
      · 条件1 板块资金流   —— 东财 clist 限流时的降级源（原先直接显示"—"）
      · 条件1 融资盘变化   —— 原先 ❌ 未接入
