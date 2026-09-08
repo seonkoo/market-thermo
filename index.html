@@ -102,6 +102,17 @@
   .judge .dim-advice { font-size: 12.5px; color: var(--txt); line-height: 1.5; margin: 2px 0 4px; }
   .judge .ev { font-size: 11.5px; color: var(--sub); line-height: 1.65; }
   .judge .ev div { margin: 1px 0; }
+  /* 明日应对卡（A 今晚可定 / B 明日待确认） */
+  .card.nextday { border-color: var(--warn); box-shadow: 0 0 0 1px var(--warn) inset; }
+  .nextday .nd-w { font-size: 12px; margin: 4px 0; }
+  .nextday .nd-w .nd-fl { color: var(--sub); margin-left: 6px; font-variant-numeric: tabular-nums; }
+  .nextday .nd-note { font-size: 11px; color: var(--sub); line-height: 1.5; }
+  .nextday .nd-cfm { border-left: 2px solid var(--line); padding-left: 8px; margin: 7px 0; }
+  .nextday .nd-ch { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+  .nextday .nd-anchor { font-size: 11px; color: var(--sub); margin: 2px 0; }
+  .nextday .nd-if, .nextday .nd-else { font-size: 11.5px; line-height: 1.6; }
+  .nextday .nd-ok { color: var(--ok); }
+  .nextday .nd-bad { color: var(--bad); }
   /* 主力视角 hero 卡 */
   .card.capital { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
   .capital .regime { font-size: 26px; font-weight: 800; line-height: 1.2; margin-bottom: 6px; }
@@ -493,6 +504,53 @@ function renderJudgement(d) {
   </div>`;
 }
 
+/* 明日应对（两段式）
+   A 段 = 今晚就能定：基调/仓位上限/持仓处理/观察清单，全部来自今日收盘数据。
+   B 段 = 明日盘中待确认：只给 if-then 条件式预案，附今日实际值做锚点，绝不预测明日涨跌。 */
+function renderNextDay(d) {
+  const nd = d.next_day;
+  if (!nd) return "";
+  const cap = nd.position_cap || {};
+  const cs = cap.score || 0;
+  const badgeCls = cs >= 7 ? "b-ok" : cs >= 4 ? "b-warn" : "b-bad";
+  const watch = (nd.watch || []).map(w => `
+    <div class="nd-w">
+      <b>${w.name}</b>
+      <span class="${cls(w.pct || 0)}">${pctTxt(w.pct)}</span>
+      <span class="nd-fl">主力 +${w.flow}亿</span>
+      <div class="nd-note">${w.note}</div>
+    </div>`).join("");
+  const cfm = (nd.confirms || []).map(c => `
+    <div class="nd-cfm">
+      <div class="nd-ch"><b>${c.metric}</b><span class="ftag f-unset">${c.status}</span></div>
+      <div class="nd-anchor">${c.anchor}</div>
+      <div class="nd-if">若 ${c.good} → <span class="nd-ok">${c.then_good}</span></div>
+      <div class="nd-else">否则 → <span class="nd-bad">${c.then_bad}</span></div>
+    </div>`).join("");
+  return `<div class="card judge nextday">
+    <h2>🌅 明日应对 <span class="tag">A 今晚可定 · B 明日待确认 · 非投资建议</span>${freshTag("next_day")}</h2>
+    <div class="posture" style="color:${judgeTone(nd.tone)}">${nd.tone}</div>
+    <div class="score-line">今日 regime「${nd.regime}」置信 ${nd.confidence}% → 明日基调</div>
+    <div class="dim">
+      <div class="dim-h"><span class="lbl">A · 仓位上限</span><span class="badge ${badgeCls}">${cap.label}</span></div>
+      <div class="ev">${(cap.evidence || []).map(e => `<div>· ${e}</div>`).join("")}</div>
+    </div>
+    <div class="dim">
+      <div class="dim-h"><span class="lbl">A · 持仓处理</span></div>
+      <div class="dim-advice">${(nd.hold || []).map(a => `<div>· ${a}</div>`).join("")}</div>
+    </div>
+    <div class="dim">
+      <div class="dim-h"><span class="lbl">A · 明日观察清单</span></div>
+      ${watch || '<div class="ev">今日板块资金流缺失</div>'}
+    </div>
+    <div class="dim">
+      <div class="dim-h"><span class="lbl">B · 明日盘中待确认</span><span class="badge b-warn">不预测 · 只看条件</span></div>
+      ${cfm || '<div class="ev">待确认项缺失</div>'}
+    </div>
+    <div class="note" style="margin-top:10px">${nd.scope_note}</div>
+  </div>`;
+}
+
 function renderIndices(d) {
   const groups = {};
   (d.indices||[]).forEach(x => (groups[x.group] = groups[x.group]||[]).push(x));
@@ -803,7 +861,7 @@ function render(d) {
   const grid = document.getElementById("app");
   grid.className = "grid";
   grid.innerHTML =
-    renderCapitalRead(d) + renderTimeline(d) + renderJudgement(d) + renderIndices(d) + renderBreadth(d) +
+    renderCapitalRead(d) + renderTimeline(d) + renderJudgement(d) + renderNextDay(d) + renderIndices(d) + renderBreadth(d) +
     renderFuturesBasis(d) + renderEtfFlow(d) + renderFlow(d) +
     renderBreadthCount(d) + renderEmotion(d) +
     renderLiquidity(d) + renderMargin(d) + renderSector(d);
