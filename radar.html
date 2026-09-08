@@ -251,6 +251,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
         <div class="kv"><span>昨日同期量</span><b id="vSame">—</b></div>
         <div class="kv"><span>同期比</span><b id="vRatio">—</b></div>
         <div class="kv"><span>全天投影</span><b id="vProj">—</b></div>
+        <div class="kv"><span>5日平均全天量</span><b id="vAvg5">—</b></div>
+        <div class="kv"><span>今日 / 5日均</span><b id="vRatio5">—</b></div>
       </div>
       <div class="col">
         <div class="kv"><span>近5分钟 / 前15分钟</span><b id="vSlope">—</b></div>
@@ -1283,6 +1285,19 @@ function volCompare(today, yest, field){
     fallback: isFallback, fallbackLabel: isFallback ? '今日/昨日全天（日K）' : null
   };
 }
+// 从腾讯日K计算近5日平均全天量/额（不含今日）。field: 'vol' 取成交量(股)，'amt' 取成交额(元，用开收均价近似)。
+function calcAvg5(daily, field){
+  if(!daily || daily.length < 2) return null;
+  var sum = 0, n = 0;
+  for(var i = daily.length - 2; i >= Math.max(0, daily.length - 7); i--){
+    var d = daily[i];
+    var v = d.vol || 0;
+    if(field === 'amt') v = v * ((d.open || d.close || 0) + (d.close || d.open || 0)) / 2;
+    sum += v; n++;
+  }
+  if(n <= 0) return null;
+  return { avg: sum / n, n: n, today: daily[daily.length - 1] };
+}
 // 量能斜率：近5分钟均量 / 前15分钟均量
 function volSlope(today){
   var n = today.length;
@@ -1970,6 +1985,17 @@ function renderIndex(){
       ' <span class="pill ' + (r>=CFG.VOL_UP?'ok':(r<=CFG.VOL_DN?'warn':'na')) + '">' + (r>=CFG.VOL_UP?'放量':(r<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
   }
   $('vProj').textContent = isFinite(vc.projVol) ? _vf(vc.projVol) + '（' + (vc.projRatio*100).toFixed(0) + '% of 昨）' : '—';
+  // 5日平均全天量/额：与今日累计对比，给用户一个跨交易日的量能锚。
+  var a5 = I.avg5;
+  if(a5 && isFinite(a5.avg) && a5.avg > 0){
+    $('vAvg5').textContent = _vf(a5.avg) + '（近' + a5.n + '日）';
+    var r5 = vc.curVol / a5.avg;
+    $('vRatio5').innerHTML = '<span class="' + (isFinite(r5) ? cls(r5-1) : 'flat') + '">' + (isFinite(r5) ? r5.toFixed(2) + 'x' : '—') + '</span>' +
+      ' <span class="pill ' + (r5>=CFG.VOL_UP?'ok':(r5<=CFG.VOL_DN?'warn':'na')) + '">' + (r5>=CFG.VOL_UP?'放量':(r5<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
+  } else {
+    $('vAvg5').textContent = '—';
+    $('vRatio5').innerHTML = '— <span class="pill na">日K不足</span>';
+  }
 
   var sl = I.slope;
   $('vSlope').innerHTML = isFinite(sl.k) ? '<span class="' + (sl.k>=1?'up':'down') + '">' + sl.k.toFixed(2) + '×</span>' : '—';
@@ -2733,6 +2759,7 @@ function loadIndex(){
       var daily = rs2[0];
       var dj = rs2[1];                          // 温度计 data.json 快照（margin 仅 T-1 来源）
       I.daily = daily;
+      I.avg5 = calcAvg5(daily, STATE.metric);   // 近5日平均全天量/额，用于与今日累计对比
       I.thermo = mergeThermo(dj, null);         // 先用快照兜底建环境(sector/basis 缺则 na)——首屏不等东财广度
       var cur = I.snap ? I.snap.price : tr.today[tr.today.length-1].close;
       if(!isFinite(I.preClose) && daily && daily.length >= 2) I.preClose = daily[daily.length-2].close;
@@ -2868,6 +2895,7 @@ function recomputeMetric(){
   var vc = volCompare(I.trends.today, I.trends.yest, STATE.metric);
   I.yestAvail = !vc.unavail;
   I.vc = vc;
+  I.avg5 = calcAvg5(I.daily, STATE.metric);   // 口径切换时重算5日均
   var ctx = makeCtx(I, cur);
   I.ruleOut = buildTRules(ctx);
   I.sum = summarizeT(I.ruleOut, ctx);
@@ -2958,7 +2986,8 @@ function rzGet(path, parser, t){
   return go();
 }
 // 大盘：上证现价/涨跌 + 量能比
-// 主口径 = 同期量比（对齐昨日同一分钟，盘中才有意义）；拿不到昨日时降级全天投影并诚实标注为「量能 Xx」，绝不冒充放量/缩量。
+// 主口径 = 今日累计成交额 ÷ 近5日全天平均成交额（判读口径一致）。
+// 同步保留「今/昨日同期量比」作为辅助信息，但 volTag 优先展示5日均对比及具体金额。
 function rzMarket(force){
   var now = Date.now();
   if(!force && RZ.board.data && now - RZ.board.ts < 60000){
@@ -2969,35 +2998,40 @@ function rzMarket(force){
   var p = rzGet('/api/qt/stock/get?secid=1.000001&fields=f43,f57,f58,f60,f86&fltt=2&invt=2',
     function(d){ var v = d && d.data; if(!v || !v.f60) throw new Error('EMPTY');
       return { px: v.f43, pct: (v.f43 - v.f60) / v.f60 * 100, qt: (v.f86 > 0 ? v.f86 * 1000 : 0) }; }, 8000);
-  var q = apiTrends('1.000001').then(function(tr){
+  // 辅助：今/昨日同期量比（对齐同一分钟）
+  var qSame = apiTrends('1.000001').then(function(tr){
     if(tr && tr.today && tr.today.length && tr.yest && tr.yest.length){
-      var vc = volCompare(tr.today, tr.yest, 'amt');   // 同期量比（今日累计 ÷ 昨日同期累计）
-      if(isFinite(vc.ratio)) return { vr: vc.ratio, proj: false };
+      var vc = volCompare(tr.today, tr.yest, 'amt');
+      if(isFinite(vc.ratio)) return { vr: vc.ratio, curAmt: vc.curVol };
     }
-    return null;   // 无昨日同期 → 走下方兜底
-  }).catch(function(){ return null; }).then(function(r){
-    if(r) return r;
-    // 兜底：腾讯日K 全天投影（今日累计量 ÷ 近5日全天均量），仅作降级、标注避免误解
-    return jsonpVar('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sh000001,day,,,6,', 9000).then(function(dk){
-      var raw = dk && dk.data && dk.data.sh000001;
-      var arr = (raw && (raw.day || raw.qfqday)) || null;
-      if(!arr || arr.length < 3) return { vr: NaN, proj: true };
-      var vol = function(x){ return Array.isArray(x) ? (+x[5] || 0) : 0; };
-      var cur = vol(arr[arr.length - 1]), sum = 0;
-      for(var i = 0; i < arr.length - 1; i++) sum += vol(arr[i]);
-      var vr = (sum > 0 && cur > 0) ? cur / (sum / (arr.length - 1)) : NaN;
-      return { vr: vr, proj: true };
-    }).catch(function(){ return { vr: NaN, proj: true }; });
-  });
-  return Promise.all([p, q]).then(function(r){
-    var m = r[0]; var res = r[1] || { vr: NaN, proj: true }; m.vr = res.vr;
-    // 阈值必须与全站一致（CFG.VOL_UP=1.20 / VOL_DN=0.80）。
-    // 原此处硬编码 1.15/0.85，与个股量能区/标的量能/策略引擎不一致，
-    // 会出现「大市标缩量 0.82x、标的标平量 0.82x」的同数字不同标签。
-    // 降级为全天投影时明确标出口径，避免与「同期量比」混淆。
-    m.volTag = (!isFinite(m.vr) || m.vr <= 0) ? '' :
-      (res.proj ? '量能 ' + m.vr.toFixed(2) + 'x（全天投影·5日均）' :
-       (m.vr >= CFG.VOL_UP ? '放量 ' + m.vr.toFixed(2) + 'x' : (m.vr <= CFG.VOL_DN ? '缩量 ' + m.vr.toFixed(2) + 'x' : '平量 ' + m.vr.toFixed(2) + 'x')));
+    return null;
+  }).catch(function(){ return null; });
+  // 主口径：腾讯日K 计算今日累计 ÷ 近5日全天均额
+  var q5 = jsonpVar('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sh000001,day,,,10,', 9000).then(function(dk){
+    var raw = dk && dk.data && dk.data.sh000001;
+    var arr = (raw && (raw.day || raw.qfqday)) || null;
+    if(!arr || arr.length < 3) return null;
+    var amt = function(x){ return Array.isArray(x) ? ((+x[5] || 0) * ((+x[1] || 0) + (+x[2] || 0)) / 2) : 0; };
+    var cur = amt(arr[arr.length - 1]), sum = 0, n = 0;
+    for(var i = arr.length - 2; i >= Math.max(0, arr.length - 6); i--){ sum += amt(arr[i]); n++; }
+    return { curAmt: cur, avg5Amt: n > 0 ? sum / n : NaN, n5: n };
+  }).catch(function(){ return null; });
+  return Promise.all([p, qSame, q5]).then(function(r){
+    var m = r[0], same = r[1] || null, avg5 = r[2] || null;
+    // 优先用 5日平均 作主口径（与页面判读口径一致），并把具体金额写出来。
+    if(avg5 && avg5.n5 > 0 && avg5.avg5Amt > 0 && avg5.curAmt > 0){
+      m.vr = avg5.curAmt / avg5.avg5Amt;
+      m.curAmt = avg5.curAmt; m.avg5Amt = avg5.avg5Amt; m.avg5N = avg5.n5;
+      var label5 = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
+      m.volTag = label5 + ' ' + m.vr.toFixed(2) + 'x（今' + amtTxt(avg5.curAmt) + ' / 5日均' + amtTxt(avg5.avg5Amt) + '）';
+    } else if(same && isFinite(same.vr)){
+      // 5日数据拿不到时降级为同期量比，并诚实标注
+      m.vr = same.vr; m.curAmt = same.curAmt || NaN;
+      var label = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
+      m.volTag = label + ' ' + m.vr.toFixed(2) + 'x（今/昨日同期，5日均暂不可用）';
+    } else {
+      m.vr = NaN; m.volTag = '';
+    }
     m.ts = Date.now(); m.stale = false;
     RZ.board = { ts: m.ts, data: m };
     return m;
