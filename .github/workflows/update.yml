@@ -62,7 +62,45 @@ jobs:
       - name: 计算市场温度计
         run: python3 thermo.py
 
+      # 【起飞前检查补上的闸门】宁可保留上一版，也不让残缺数据覆盖掉好数据。
+      # 2026-09-08 事故复盘：本仓库曾有两个 workflow 同时写 data.json，
+      # 导致 push 被拒 + 数据文件不一致。故此处在提交前先验证产出完整性。
+      - name: 校验数据完整性
+        id: check
+        run: |
+          python3 - <<'PY'
+          import json, datetime, os, sys
+          ok, why = True, []
+          try:
+              d = json.load(open('data.json', encoding='utf-8'))
+          except Exception as e:
+              print('data.json 解析失败: %s' % e)
+              sys.exit('FAIL')
+
+          today = (datetime.datetime.utcnow() + datetime.timedelta(hours=8)).strftime('%Y-%m-%d')
+          gen = d.get('generated_at', '')
+          if not gen.startswith(today):
+              ok = False; why.append('generated_at=%s 不是今天(%s)' % (gen, today))
+          if not (d.get('margin') or {}).get('total'):
+              ok = False; why.append('两融 margin 缺失')
+          if not (d.get('capital_read') or {}).get('regime'):
+              ok = False; why.append('capital_read.regime 缺失')
+          if not (d.get('flow') or {}).get('main_net') and (d.get('flow') or {}).get('main_net') != 0:
+              ok = False; why.append('flow.main_net 缺失')
+          if not (d.get('indices') or []):
+              ok = False; why.append('indices 缺失')
+          # 情绪分为 0 说明取数链条断了，明显异常
+          if not (d.get('emotion') or {}).get('score'):
+              ok = False; why.append('emotion.score 缺失/为0')
+
+          print('校验结果:', 'PASS' if ok else 'FAIL -> ' + '; '.join(why))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('ok=%s\n' % ('true' if ok else 'false'))
+              f.write('why=%s\n' % ('; '.join(why) or 'ok'))
+          PY
+
       - name: 提交 data.json / data.js / timeline
+        if: steps.check.outputs.ok == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -71,6 +109,23 @@ jobs:
           if git diff --cached --quiet; then
             echo "数据无变化，跳过提交"
           else
-            git commit -m "chore: 自动更新温度计数据 $(date +'%Y-%m-%d %H:%M')"
-            git push
+            git commit -m "chore: 自动更新温度计数据 $(TZ=Asia/Shanghai date +'%Y-%m-%d %H:%M')"
+            # 【关键加固】提交后先 pull --rebase 再 push，最多重试 3 次。
+            # 场景：本地手工推送 / 另一 workflow 并发写入时，远端已领先，
+            # 直接 push 会被 rejected(fetch first)，整轮数据白跑。
+            for i in 1 2 3; do
+              git pull --rebase --no-edit origin main || { echo "rebase 失败，第 $i 次"; sleep 5; continue; }
+              if git push origin main; then
+                echo "push 成功（第 $i 次尝试）"; exit 0
+              fi
+              echo "push 被拒，第 $i 次重试..."; sleep 8
+            done
+            echo "::error::push 连续 3 次失败，本轮数据未入库（保留上一版）"
+            exit 1
           fi
+
+      - name: 校验失败时保留旧数据
+        if: steps.check.outputs.ok != 'true'
+        run: |
+          echo "::warning::本轮数据未通过校验，已保留上一版：${{ steps.check.outputs.why }}"
+          git checkout -- data.json data.js timeline.json timeline.js || true
