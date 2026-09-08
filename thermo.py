@@ -1343,12 +1343,110 @@ def calc_capital_read(cfg, indices, breadth, emotion, liquidity, margin, sector,
     }
 
 
+# ---------------------------------------------------------------- 明日应对（两段式）
+def calc_next_day(cfg, capital_read, emotion, liquidity, flow, sector, ratio,
+                  futures_basis, mb, breadth):
+    """「明日应对」两段式。
+    A 段（今晚就能定）：基调 / 仓位上限 / 持仓处理 / 观察清单，全部由今日收盘数据推导。
+        逻辑依据：A股 T+1，明日开盘要执行的基调本就由今日收盘状态决定，不需要明日数据。
+    B 段（明日盘中待确认）：只给 if-then 条件式预案，每项附今日实际值做锚点。
+        铁律：B 段绝不预测明日涨跌，只写「明日看到什么 → 做什么」。
+    """
+    CR = cfg.get("capital_read") or {}
+    ND = CR.get("next_day") or {}
+    if not capital_read:
+        return None
+    regime = capital_read.get("regime")
+    conf = capital_read.get("confidence", 0)
+
+    # ---- A 段 ①基调：regime → 明日该怎么打 ----
+    tone = (ND.get("tone") or {}).get(regime, "维持现状，等信号")
+
+    # ---- A 段 ②仓位上限：regime 基准 ± 情绪/流动性调整 ----
+    base_cap = int((ND.get("position_cap") or {}).get(regime, 5))
+    adj = ND.get("cap_adjust") or {}
+    emo_th = float(adj.get("emotion_euphoria", 70))
+    emo_d = int(adj.get("emotion_euphoria_delta", -1))
+    liq_th = float(adj.get("liquidity_high", 70))
+    liq_d = int(adj.get("liquidity_high_delta", -1))
+    es = (emotion or {}).get("score")
+    lr = (liquidity or {}).get("risk")
+
+    cap = base_cap
+    cap_ev = ["今日 regime「%s」（置信 %d%%）→ 基准上限 %d 成" % (regime, conf, base_cap)]
+    if es is not None and es >= emo_th:
+        cap += emo_d
+        cap_ev.append("情绪 %.0f分（≥%.0f分 偏狂热）→ 仓位上限 %+d 成" % (es, emo_th, emo_d))
+    if lr is not None and lr >= liq_th:
+        cap += liq_d
+        cap_ev.append("流动性风险 %.0f分（≥%.0f分 高风险）→ 仓位上限 %+d 成" % (lr, liq_th, liq_d))
+    cap = max(int(adj.get("min", 1)), min(int(adj.get("max", 9)), cap))
+    if len(cap_ev) == 1:
+        cap_ev.append("情绪 %s、流动性风险 %s，均未触发调整" % (
+            ("%.0f分" % es) if es is not None else "—",
+            ("%.0f分" % lr) if lr is not None else "—"))
+
+    # ---- A 段 ③持仓处理：沿用 regime 的 actions（本就是"下一步做什么"）----
+    hold = list(capital_read.get("actions") or [])
+
+    # ---- A 段 ④观察清单：今日真流入的板块，必须标"单日流入≠趋势" ----
+    watch = []
+    for s in ((sector or {}).get("top") or [])[:int(ND.get("watch_n", 3))]:
+        nm, fl = s.get("name"), s.get("flow")
+        if nm is None or fl is None:
+            continue
+        watch.append({
+            "name": nm,
+            "flow": round(float(fl), 2),
+            "pct": s.get("pct"),
+            "note": "今日净流入 +%.1f亿；明日看能否延续（单日流入≠趋势）" % float(fl),
+        })
+
+    # ---- B 段：明日盘中待确认（if-then，附今日锚点）----
+    def _f(v, fmt="%.1f"):
+        return (fmt % v) if isinstance(v, (int, float)) else "—"
+
+    anchors = {
+        "main_net": "今日主力净流入 %s亿" % _f((flow or {}).get("main_net")),
+        "volume_ratio": "今日量能比 %s" % _f(ratio, "%.2f"),
+        "basis": "今日期指基差 %s%%（%s）" % (
+            _f((futures_basis or {}).get("avg_basis_pct"), "%.2f"),
+            (futures_basis or {}).get("stance", "—")),
+        "limit_up": "今日涨停 %s家" % _f((mb or {}).get("limit_up"), "%.0f"),
+        "breadth": "今日成交额宽度 %s%%" % _f((breadth or {}).get("width"), "%.1f"),
+    }
+    confirms = []
+    for c in (ND.get("confirms") or []):
+        confirms.append({
+            "metric": c.get("metric"),
+            "anchor": anchors.get(c.get("key"), "今日数据缺失"),
+            "good": c.get("good"),
+            "then_good": c.get("then_good"),
+            "then_bad": c.get("then_bad"),
+            "status": "待确认",
+        })
+
+    log("   [明日应对] regime=%s → 基调「%s」/ 仓位上限 %d 成 / 观察 %d 个板块 / 待确认 %d 项"
+        % (regime, tone, cap, len(watch), len(confirms)))
+    return {
+        "regime": regime,
+        "confidence": conf,
+        "tone": tone,
+        "position_cap": {"label": "%d 成以内" % cap, "score": cap, "evidence": cap_ev},
+        "hold": hold,
+        "watch": watch,
+        "confirms": confirms,
+        "scope_note": "A 段基于今日收盘数据，现在就能定；B 段需明日盘中数据验证，只给条件式预案、不预测涨跌。非投资建议。",
+    }
+
+
 # ---------------------------------------------------------------- 数据时效标签
 def build_freshness():
     # 时效分类：实时=盘中有效；T-1=前一交易日收盘(两融)；unset=依赖当日K线、收盘才定论
     return {
         "capital_read":  {"label": "盘中未定·收盘定论", "cls": "unset"},
         "judgement":     {"label": "盘中未定·收盘定论", "cls": "unset"},
+        "next_day":      {"label": "收盘定论·明日预案", "cls": "unset"},
         "indices":       {"label": "实时", "cls": "live"},
         "breadth":       {"label": "实时", "cls": "live"},
         "emotion":       {"label": "实时", "cls": "live"},
@@ -1565,6 +1663,16 @@ def main():
     except Exception as e:
         warn("综合研判失败: %s" % str(e)[:90])
         data["judgement"] = None
+
+    # 明日应对放最后：依赖 capital_read + 各维度今日值做锚点
+    try:
+        data["next_day"] = calc_next_day(
+            cfg, data.get("capital_read"), data.get("emotion"), data.get("liquidity"),
+            flow, data.get("sector"), data.get("volume_ratio"),
+            data.get("futures_basis"), mb, data.get("breadth"))
+    except Exception as e:
+        warn("明日应对失败: %s" % str(e)[:90])
+        data["next_day"] = None
 
     data["freshness"] = build_freshness()
     data["elapsed"] = round(time.time() - t0, 1)
