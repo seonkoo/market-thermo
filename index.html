@@ -196,14 +196,39 @@ function applyTheme(t) {
   });
 })();
 
-/* ---------- 数据加载 ---------- */
+/* ---------- 数据加载 ----------
+   快照（data.json / timeline.json）由 GitHub Actions 在云端定时重算并推回仓库。
+   页面按顺序尝试：jsDelivr(国内可达) → GitHub Pages → 部署目录内的本地副本。
+   这样即使没重新部署，页面刷新也能拿到 Actions 产出的最新快照；
+   三个源都不可达时才回退本地，此时「新鲜度角标」会红色警示，不会静默误导。   */
+const SNAP_SOURCES = [
+  "https://cdn.jsdelivr.net/gh/seonkoo/market-thermo@main/",
+  "https://seonkoo.github.io/market-thermo/"
+];
+let SNAP_SRC = "本地副本";          // 实际生效的快照来源，展示在页头
+async function _fetchJSON(name) {
+  const t = Date.now();
+  for (const base of SNAP_SOURCES) {
+    try {
+      const r = await fetch(base + name + "?t=" + t, { cache: "no-store" });
+      if (!r.ok) continue;
+      const j = await r.json();
+      if (j && typeof j === "object") {
+        SNAP_SRC = base.indexOf("jsdelivr") >= 0 ? "云端(jsDelivr)" : "云端(GitHub Pages)";
+        return j;
+      }
+    } catch (e) { /* 换下一个源 */ }
+  }
+  const r2 = await fetch(name + "?t=" + t, { cache: "no-store" });
+  if (!r2.ok) throw new Error("fetch json failed");
+  SNAP_SRC = "本地副本";
+  return await r2.json();
+}
 async function loadData() {
   try {
-    const r = await fetch("data.json", { cache: "no-store" });
-    if (r.ok) return await r.json();
-    throw new Error("fetch json failed");
+    return await _fetchJSON("data.json");
   } catch (e) {
-    if (window.THERMO_DATA) return window.THERMO_DATA;
+    if (window.THERMO_DATA) { SNAP_SRC = "内嵌副本"; return window.THERMO_DATA; }
     throw e;
   }
 }
@@ -211,10 +236,8 @@ async function loadData() {
 /* 今日状态轨迹（timeline.json：Python 状态机在盘中的 regime 采样段） */
 let TIMELINE = null;
 async function loadTimeline() {
-  try {
-    const r = await fetch("timeline.json", { cache: "no-store" });
-    if (r.ok) { TIMELINE = await r.json(); return; }
-  } catch (e) { /* fallthrough */ }
+  try { TIMELINE = await _fetchJSON("timeline.json"); return; }
+  catch (e) { /* fallthrough */ }
   if (window.THERMO_TIMELINE) TIMELINE = window.THERMO_TIMELINE;
 }
 
@@ -796,17 +819,35 @@ function render(d) {
     const t = d._rt_ts;
     metaEl.innerHTML =
       `⚡ 实时 ${p2(t.getHours())}:${p2(t.getMinutes())}:${p2(t.getSeconds())}` +
-      ` · ${d.scope_note || SCOPE_NOTE} · 快照基线 ${genAt} ${freshBadge}`;
+      ` · ${d.scope_note || SCOPE_NOTE} · 快照基线 ${genAt} ${freshBadge}` +
+      ` · 快照源 ${SNAP_SRC}`;
   } else {
     metaEl.innerHTML =
-      `${genAt} · ${d.scope_note || SCOPE_NOTE} · 耗时 ${d.elapsed||"?"}s ${freshBadge}`;
+      `${genAt} · ${d.scope_note || SCOPE_NOTE} · 耗时 ${d.elapsed||"?"}s ${freshBadge}` +
+      ` · 快照源 ${SNAP_SRC}`;
   }
   const fw = document.getElementById("footnote");
   let fwHtml = "";
   if (!isFresh) {
     fwHtml += `<div class="warn-box">⚠ <b>快照数据不是今天的</b>：data.json 生成于 <b>${genAt || "未知"}</b>，` +
       `今天是 ${todayDay}。主力视角 / 仓位 / 风格 / 主线等结论基于旧快照，<b>不可用于今日实盘判读</b>。` +
-      `请运行 <b>thermo.py</b> 重新生成 data.json 后刷新页面。</div>`;
+      `快照由 GitHub Actions 在交易日 9:30 / 11:30 / 13:30 / 15:30 自动重算（云端，不需你电脑开机）；` +
+      `若长时间未更新，可到仓库 <b>Actions → 市场温度计数据更新 → Run workflow</b> 手动触发，或本地运行 <b>thermo.py</b>。</div>`;
+  } else {
+    // 是今天 ≠ 够新鲜：盘中快照超过 60 分钟，主力视角可能已经翻转，必须提示
+    const _gm = genAt.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    if (_gm) {
+      const gts = new Date(+_gm[1], +_gm[2] - 1, +_gm[3], +_gm[4], +_gm[5]).getTime();
+      const mins = Math.floor((Date.now() - gts) / 60000);
+      const hh = _nd.getHours() * 60 + _nd.getMinutes();
+      const inSession = _nd.getDay() >= 1 && _nd.getDay() <= 5 &&
+                        ((hh >= 570 && hh <= 690) || (hh >= 780 && hh <= 900));
+      if (inSession && mins > 60) {
+        fwHtml += `<div class="warn-box">⚠ <b>快照已 ${mins} 分钟</b>（生成于 ${genAt}）。` +
+          `今天是交易日且当前处于盘中，主力视角 / 仓位建议可能已经变化，建议以上方 <b>⚡实时</b> 的行情数字为准，` +
+          `或点右上角刷新等待下一轮自动更新。</div>`;
+      }
+    }
   }
   if (d.warnings && d.warnings.length) {
     fwHtml += `<div class="warn-box">⚠ 本次计算提示：<br>` +
