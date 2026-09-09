@@ -184,6 +184,18 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .pzt-two .empty{color:var(--txt3);padding:8px 2px}
 .pzt-b{color:var(--txt3);opacity:.5;cursor:pointer;padding:0 4px}
 .pzt-b:hover{opacity:1;color:var(--down)}
+
+/* 顶部常驻概览条 */
+.topbar{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;
+  background:rgba(255,255,255,.94);backdrop-filter:saturate(150%) blur(6px);border:1px solid var(--line);
+  border-radius:12px;padding:7px 12px;margin:0 0 12px;font-size:12px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+.topbar .tb-item{display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap}
+.topbar .tb-k{color:var(--txt3);font-weight:600}
+.topbar .tb-v{font-variant-numeric:tabular-nums;font-weight:700}
+.topbar .tb-sep{width:1px;height:14px;background:var(--line)}
+.topbar .tb-meta{margin-left:auto;color:var(--txt3);font-size:11px;white-space:nowrap}
+.topbar .up{color:var(--up)}.topbar .down{color:var(--down)}.topbar .flat{color:var(--txt2)}
+.topbar .tb-load{color:var(--txt3)}
 </style>
 </head>
 <body>
@@ -192,6 +204,9 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
   <h1>量能做T雷达</h1>
   <div class="sub">上证指数实时量能（成交额/成交量口径可切）· 做T环境判定 · 个股量价关系识别　|　浏览器直连 东方财富(主) + 腾讯(兜底)，GitHub Pages 托管，随时可开</div>
   <div style="margin:-6px 0 10px"><a href="index.html" style="color:#4da3ff;text-decoration:none">📊 回到市场温度计（环境层）</a></div>
+
+  <!-- 顶部常驻概览条：大市 / 板块 / 标的 一眼速览，滚动时常驻 -->
+  <div class="topbar" id="rzTopBar"><span class="tb-load">加载中…</span></div>
 
   <div class="card">
     <div class="row" style="align-items:flex-end">
@@ -3034,6 +3049,7 @@ function refreshAll(){
     $('lastTime').textContent = '更新于 ' + now.toLocaleTimeString('zh-CN', {hour12:false}) + '（耗时 ' + ((Date.now()-t0)/1000).toFixed(1) + 's）｜源:' + srcTxt + yTxt;
     setStatus('实时', 'ok');
     if(STATE.idx && STATE.idx.breadth) renderBreadth(STATE.idx.breadth);  // ①-b 市场广度（每轮刷新）
+    if(window.rzOverview) rzOverview();   // 顶部概览条：大市速览
     loadSector();   // ② 板块资金流：每轮用东财实时渲染，失败降级温度计快照
     if(STATE.stock) refreshStockPrice();
   }).catch(function(e){
@@ -3138,6 +3154,8 @@ var RZ = {
   idxFlow: null, idxAlert: null, idxTs: 0,  // 上证主力净流入曲线 + 哨兵
   timer: null, gen: 0
 };
+// 盘中信息台板块广度（净流入/净流出板块数），由 pzt refresh 写入，供概览条读取
+var PZT = { nin: 0, nout: 0, ts: 0 };
 function rzLoad(){ try{ RZ.list = JSON.parse(localStorage.getItem('rz_watch') || '[]'); }catch(e){ RZ.list = []; } if(!Array.isArray(RZ.list)) RZ.list = []; }
 function rzSave(){ try{ localStorage.setItem('rz_watch', JSON.stringify(RZ.list)); }catch(e){} }
 // 多主机 jsonp 轮询（东财限流按主机独立）
@@ -3963,6 +3981,29 @@ function rzRender(){
     else if(RZ.list.length){ tag.textContent = RZ.list.length + ' 只观察'; tag.className = 'pill na'; }
     else { tag.textContent = '空'; tag.className = 'pill na'; }
   }
+  rzOverview();
+}
+// 顶部常驻概览条：大市 / 板块 / 标的 一眼速览（读取全局 STATE / PZT / RZ）
+function rzOverview(){
+  var el = document.getElementById('rzTopBar');
+  if(!el) return;
+  // 大市：上证指数涨跌
+  var mk = STATE.idx, mkPct = (mk && isFinite(mk.pct)) ? mk.pct : null;
+  var mkCls = mkPct === null ? 'flat' : (mkPct > 0 ? 'up' : (mkPct < 0 ? 'down' : 'flat'));
+  var mkTxt = mkPct === null ? '—' : pctS(mkPct);
+  // 板块：净流入/净流出板块数
+  var bIn = PZT.nin, bOut = PZT.nout, bTxt = (PZT.ts ? (bIn + ' 流入 / ' + bOut + ' 流出') : '—');
+  // 标的：自选共振 / 总数
+  var tot = RZ.list.length, res = 0;
+  RZ.list.forEach(function(c){ var o = RZ.state[c]; if(o && o.v && o.v.cls === 'good') res++; });
+  var itTxt = tot ? (res + '/' + tot + ' 共振') : '—';
+  el.innerHTML =
+    '<span class="tb-item"><span class="tb-k">大市</span><span class="tb-v ' + mkCls + '">' + mkTxt + '</span></span>' +
+    '<span class="tb-sep"></span>' +
+    '<span class="tb-item"><span class="tb-k">板块</span><span class="tb-v">' + bTxt + '</span></span>' +
+    '<span class="tb-sep"></span>' +
+    '<span class="tb-item"><span class="tb-k">标的</span><span class="tb-v">' + itTxt + '</span></span>' +
+    '<span class="tb-meta" id="rzTopMeta">更新 ' + new Date().toLocaleTimeString('zh-CN', {hour12:false}) + '</span>';
 }
 function rzOne(code, force){
   var o = RZ.state[code] = RZ.state[code] || {};
@@ -4279,6 +4320,8 @@ rzStart();
         document.getElementById("pztCardAnomMeta").textContent=tradingNow(now)?("急流入 "+ain.length+" · 急流出 "+aout.length):"盘中才计";
         document.getElementById("pztCardBreadth").textContent=nin+" / "+nout;
         document.getElementById("pztCardBreadthMeta").textContent="净流入 "+nin+" · 净流出 "+nout+"（共 "+(nin+nout)+" 板块）";
+        PZT.nin = nin; PZT.nout = nout; PZT.ts = Date.now();
+        if(window.rzOverview) rzOverview();
         var st=statusText(now);
         document.getElementById("pztStatus").textContent=st;
         document.getElementById("pztStatus").className="pill "+(tradingNow(now)?"ok":"na");
