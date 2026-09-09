@@ -190,6 +190,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
   background:rgba(255,255,255,.94);backdrop-filter:saturate(150%) blur(6px);border:1px solid var(--line);
   border-radius:12px;padding:7px 12px;margin:0 0 12px;font-size:12px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
 .topbar .tb-item{display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap}
+.topbar .tb-item[data-jump]{cursor:pointer;border-radius:6px;padding:1px 4px;margin:-1px -4px;transition:background .12s}
+.topbar .tb-item[data-jump]:hover{background:rgba(77,163,255,.12)}
 .topbar .tb-k{color:var(--txt3);font-weight:600}
 .topbar .tb-v{font-variant-numeric:tabular-nums;font-weight:700}
 .topbar .tb-sep{width:1px;height:14px;background:var(--line)}
@@ -283,7 +285,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
   </div>
 
   <!-- 大盘 -->
-  <div class="card">
+  <div class="card" id="mktRoot">
     <h2>① 大盘量能 <span class="tag">上证指数 000001</span> <span id="mktTag" class="pill na">—</span></h2>
     <div class="row" style="align-items:center;margin:0 0 6px">
       <div class="seg" id="metSeg">
@@ -3987,6 +3989,9 @@ function rzRender(){
 function rzOverview(){
   var el = document.getElementById('rzTopBar');
   if(!el) return;
+  if(!el.dataset.bind){ el.dataset.bind = '1';
+    el.addEventListener('click', function(e){ var t = e.target.closest('[data-jump]'); if(!t) return;
+      var tar = document.getElementById(t.getAttribute('data-jump')); if(tar) tar.scrollIntoView({behavior:'smooth', block:'start'}); }); }
   // 大市：上证指数涨跌 + 量能比（今日累计 ÷ 昨日同期）
   var mk = STATE.idx, mkPct = (mk && isFinite(mk.pct)) ? mk.pct : null;
   var mkCls = mkPct === null ? 'flat' : (mkPct > 0 ? 'up' : (mkPct < 0 ? 'down' : 'flat'));
@@ -4001,11 +4006,11 @@ function rzOverview(){
   RZ.list.forEach(function(c){ var o = RZ.state[c]; if(o && o.v && o.v.cls === 'good') res++; });
   var itTxt = tot ? (res + '/' + tot + ' 共振') : '—';
   el.innerHTML =
-    '<span class="tb-item"><span class="tb-k">大市</span><span class="tb-v ' + mkCls + '">' + mkTxt + '</span><span class="tb-v ' + vrCls + '">' + vrTxt + '</span></span>' +
+    '<span class="tb-item" data-jump="mktRoot"><span class="tb-k">大市</span><span class="tb-v ' + mkCls + '">' + mkTxt + '</span><span class="tb-v ' + vrCls + '">' + vrTxt + '</span></span>' +
     '<span class="tb-sep"></span>' +
-    '<span class="tb-item"><span class="tb-k">板块</span><span class="tb-v">' + bTxt + '</span></span>' +
+    '<span class="tb-item" data-jump="pztRoot"><span class="tb-k">板块</span><span class="tb-v">' + bTxt + '</span></span>' +
     '<span class="tb-sep"></span>' +
-    '<span class="tb-item"><span class="tb-k">标的</span><span class="tb-v">' + itTxt + '</span></span>' +
+    '<span class="tb-item" data-jump="rzRoot"><span class="tb-k">标的</span><span class="tb-v">' + itTxt + '</span></span>' +
     '<span class="tb-meta" id="rzTopMeta">更新 ' + new Date().toLocaleTimeString('zh-CN', {hour12:false}) + '</span>';
 }
 function rzOne(code, force){
