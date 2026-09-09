@@ -22,7 +22,7 @@ body{margin:0;background:var(--bg);color:var(--txt);
 .wrap{max-width:1080px;margin:0 auto}
 h1{font-size:19px;margin:0 0 2px}
 .sub{color:var(--txt3);font-size:12px;margin-bottom:12px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px}
 .card h2{font-size:14px;margin:0 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .card h2 .tag{font-size:11px;font-weight:400;color:var(--txt3);border:1px solid var(--line);border-radius:20px;padding:1px 8px}
 .row{display:flex;gap:12px;flex-wrap:wrap}
@@ -109,9 +109,9 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzage{font-size:10px;color:var(--txt3);margin-left:4px;white-space:nowrap}
 .rzage.warn{color:#b7791f}
 .rzage.bad{color:var(--down);font-weight:600}
-.rzchart{position:relative;margin:4px 0 2px;border:1px solid var(--line2);border-radius:12px;background:#fff;padding:6px 8px 4px;overflow:visible}
+.rzchart{position:relative;margin:4px 0 2px;border:1px solid var(--line2);border-radius:12px;background:#fff;padding:3px 4px 2px;overflow:visible}
 .rzchart svg{width:100%;height:auto;display:block}
-.rzchartcap{font-size:10.5px;color:#aeb6c1;text-align:center;padding-top:2px}
+.rzchartcap{font-size:11px;color:#aeb6c1;text-align:center;padding-top:3px;padding-bottom:2px}
 .rzover{position:absolute;left:7%;right:7.67%;top:0;bottom:0;cursor:crosshair;touch-action:none;z-index:3}
 .rzcross{position:absolute;top:0;bottom:0;width:1px;background:rgba(70,80,95,.55);display:none;pointer-events:none;z-index:2}
 .rzdot{position:absolute;width:7px;height:7px;border-radius:50%;border:1.5px solid #fff;display:none;pointer-events:none;transform:translate(-50%,-50%);z-index:4;box-shadow:0 1px 2px rgba(0,0,0,.25)}
@@ -2164,7 +2164,7 @@ function renderIndex(){
   $('mktTag').textContent = mp.label;
   $('mktTag').className = 'pill ' + (mp.open ? 'ok' : 'na');
 
-  drawTrend('ixChart', I.trends.today, I.trends.yest, preClose, {h: 340, dec: 2});
+  drawTrend('ixChart', I.trends.today, I.trends.yest, preClose, {h: 420, dec: 2});
   drawKline('ixKline', I.daily || [], {show: 90, h: 300, meta: 'ixKMeta'});
 }
 
@@ -2232,7 +2232,7 @@ function renderStock(){
   $('sBox').textContent = boxTxt(lv);
   $('sCorr').textContent = isFinite(S.corr) ? S.corr.toFixed(2) : '—';
 
-  drawTrend('sChart', tr.today, tr.yest, preClose, {h: 320, dec: 2});
+  drawTrend('sChart', tr.today, tr.yest, preClose, {h: 380, dec: 2});
 
   // 形态 chips
   var chips = '';
@@ -3445,7 +3445,7 @@ function renderRzIndexTop(){
 // a = analyzeFlow() 结果；传入后在曲线上标出峰值与翻空点
 function rzFlowSVG(ser, flowYi, a){
   if(!ser || ser.length < 2) return '';
-  var W = 600, H = 128, ML = 34, MR = 8, MT = 8, MB = 16, pw = W - ML - MR, ph = H - MT - MB;
+  var W = 600, H = 160, ML = 34, MR = 8, MT = 8, MB = 16, pw = W - ML - MR, ph = H - MT - MB;
   var vals = ser.map(function(s){ return s[1]; });
   var vmin = Math.min.apply(null, vals), vmax = Math.max.apply(null, vals);
   if(vmax - vmin < 0.01){ vmin -= 0.5; vmax += 0.5; }
@@ -3493,7 +3493,7 @@ function clockMin(tm){ if(!isFinite(tm)) return 570; if(tm <= 120) return tm + 5
 // 解决板块(几十~几百亿)与个股(几亿)量级悬殊——双 y 轴避免个股线被压成贴 0 直线。
 function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
   if(!bdSer || bdSer.length < 2) return '';
-  var W = 600, H = 152, ML = 42, MR = 46, MT = 14, MB = 16;
+  var W = 600, H = 200, ML = 42, MR = 38, MT = 14, MB = 16;
   var pw = W - ML - MR, ph = H - MT - MB;
   var START = 0, END = TRADE_SPAN, SPAN = TRADE_SPAN;
   function xmin(tm){ return ML + Math.max(0, Math.min(1, tm / SPAN)) * pw; }
@@ -3574,7 +3574,7 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 // 只画价格线（不含量柱）。资金轴右、价格轴左，双 y 轴；零轴/昨收各作基准虚线。
 function rzIndexComboSVG(tr, flowSer, a, priceLabel){
   if(!tr || !tr.today || !tr.today.length) return '<div class="rzna">分线数据不足</div>';
-  var W = 600, H = 200, ML = 42, MR = 46, MT = 16, MB = 16;
+  var W = 600, H = 260, ML = 42, MR = 38, MT = 16, MB = 16;
   var pw = W - ML - MR, ph = H - MT - MB;
   var START = 0, END = TRADE_SPAN, SPAN = TRADE_SPAN; // 交易分钟 0→240，已剔除 11:30–13:00 午休
   function xmin(tm){ return ML + Math.max(0, Math.min(1, tm / SPAN)) * pw; }
