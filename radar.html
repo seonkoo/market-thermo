@@ -122,6 +122,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzchart.rz-pinned .rzcross{background:rgba(37,99,235,.5);width:2px}
 /* 板块资金哨兵：持仓卡片内高亮警报 */
 .rzalert{margin:4px 0 2px;border-radius:8px;overflow:hidden}
+.rza-wrap{min-height:30px}
 .rza{display:flex;flex-direction:column;gap:1px;padding:6px 9px;font-size:11.5px;line-height:1.5;border-left:3px solid}
 .rza b{font-size:12.5px}
 .rza span{color:var(--txt3);font-size:10.5px}
@@ -3943,9 +3944,9 @@ function rzRender(){
         (RZ.blist.partial ? ' <span class="rzage bad" title="板块榜仅拉到 ' + RZ.blist.seen + '/' + RZ.blist.total + ' 个，个别板块可能匹配不到">⚠榜不全</span>' : '') + '</div>' +
 
       // 板块资金哨兵：翻空/急退/回流，直接高亮在持仓卡片里
-      (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rzalert">' + o.bdAlert.alerts.map(function(al){
+      '<div class="rza-wrap">' + (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rzalert">' + o.bdAlert.alerts.map(function(al){
           return '<div class="rza ' + al.level + '"><b>' + (al.level === 'bad' ? '⚠️' : (al.level === 'warn' ? '⚡' : '✅')) + ' ' + esc(al.text) + '</b><span>' + esc(al.detail) + '</span></div>';
-        }).join('') + '</div>' : '') +
+        }).join('') + '</div>' : '') + '</div>' +
       '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
       (q ? rzAge(q.qt, false, 90) : '') +
       stkVolHtml(o.stkV, o.stkV5) +
