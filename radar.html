@@ -3483,25 +3483,30 @@ function rzFlowSVG(ser, flowYi, a){
   g += '</svg>';
   return g;
 }
+// 分时图时间轴：时钟分钟 -> 交易分钟，剔除 11:30–13:00 午休（该时段无成交，画出来是一条平线）。
+// 09:30→0 … 11:30→120 … 13:00→120 … 15:00→240，午休段压缩为 0 宽。
+var TRADE_SPAN = 240;
+function tradeMin(m){ if(!isFinite(m)) return 0; if(m < 690) return Math.max(0, m - 570); return Math.min(240, Math.max(120, m - 660)); }
+function clockMin(tm){ if(!isFinite(tm)) return 570; if(tm <= 120) return tm + 570; return Math.min(900, tm + 660); }
 // 板块(深■)＋个股(浅┄)主力净流入双线同框：左轴=板块亿、右轴=个股亿，共享时间轴。
 // 解决板块(几十~几百亿)与个股(几亿)量级悬殊——双 y 轴避免个股线被压成贴 0 直线。
 function rzFlowComboSVG(bdSer, stkSer, bdA, stkA){
   if(!bdSer || bdSer.length < 2) return '';
   var W = 600, H = 120, ML = 42, MR = 46, MT = 14, MB = 16;
   var pw = W - ML - MR, ph = H - MT - MB;
-  var START = 570, END = 900, SPAN = END - START;
-  function xmin(m){ return ML + Math.max(0, Math.min(1, (m - START) / SPAN)) * pw; }
+  var START = 0, END = TRADE_SPAN, SPAN = TRADE_SPAN;
+  function xmin(tm){ return ML + Math.max(0, Math.min(1, tm / SPAN)) * pw; }
   function parseMin(t){ var p = String(t).split(':'); if(p.length < 2) return NaN; var m = parseInt(p[0],10)*60 + parseInt(p[1],10); return isFinite(m) ? m : NaN; }
   var bpts = [], blo = Infinity, bhi = -Infinity;
   for(var i = 0; i < bdSer.length; i++){ var bm = parseMin(bdSer[i][0]); if(!isFinite(bm)) continue;
-    var bv = bdSer[i][1]; bpts.push([bm, bv]); blo = Math.min(blo, bv); bhi = Math.max(bhi, bv); }
+    var bv = bdSer[i][1]; bpts.push([tradeMin(bm), bv]); blo = Math.min(blo, bv); bhi = Math.max(bhi, bv); }
   if(!bpts.length) return '';
   blo = Math.min(blo, 0); bhi = Math.max(bhi, 0);
   var bp = (bhi - blo) * 0.1; blo -= bp; bhi += bp;
   var spts = [], slo = Infinity, shi = -Infinity;
   if(stkSer && stkSer.length){
     for(var j = 0; j < stkSer.length; j++){ var sm = parseMin(stkSer[j][0]); if(!isFinite(sm)) continue;
-      var sv = stkSer[j][1]; spts.push([sm, sv]); slo = Math.min(slo, sv); shi = Math.max(shi, sv); }
+      var sv = stkSer[j][1]; spts.push([tradeMin(sm), sv]); slo = Math.min(slo, sv); shi = Math.max(shi, sv); }
   }
   if(spts.length){ slo = Math.min(slo, 0); shi = Math.max(shi, 0); } else { slo = -1; shi = 1; }
   var sp = (shi - slo) * 0.1; slo -= sp; shi += sp;
@@ -3521,8 +3526,10 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA){
     var sLine = spts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yS(p[1]).toFixed(1); }).join(' ');
     g += '<polyline points="' + sLine + '" fill="none" stroke="' + (spts[spts.length-1][1] >= 0 ? '#5fd6a0' : '#ff9aa2') + '" stroke-width="1.5" stroke-dasharray="4 2" stroke-linejoin="round"/>';
   }
-  var marks = [[570,'09:30'],[660,'10:30'],[750,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
-  for(var mi = 0; mi < marks.length; mi++){ var mx = xmin(marks[mi][0]);
+  var marks = [[570,'09:30'],[660,'10:30'],[690,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
+  var bx = xmin(120).toFixed(1);
+  g += '<line x1="' + bx + '" y1="' + MT + '" x2="' + bx + '" y2="' + (MT+ph) + '" stroke="#e6e9ef" stroke-width="1" stroke-dasharray="3 3"/>';
+  for(var mi = 0; mi < marks.length; mi++){ var mx = xmin(tradeMin(marks[mi][0]));
     g += '<line x1="' + mx.toFixed(1) + '" y1="' + MT + '" x2="' + mx.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#f6f7f9" stroke-width="1"/>';
     g += '<text x="' + mx.toFixed(1) + '" y="' + (MT+ph+12) + '" font-size="9" fill="#c4cad3" text-anchor="middle">' + marks[mi][1] + '</text>'; }
   g += '<text x="' + (ML-4) + '" y="' + (yB(bhi)+3).toFixed(1) + '" font-size="9" fill="#1f9d55" text-anchor="end">' + bhi.toFixed(0) + '</text>';
@@ -3551,8 +3558,8 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
   if(!tr || !tr.today || !tr.today.length) return '<div class="rzna">分线数据不足</div>';
   var W = 600, H = 158, ML = 42, MR = 46, MT = 16, MB = 16;
   var pw = W - ML - MR, ph = H - MT - MB;
-  var START = 570, END = 900, SPAN = END - START; // 09:30 → 15:00，共 330 分钟
-  function xmin(m){ return ML + Math.max(0, Math.min(1, (m - START) / SPAN)) * pw; }
+  var START = 0, END = TRADE_SPAN, SPAN = TRADE_SPAN; // 交易分钟 0→240，已剔除 11:30–13:00 午休
+  function xmin(tm){ return ML + Math.max(0, Math.min(1, tm / SPAN)) * pw; }
   function parseMin(t){ var p = String(t).split(':'); if(p.length < 2) return NaN; var m = parseInt(p[0],10)*60 + parseInt(p[1],10); return isFinite(m) ? m : NaN; }
   // 价格序列（用收盘价，缺失回退开盘）
   var pts = [], lo = Infinity, hi = -Infinity;
@@ -3561,7 +3568,7 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
     if(!isFinite(m)) continue;
     var v = (o.close > 0) ? o.close : (o.open > 0 ? o.open : NaN);
     if(!isFinite(v)) continue;
-    pts.push([m, v]); lo = Math.min(lo, v); hi = Math.max(hi, v);
+    pts.push([tradeMin(m), v]); lo = Math.min(lo, v); hi = Math.max(hi, v);
   }
   if(!pts.length) return '<div class="rzna">分线数据不足</div>';
   if(isFinite(tr.preClose)){ lo = Math.min(lo, tr.preClose); hi = Math.max(hi, tr.preClose); }
@@ -3574,7 +3581,7 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
       var fm = parseMin(flowSer[k][0]);
       if(!isFinite(fm)) continue;
       var fv = flowSer[k][1];
-      fpts.push([fm, fv]); flo = Math.min(flo, fv); fhi = Math.max(fhi, fv);
+      fpts.push([tradeMin(fm), fv]); flo = Math.min(flo, fv); fhi = Math.max(fhi, fv);
     }
   }
   if(fpts.length){ flo = Math.min(flo, 0); fhi = Math.max(fhi, 0); } else { flo = -1; fhi = 1; }
@@ -3617,9 +3624,11 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
     }
   }
   // 时间刻度
-  var marks = [[570,'09:30'],[660,'10:30'],[750,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
+  var marks = [[570,'09:30'],[660,'10:30'],[690,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
+  var bx = xmin(120).toFixed(1);
+  g += '<line x1="' + bx + '" y1="' + MT + '" x2="' + bx + '" y2="' + (MT+ph) + '" stroke="#e6e9ef" stroke-width="1" stroke-dasharray="3 3"/>';
   for(var mi = 0; mi < marks.length; mi++){
-    var mx = xmin(marks[mi][0]);
+    var mx = xmin(tradeMin(marks[mi][0]));
     g += '<line x1="' + mx.toFixed(1) + '" y1="' + MT + '" x2="' + mx.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#f6f7f9" stroke-width="1"/>';
     g += '<text x="' + mx.toFixed(1) + '" y="' + (MT+ph+12) + '" font-size="9" fill="#c4cad3" text-anchor="middle">' + marks[mi][1] + '</text>';
   }
@@ -4218,6 +4227,7 @@ rzStart();
     var ratio = (e.clientX - rect.left) / rect.width; if(ratio < 0 || ratio > 1) return;
     var xvb = ratio * cfg.W;
     var m = cfg.START + (xvb - cfg.ML) / cfg.pw * cfg.SPAN; if(m < cfg.START) m = cfg.START; if(m > cfg.END) m = cfg.END;
+    var mClock = clockMin(m);
     var crossPct = (cfg.ML + (m - cfg.START) / cfg.SPAN * cfg.pw) / cfg.W * 100;
     var lines = [];
     for(var i=0;i<cfg.series.length;i++){ var s = cfg.series[i]; if(!s.pts || !s.pts.length) continue;
@@ -4228,7 +4238,7 @@ rzStart();
     var cross = chart.querySelector('.rzcross'); cross.style.display='block'; cross.style.left = crossPct + '%';
     var dots = chart.querySelectorAll('.rzdot'); for(var k=0;k<dots.length;k++) dots[k].style.display='none';
     var tip = chart.querySelector('.rztip');
-    var mr = Math.round(m); if(mr < cfg.START) mr = cfg.START; if(mr > cfg.END) mr = cfg.END;
+    var mr = Math.round(mClock); if(mr < 570) mr = 570; if(mr > 900) mr = 900;
     var hh = Math.floor(mr/60), mm = mr % 60;
     var tstr = (hh<10?'0':'')+hh + ':' + (mm<10?'0':'')+mm;
     var pinMark = (chart === RZ_PIN) ? '📌 ' : '';
