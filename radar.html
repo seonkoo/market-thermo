@@ -3987,10 +3987,13 @@ function rzRender(){
 function rzOverview(){
   var el = document.getElementById('rzTopBar');
   if(!el) return;
-  // 大市：上证指数涨跌
+  // 大市：上证指数涨跌 + 量能比（今日累计 ÷ 昨日同期）
   var mk = STATE.idx, mkPct = (mk && isFinite(mk.pct)) ? mk.pct : null;
   var mkCls = mkPct === null ? 'flat' : (mkPct > 0 ? 'up' : (mkPct < 0 ? 'down' : 'flat'));
   var mkTxt = mkPct === null ? '—' : pctS(mkPct);
+  var vc = mk && mk.vc, vr = (vc && !vc.unavail && isFinite(vc.ratio)) ? vc.ratio : null;
+  var vrCls = vr === null ? 'flat' : (vr >= 1 ? 'up' : 'down');
+  var vrTxt = vr === null ? '' : (' · 量能 ' + (vr*100).toFixed(0) + '%' + (vc && vc.fallback ? '(参)' : ''));
   // 板块：净流入/净流出板块数
   var bIn = PZT.nin, bOut = PZT.nout, bTxt = (PZT.ts ? (bIn + ' 流入 / ' + bOut + ' 流出') : '—');
   // 标的：自选共振 / 总数
@@ -3998,7 +4001,7 @@ function rzOverview(){
   RZ.list.forEach(function(c){ var o = RZ.state[c]; if(o && o.v && o.v.cls === 'good') res++; });
   var itTxt = tot ? (res + '/' + tot + ' 共振') : '—';
   el.innerHTML =
-    '<span class="tb-item"><span class="tb-k">大市</span><span class="tb-v ' + mkCls + '">' + mkTxt + '</span></span>' +
+    '<span class="tb-item"><span class="tb-k">大市</span><span class="tb-v ' + mkCls + '">' + mkTxt + '</span><span class="tb-v ' + vrCls + '">' + vrTxt + '</span></span>' +
     '<span class="tb-sep"></span>' +
     '<span class="tb-item"><span class="tb-k">板块</span><span class="tb-v">' + bTxt + '</span></span>' +
     '<span class="tb-sep"></span>' +
