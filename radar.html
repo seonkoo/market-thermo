@@ -142,6 +142,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rztl-text b{font-variant-numeric:tabular-nums;color:var(--txt1);font-weight:600}
 .rztl-text .up{color:#e5484d}
 .rztl-text .dn{color:#1f9d55}
+.rztl-text .ar{color:var(--line);padding:0 1px;font-weight:700}
 .rzbar{height:4px;border-radius:2px;background:#eef1f4;overflow:hidden}
 .rzbar i{display:block;height:100%;background:var(--up)}
 .wact{flex:0 0 auto;display:flex;gap:4px}
@@ -3774,6 +3775,7 @@ function flowTimeline(a, ser){
       var it = items[i];
       var vc = it.cross ? '跨0' : ((it.v>=0?'+':'') + it.v.toFixed(2) + '亿');
       var cls = it.cross ? '' : (it.v>=0 ? 'up' : 'dn');
+      if(i>0) h += '<span class="ar">→</span>';
       h += '<span>' + it.lb + ' <b>' + it.t + '</b> <span class="' + cls + '">' + vc + '</span></span>';
     }
     h += '</div>';
