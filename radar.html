@@ -251,11 +251,14 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
     </div>
     <div class="hint" id="rzHint" style="min-height:16px">—</div>
     <div id="rzBody" class="rzcards"></div>
-    <div class="hint" style="color:var(--txt3);line-height:1.85;margin-top:8px">
-      <b>判读口径</b>：· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 昨日同时段，盘中唯一可比口径；前5日全天均量仅收盘后参考）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单），卡片内嵌「板块当日累计主力净流入」迷你曲线（红=净流入/绿=净流出）；· <b>标的</b> = 个股/ETF 自身涨跌。<br>
-      <b>共振</b> = 大市升 × 板块流入 × 标的升 三条同时成立。ETF/基金无行业归属时按名称关键词匹配板块（如「科创半导体ETF→半导体」「通信ETF→通信」，标「名推」为推断非精确行业），曲线照常显示。<br>
-      <b>注意</b>：板块资金流与标的涨跌为东财口径、盘中实时；做T动作仍以 A/B 线与量比为准，本模块只提示方向共振。
-    </div>
+    <details style="margin-top:8px">
+      <summary style="color:var(--txt3)">判读口径 · 共振定义（点击展开）</summary>
+      <div class="body" style="color:var(--txt3);line-height:1.85">
+        <p>· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 昨日同时段，盘中唯一可比口径；前5日全天均量仅收盘后参考）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单），卡片内嵌「板块当日累计主力净流入」迷你曲线（红=净流入/绿=净流出）；· <b>标的</b> = 个股/ETF 自身涨跌。</p>
+        <p><b>共振</b> = 大市升 × 板块流入 × 标的升 三条同时成立。ETF/基金无行业归属时按名称关键词匹配板块（如「科创半导体ETF→半导体」「通信ETF→通信」，标「名推」为推断非精确行业），曲线照常显示。</p>
+        <p><b>注意</b>：板块资金流与标的涨跌为东财口径、盘中实时；做T动作仍以 A/B 线与量比为准，本模块只提示方向共振。</p>
+      </div>
+    </details>
   </div>
 
   <!-- 大盘 -->
