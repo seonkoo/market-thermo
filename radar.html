@@ -3148,18 +3148,31 @@ $('wBody').addEventListener('click', function(e){
      · 上证日K量能：腾讯 ifzq fqkline day（末根含当日实时量）
    共振 = 大市升(上证涨) × 板块主力流入 × 标的涨，三条同绿=顺势跟主力。 */
 var RZ = {
-  list: [], state: {},
+  list: [], order: [], state: {},
   board: { ts: 0, data: null },   // 大盘 60s 缓存
   blist: { ts: 0, idx: null },    // 行业板块榜 90s 缓存
   ind: {},                        // secid -> 行业名（12h）
   mktTop: null,                   // 置顶卡共享的上证量能数据
   idxFlow: null, idxAlert: null, idxTs: 0,  // 上证主力净流入曲线 + 哨兵
-  timer: null, gen: 0
+  timer: null, gen: 0,
+  sortDirty: false, initialSorted: false
 };
 // 盘中信息台板块广度（净流入/净流出板块数），由 pzt refresh 写入，供概览条读取
 var PZT = { nin: 0, nout: 0, ts: 0 };
-function rzLoad(){ try{ RZ.list = JSON.parse(localStorage.getItem('rz_watch') || '[]'); }catch(e){ RZ.list = []; } if(!Array.isArray(RZ.list)) RZ.list = []; }
+function rzLoad(){ try{ RZ.list = JSON.parse(localStorage.getItem('rz_watch') || '[]'); }catch(e){ RZ.list = []; } if(!Array.isArray(RZ.list)) RZ.list = []; RZ.order = RZ.list.slice(); }
 function rzSave(){ try{ localStorage.setItem('rz_watch', JSON.stringify(RZ.list)); }catch(e){} }
+// 显示顺序：共振(good) > 观察/背离(warn) > 加载中/观察(na)，同档按代码稳定排序避免抖动
+function rzSortOrder(){
+  var rank = { good: 0, warn: 1, na: 2 };
+  RZ.order = RZ.list.slice().sort(function(a, b){
+    var oa = RZ.state[a], ob = RZ.state[b];
+    var ca = (oa && oa.v && oa.v.cls) || 'na';
+    var cb = (ob && ob.v && ob.v.cls) || 'na';
+    var ra = rank.hasOwnProperty(ca) ? rank[ca] : 2, rb = rank.hasOwnProperty(cb) ? rank[cb] : 2;
+    if(ra !== rb) return ra - rb;
+    return a < b ? -1 : (a > b ? 1 : 0);
+  });
+}
 // 多主机 jsonp 轮询（东财限流按主机独立）
 function rzGet(path, parser, t){
   var hosts = ['push2delay.eastmoney.com', 'push2.eastmoney.com'], i = 0;
@@ -3909,8 +3922,12 @@ function rzRender(){
   var body = $('rzBody'), tag = $('rzTag');
   if(!body) return;
   if(!RZ.list.length){ body.innerHTML = '<div class="hint" style="color:var(--txt3);padding:6px 0">暂无自选，输入代码点「添加」开始。</div>'; if(tag){ tag.textContent = '空'; tag.className = 'pill na'; } return; }
+  if(!RZ.order.length) RZ.order = RZ.list.slice();
+  // 重排只在：①增删后(sortDirty) ②首次全部判定就绪时；自动刷新不重排，避免卡片乱跳
+  var allReady = RZ.list.length && RZ.list.every(function(c){ return RZ.state[c] && RZ.state[c].v && RZ.state[c].v.cls; });
+  if(RZ.sortDirty || (!RZ.initialSorted && allReady)){ rzSortOrder(); RZ.sortDirty = false; RZ.initialSorted = true; }
   var html = '', ok = 0;
-  RZ.list.forEach(function(code){
+  RZ.order.forEach(function(code){
     var o = RZ.state[code] || (RZ.state[code] = {});
     if(o.v && o.v.cls === 'good') ok++;
     var head;
@@ -4084,6 +4101,7 @@ function rzAdd(codeRaw){
   if(RZ.list.indexOf(c) >= 0){ var h2 = $('rzHint'); if(h2) h2.textContent = c + ' 已在列表中。'; return; }
   RZ.list.push(c);
   rzSave();
+  RZ.sortDirty = true;
   var h3 = $('rzHint'); if(h3) h3.textContent = '';
   rzOne(c, true);
   if(!RZ.timer){ RZ.timer = setInterval(function(){ rzRefresh(false); }, 30000); }
@@ -4092,6 +4110,7 @@ function rzRemove(code){
   RZ.list = RZ.list.filter(function(x){ return x !== code; });
   delete RZ.state[code];
   rzSave();
+  RZ.sortDirty = true;
   rzRender();
 }
 function rzStart(){
