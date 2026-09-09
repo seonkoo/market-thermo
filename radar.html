@@ -3556,6 +3556,15 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
   }
   if(ppts.length){ var pr = Math.max(Math.abs(pmin), Math.abs(pmax), 1) * 1.15; pmin = -pr; pmax = pr; } else { pmin = -1; pmax = 1; }
   function yPct(p){ return MT + ph * (pmax - p) / (pmax - pmin); }
+  // 大市参考线：上证指数分时 %，与个股涨跌幅% 共用 yPct 轴，一眼看出板块/个股是否跑赢大盘
+  var mpts = [], hasMkt = false;
+  if(STATE.idx && STATE.idx.trends && STATE.idx.trends.today && STATE.idx.trends.today.length && isFinite(STATE.idx.trends.preClose) && STATE.idx.trends.preClose > 0){
+    var mpc = STATE.idx.trends.preClose;
+    for(var mii = 0; mii < STATE.idx.trends.today.length; mii++){ var moo = STATE.idx.trends.today[mii]; var mm = parseMin(moo.t); if(!isFinite(mm)) continue;
+      var mcl = (moo.close > 0 ? moo.close : (moo.open > 0 ? moo.open : NaN)); if(!isFinite(mcl)) continue;
+      mpts.push([tradeMin(mm), (mcl - mpc) / mpc * 100]); }
+    hasMkt = mpts.length > 0;
+  }
   var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="none" style="display:block">';
   g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#fff"/>';
   var yb0 = yB(0);
@@ -3576,6 +3585,10 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
     var yp0 = yPct(0);
     g += '<line x1="' + ML + '" y1="' + yp0.toFixed(1) + '" x2="' + (ML+pw) + '" y2="' + yp0.toFixed(1) + '" stroke="#bcd0f0" stroke-width="1" stroke-dasharray="2 2" opacity="0.7"/>';
   }
+  if(hasMkt){
+    var mLine = mpts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yPct(p[1]).toFixed(1); }).join(' ');
+    g += '<polyline points="' + mLine + '" fill="none" stroke="#8a94a6" stroke-width="1.3" stroke-dasharray="1 3" stroke-linejoin="round" opacity="0.9"/>';
+  }
   var marks = [[570,'09:30'],[660,'10:30'],[690,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
   var bx = xmin(120).toFixed(1);
   g += '<line x1="' + bx + '" y1="' + MT + '" x2="' + bx + '" y2="' + (MT+ph) + '" stroke="#e6e9ef" stroke-width="1" stroke-dasharray="3 3"/>';
@@ -3589,6 +3602,7 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
   g += '<text x="' + (ML+2) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#e5484d">■板块</text>';
   if(spts.length) g += '<text x="' + (ML+40) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#ff9aa2">┄个股</text>';
   if(ppts.length) g += '<text x="' + (ML+80) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#2563eb">—涨跌幅%</text>';
+  if(hasMkt) g += '<text x="' + (ML+150) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#8a94a6">┄上证%</text>';
   g += '</svg>';
   window.RZ_CHARTS = window.RZ_CHARTS || {};
   window.RZ_CHART_SEQ = window.RZ_CHART_SEQ || 0;
