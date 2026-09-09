@@ -105,6 +105,12 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzok{color:var(--up);font-weight:700}
 .rzno{color:var(--down);font-weight:700}
 .rzna{color:var(--txt3)}
+/* β/α 相关性标签：个股分时涨跌究竟跟板块资金还是自身资金更同步 */
+.rzcorr{font-size:11px;padding:1px 8px;border-radius:10px;background:#eef1f4;color:#334155;white-space:nowrap;display:inline-flex;align-items:baseline;gap:4px}
+.rzcorr.good{background:rgba(217,43,43,.10);color:var(--up)}
+.rzcorr.warn{background:rgba(245,158,11,.16);color:#d97706}
+.rzcorr b{font-weight:700}
+.rzcorr .rzcr{font-variant-numeric:tabular-nums;opacity:.85;font-weight:400}
 /* 数据年龄徽标：鲜活性一眼可见。灰=即时，黄=偏旧，红=陈旧/取数失败 */
 .rzage{font-size:10px;color:var(--txt3);margin-left:4px;white-space:nowrap}
 .rzage.warn{color:#b7791f}
@@ -3785,6 +3791,42 @@ function flowTimeline(a, ser){
     return h;
   }
 
+// 相关性标签：个股分时涨跌究竟跟「板块资金流」还是「自身资金流」更同步
+//   β 板块跟随型 = 与板块资金流变化高度同步；α 个股独立型 = 与自身资金流变化更同步
+//   用真实的 Pearson 相关系数，不硬编结论；样本不足则返回空。
+function rzCorrTag(o){
+  if(!o || !o.tr || !o.tr.today || !o.tr.today.length || !isFinite(o.tr.preClose) || o.tr.preClose <= 0) return '';
+  if(!o.bdSer || o.bdSer.length < 2) return '';
+  function pm(t){ var p = String(t).split(':'); if(p.length < 2) return NaN; var m = parseInt(p[0],10)*60 + parseInt(p[1],10); return isFinite(m) ? m : NaN; }
+  var sp = {};                                  // 个股 % 序列（相对昨收）
+  for(var i=0;i<o.tr.today.length;i++){ var po = o.tr.today[i], k = pm(po.t); if(!isFinite(k)) continue;
+    var px = (po.close > 0 ? po.close : (po.open > 0 ? po.open : NaN)); if(!isFinite(px)) continue;
+    sp[tradeMin(k)] = (px - o.tr.preClose) / o.tr.preClose * 100; }
+  var bd = {}; for(var j=0;j<o.bdSer.length;j++){ var t = pm(o.bdSer[j][0]); if(!isFinite(t)) continue; bd[tradeMin(t)] = o.bdSer[j][1]; }
+  var sk = null; if(o.stkSer && o.stkSer.length >= 2){ sk = {}; for(var s=0;s<o.stkSer.length;s++){ var t2 = pm(o.stkSer[s][0]); if(!isFinite(t2)) continue; sk[tradeMin(t2)] = o.stkSer[s][1]; } }
+  var keys = {}; Object.keys(sp).forEach(function(k){ keys[k] = 1; }); Object.keys(bd).forEach(function(k){ keys[k] = 1; });
+  if(sk) Object.keys(sk).forEach(function(k){ keys[k] = 1; });
+  var ks = Object.keys(keys).map(Number).sort(function(a,b){ return a-b; });
+  if(ks.length < 8) return '';                  // 样本太少不硬给结论
+  function ffill(map, ks){ var out = [], last = null; for(var i=0;i<ks.length;i++){ if(ks[i] in map) last = map[ks[i]]; out.push(last); } return out; }
+  function diff(arr){ var d = []; for(var i=1;i<arr.length;i++){ if(arr[i] === null || arr[i-1] === null) continue; d.push(arr[i] - arr[i-1]); } return d; }
+  function pearson(a,b){ var n=a.length, sa=0, sb=0, i; for(i=0;i<n;i++){ sa+=a[i]; sb+=b[i]; } var ma=sa/n, mb=sb/n, ca=0, cb=0, cc=0;
+    for(i=0;i<n;i++){ var da=a[i]-ma, db=b[i]-mb; ca+=da*da; cb+=db*db; cc+=da*db; } var d=Math.sqrt(ca*cb); return d ? cc/d : 0; }
+  var spD = diff(ffill(sp, ks)), bdD = diff(ffill(bd, ks));
+  if(spD.length < 8) return '';
+  var rB = pearson(spD, bdD);
+  var rS = (sk ? pearson(spD, diff(ffill(sk, ks))) : null);
+  if(rS !== null && !isFinite(rS)) rS = null;
+  var rB2 = rB*rB, rS2 = (rS !== null) ? rS*rS : 0;
+  var kind, kv, other;
+  if(rS === null){ kind = (rB2 > 0.04 ? 'β 板块跟随' : 'α 个股偏独立'); kv = 'r=' + rB.toFixed(2); other = ''; }
+  else if(rB2 >= rS2){ kind = 'β 板块跟随'; kv = 'r=' + rB.toFixed(2); other = ' · 个股r=' + rS.toFixed(2); }
+  else { kind = 'α 个股独立'; kv = 'r=' + rS.toFixed(2); other = ' · 板块r=' + rB.toFixed(2); }
+  var c = (kind[0] === 'β') ? 'good' : 'warn';
+  return '<span class="rzcorr ' + c + '" title="个股分时涨跌与板块/自身资金流变化的同步程度（Pearson 相关系数，按交易分钟对齐、前向填充）">' +
+    '<b>' + kind + '</b> <span class="rzcr">' + kv + other + '</span></span>';
+}
+
 // 三线判读
 function rzVerdict(mkt, bd, it){
   var mUp = !!(mkt && mkt.pct > 0);
@@ -3889,6 +3931,7 @@ function rzRender(){
     head = '<div class="rzhead"><span class="rznm">' + esc(qName) + ' <span class="rzsub">' + esc(code) + '</span></span>' +
       '<span class="rzpx ' + (q ? cls(q.pct) : '') + '">' + qPx + '</span>' +
       '<span class="rzbadge ' + v.cls + '">' + esc(v.txt) + '</span>' +
+      rzCorrTag(o) +
       ((v.weak && v.weak.length) ? '<span class="rzage warn">⚠弱信号·' + esc(v.weak.join('，')) + '</span>' : '') +
       '<button class="rzbtn" data-rz-re="' + code + '">重算</button><button class="rzbtn" data-rz-rm="' + code + '">移除</button></div>';
     html += '<div class="rzcard">' + head +
