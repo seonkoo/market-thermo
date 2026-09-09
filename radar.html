@@ -123,6 +123,10 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 /* 板块资金哨兵：持仓卡片内高亮警报 */
 .rzalert{margin:4px 0 2px;border-radius:8px;overflow:hidden}
 .rza-wrap{min-height:30px}
+.rzsortbar{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;color:var(--txt3)}
+.rzsortlbl{margin-right:2px}
+.rzsort{font-size:11px;padding:2px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--txt2);cursor:pointer}
+.rzsort.on{background:#eef4ff;border-color:#4da3ff;color:#1d6fd0;font-weight:600}
 .rza{display:flex;flex-direction:column;gap:1px;padding:6px 9px;font-size:11.5px;line-height:1.5;border-left:3px solid}
 .rza b{font-size:12.5px}
 .rza span{color:var(--txt3);font-size:10.5px}
@@ -273,6 +277,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
       <button class="primary" id="rzAdd" type="button">添加</button>
     </div>
     <div class="hint" id="rzHint" style="min-height:16px">—</div>
+    <div class="rzsortbar"><span class="rzsortlbl">排序</span><button class="rzsort on" data-sort="res">共振强弱</button><button class="rzsort" data-sort="raw">原始顺序</button></div>
     <div id="rzBody" class="rzcards"></div>
     <details style="margin-top:8px">
       <summary style="color:var(--txt3)">判读口径 · 共振定义（点击展开）</summary>
@@ -3155,7 +3160,7 @@ var RZ = {
   mktTop: null,                   // 置顶卡共享的上证量能数据
   idxFlow: null, idxAlert: null, idxTs: 0,  // 上证主力净流入曲线 + 哨兵
   timer: null, gen: 0,
-  sortDirty: false, initialSorted: false
+  sortDirty: false, initialSorted: false, sortMode: 'res'
 };
 // 盘中信息台板块广度（净流入/净流出板块数），由 pzt refresh 写入，供概览条读取
 var PZT = { nin: 0, nout: 0, ts: 0 };
@@ -3163,6 +3168,7 @@ function rzLoad(){ try{ RZ.list = JSON.parse(localStorage.getItem('rz_watch') ||
 function rzSave(){ try{ localStorage.setItem('rz_watch', JSON.stringify(RZ.list)); }catch(e){} }
 // 显示顺序：共振(good) > 观察/背离(warn) > 加载中/观察(na)，同档按代码稳定排序避免抖动
 function rzSortOrder(){
+  if(RZ.sortMode === 'raw'){ RZ.order = RZ.list.slice(); return; }  // 原始添加顺序
   var rank = { good: 0, warn: 1, na: 2 };
   RZ.order = RZ.list.slice().sort(function(a, b){
     var oa = RZ.state[a], ob = RZ.state[b];
@@ -3173,6 +3179,7 @@ function rzSortOrder(){
     return a < b ? -1 : (a > b ? 1 : 0);
   });
 }
+function rzSetSort(mode){ RZ.sortMode = mode; RZ.sortDirty = true; RZ.initialSorted = true; rzRender(); }
 // 多主机 jsonp 轮询（东财限流按主机独立）
 function rzGet(path, parser, t){
   var hosts = ['push2delay.eastmoney.com', 'push2.eastmoney.com'], i = 0;
@@ -3923,9 +3930,10 @@ function rzRender(){
   if(!body) return;
   if(!RZ.list.length){ body.innerHTML = '<div class="hint" style="color:var(--txt3);padding:6px 0">暂无自选，输入代码点「添加」开始。</div>'; if(tag){ tag.textContent = '空'; tag.className = 'pill na'; } return; }
   if(!RZ.order.length) RZ.order = RZ.list.slice();
-  // 重排只在：①增删后(sortDirty) ②首次全部判定就绪时；自动刷新不重排，避免卡片乱跳
+  // 重排只在：①增删后(sortDirty) ②共振模式下首次全部判定就绪时；自动刷新不重排，避免卡片乱跳
   var allReady = RZ.list.length && RZ.list.every(function(c){ return RZ.state[c] && RZ.state[c].v && RZ.state[c].v.cls; });
-  if(RZ.sortDirty || (!RZ.initialSorted && allReady)){ rzSortOrder(); RZ.sortDirty = false; RZ.initialSorted = true; }
+  if(RZ.sortMode === 'res' && (RZ.sortDirty || (!RZ.initialSorted && allReady))){ rzSortOrder(); RZ.sortDirty = false; RZ.initialSorted = true; }
+  else if(RZ.sortMode === 'raw' && RZ.sortDirty){ rzSortOrder(); RZ.sortDirty = false; RZ.initialSorted = true; }
   var html = '', ok = 0;
   RZ.order.forEach(function(code){
     var o = RZ.state[code] || (RZ.state[code] = {});
@@ -4119,6 +4127,13 @@ function rzStart(){
   if(!a || !inp || !body) return;
   a.addEventListener('click', function(){ rzAdd(inp.value); inp.value = ''; });
   inp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ rzAdd(inp.value); inp.value = ''; } });
+  Array.prototype.forEach.call(document.querySelectorAll('.rzsort'), function(btn){
+    btn.addEventListener('click', function(){
+      var mode = btn.getAttribute('data-sort');
+      rzSetSort(mode);
+      Array.prototype.forEach.call(document.querySelectorAll('.rzsort'), function(b){ b.classList.toggle('on', b === btn); });
+    });
+  });
   body.addEventListener('click', function(e){
     var b = e.target;
     if(!b || b.tagName !== 'BUTTON') return;
