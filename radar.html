@@ -137,6 +137,11 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rztl-lb{font-size:10px;font-weight:700;margin-top:2px}
 .rztl-t{font-size:9.5px;color:var(--txt3)}
 .rztl-v{font-size:9.5px;color:var(--txt2)}
+/* 板块资金变化：文字版（开盘/峰值/翻空/现在），flex 换行避免重叠 */
+.rztl-text{display:flex;flex-wrap:wrap;gap:3px 12px;margin:5px 0 2px;font-size:11px;line-height:1.6;color:var(--txt2)}
+.rztl-text b{font-variant-numeric:tabular-nums;color:var(--txt1);font-weight:600}
+.rztl-text .up{color:#e5484d}
+.rztl-text .dn{color:#1f9d55}
 .rzbar{height:4px;border-radius:2px;background:#eef1f4;overflow:hidden}
 .rzbar i{display:block;height:100%;background:var(--up)}
 .wact{flex:0 0 auto;display:flex;gap:4px}
@@ -3755,6 +3760,26 @@ function flowTimeline(a, ser){
   h += '</div>';
   return h;
 }
+  // 板块资金变化：文字版（开盘/峰值/翻空/现在），不按刻度排，分行避免重叠
+  function flowSummary(a, ser){
+    if(!a || !ser || ser.length < 2) return '';
+    var items = [], openT = ser[0][0], openV = ser[0][1];
+    items.push({lb:'开盘', t:openT, v:openV, cross:false});
+    if(a.bigPeak && a.peak.i > 0) items.push({lb:'峰值', t:a.peak.t, v:a.peak.v, cross:false});
+    if(a.flipDown) items.push({lb:'翻空', t:a.flipDown.t, v:0, cross:true});
+    if(a.flipUp) items.push({lb:'回流', t:a.flipUp.t, v:0, cross:true});
+    items.push({lb:'现在', t:a.lastT, v:a.last, cross:false});
+    var h = '<div class="rztl-text">'
+    for(var i=0;i<items.length;i++){
+      var it = items[i];
+      var vc = it.cross ? '跨0' : ((it.v>=0?'+':'') + it.v.toFixed(2) + '亿');
+      var cls = it.cross ? '' : (it.v>=0 ? 'up' : 'dn');
+      h += '<span>' + it.lb + ' <b>' + it.t + '</b> <span class="' + cls + '">' + vc + '</span></span>';
+    }
+    h += '</div>';
+    return h;
+  }
+
 // 三线判读
 function rzVerdict(mkt, bd, it){
   var mUp = !!(mkt && mkt.pct > 0);
@@ -3874,12 +3899,11 @@ function rzRender(){
       (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rzalert">' + o.bdAlert.alerts.map(function(al){
           return '<div class="rza ' + al.level + '"><b>' + (al.level === 'bad' ? '⚠️' : (al.level === 'warn' ? '⚡' : '✅')) + ' ' + esc(al.text) + '</b><span>' + esc(al.detail) + '</span></div>';
         }).join('') + '</div>' : '') +
-      // 板块资金变化时间轴：开盘 → 峰值 → 翻空 → 现在，事后一眼看出几点开始跑
-      (bd && o.bdSer && o.bdAlert ? '<div class="rztl-wrap">' + flowTimeline(o.bdAlert, o.bdSer) + '<div class="rzchartcap">板块资金变化时间轴（当日累计净流入）</div></div>' : '') +
       '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
       (q ? rzAge(q.qt, false, 90) : '') +
       stkVolHtml(o.stkV, o.stkV5) +
       (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert, o.tr) + '<div class="rzchartcap">板块资金 · 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
+      (bd && o.bdSer && o.bdAlert ? flowSummary(o.bdAlert, o.bdSer) : '') +
       // 个股自身：分线图（蓝）＋ 自身主力净流入（红涨/绿跌·亿）同框，复用上证置顶卡组合图器
       (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert, '标的分线') + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（红涨/绿跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
       (bd ? '' : ' <span class="rzna">ETF 按「大市+标的」双线</span>') + '</div></div>';
