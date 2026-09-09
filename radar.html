@@ -117,6 +117,9 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzdot{position:absolute;width:7px;height:7px;border-radius:50%;border:1.5px solid #fff;display:none;pointer-events:none;transform:translate(-50%,-50%);z-index:4;box-shadow:0 1px 2px rgba(0,0,0,.25)}
 .rztip{position:absolute;display:none;background:rgba(255,255,255,.97);border:0.5px solid #d0d5dd;border-radius:8px;padding:5px 7px;font-size:11px;line-height:1.5;color:#30363d;pointer-events:none;white-space:nowrap;z-index:6;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .rztip .tt{font-weight:500;margin-bottom:2px}
+.rztip .tt.pin{color:#2563eb}
+.rzchart.rz-pinned{box-shadow:0 0 0 2px #2563eb inset;border-radius:10px}
+.rzchart.rz-pinned .rzcross{background:rgba(37,99,235,.5);width:2px}
 /* 板块资金哨兵：持仓卡片内高亮警报 */
 .rzalert{margin:4px 0 2px;border-radius:8px;overflow:hidden}
 .rza{display:flex;flex-direction:column;gap:1px;padding:6px 9px;font-size:11.5px;line-height:1.5;border-left:3px solid}
@@ -4171,6 +4174,10 @@ rzStart();
     var els = document.querySelectorAll('.rzcross, .rztip'); for(var i=0;i<els.length;i++) els[i].style.display='none';
     var ds = document.querySelectorAll('.rzdot'); for(var j=0;j<ds.length;j++) ds[j].style.display='none';
   }
+  var RZ_PIN = null, RZ_PIN_T = null, RZ_DOWN_C = null, RZ_DOWN_T = 0, RZ_DOWN_X = 0, RZ_MOVED = false, RZ_LONG = false;
+  function rzSetPin(on, chart){ if(chart && chart.classList) chart.classList.toggle('rz-pinned', on); }
+  function rzUnpin(){ if(RZ_PIN){ rzSetPin(false, RZ_PIN); RZ_PIN = null; } }
+  function rzPin(c){ if(RZ_PIN && RZ_PIN !== c) rzSetPin(false, RZ_PIN); RZ_PIN = c; rzSetPin(true, c); }
   function rzUpdateTip(chart, e){
     var cid = chart.getAttribute('data-cid'); var cfg = window.RZ_CHARTS && window.RZ_CHARTS[cid]; if(!cfg) return;
     var rect = chart.getBoundingClientRect();
@@ -4187,10 +4194,11 @@ rzStart();
     var cross = chart.querySelector('.rzcross'); cross.style.display='block'; cross.style.left = crossPct + '%';
     var dots = chart.querySelectorAll('.rzdot'); for(var k=0;k<dots.length;k++) dots[k].style.display='none';
     var tip = chart.querySelector('.rztip');
-    var mr = Math.round(m); if(mr < START) mr = START; if(mr > END) mr = END;
+    var mr = Math.round(m); if(mr < cfg.START) mr = cfg.START; if(mr > cfg.END) mr = cfg.END;
     var hh = Math.floor(mr/60), mm = mr % 60;
     var tstr = (hh<10?'0':'')+hh + ':' + (mm<10?'0':'')+mm;
-    var html = '<div class="tt">'+tstr+'</div>';
+    var pinMark = (chart === RZ_PIN) ? '📌 ' : '';
+    var html = '<div class="tt' + (chart === RZ_PIN ? ' pin' : '') + '">'+pinMark+tstr+'</div>';
     for(var L=0;L<lines.length;L++){ var ln = lines[L];
       var label = (cfg.type==='flow') ? (ln.axis==='L'?'板块':'个股') : (ln.axis==='L'?'价格':'资金');
       var v = ln.val, vs;
@@ -4204,9 +4212,24 @@ rzStart();
     tip.style.left = Math.max(2, Math.min(96, leftPct)) + '%';
     var di = 0; for(var M=0;M<lines.length;M++){ if(di < dots.length){ var d = dots[di++]; d.style.display='block'; d.style.left = crossPct + '%'; d.style.top = lines[M].yPct + '%'; d.style.background = lines[M].color; } }
   }
-  document.addEventListener('pointermove', function(e){ var c = rzChartFromPoint(e.target); if(c) rzUpdateTip(c, e); }, {passive:true});
-  document.addEventListener('pointerdown', function(e){ var c = rzChartFromPoint(e.target); if(c) rzUpdateTip(c, e); }, {passive:true});
-  document.addEventListener('pointerup', function(){ setTimeout(rzHideTip, 1500); }, {passive:true});
+  document.addEventListener('pointerdown', function(e){
+    var c = rzChartFromPoint(e.target); if(!c) return;
+    RZ_DOWN_C = c; RZ_DOWN_T = Date.now(); RZ_DOWN_X = e.clientX; RZ_MOVED = false; RZ_LONG = false;
+    rzUpdateTip(c, e);
+    clearTimeout(RZ_PIN_T);
+    RZ_PIN_T = setTimeout(function(){ RZ_LONG = true; if(RZ_MOVED) return; if(RZ_PIN === c) rzUnpin(); else rzPin(c); }, 450);
+  }, {passive:true});
+  document.addEventListener('pointermove', function(e){
+    var c = rzChartFromPoint(e.target); if(!c) return;
+    if(Math.abs(e.clientX - RZ_DOWN_X) > 6) RZ_MOVED = true;
+    rzUpdateTip(c, e);
+  }, {passive:true});
+  document.addEventListener('pointerup', function(){
+    clearTimeout(RZ_PIN_T);
+    if(RZ_DOWN_C === RZ_PIN && !RZ_MOVED && !RZ_LONG){ rzUnpin(); rzHideTip(); }
+    if(RZ_PIN) return;
+    setTimeout(rzHideTip, 1500);
+  }, {passive:true});
   document.addEventListener('pointercancel', rzHideTip, {passive:true});
 })();
 </script>
