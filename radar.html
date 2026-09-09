@@ -109,9 +109,14 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzage{font-size:10px;color:var(--txt3);margin-left:4px;white-space:nowrap}
 .rzage.warn{color:#b7791f}
 .rzage.bad{color:var(--down);font-weight:600}
-.rzchart{margin:2px 0 1px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,#fafbfd,#f4f6f9);padding:4px 6px 2px;overflow:hidden}
+.rzchart{margin:2px 0 1px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,#fafbfd,#f4f6f9);padding:4px 6px 2px;overflow:hidden;position:relative}
 .rzchart svg{width:100%;height:auto;display:block}
 .rzchartcap{font-size:10px;color:var(--txt3);text-align:center;padding-top:1px}
+.rzover{position:absolute;left:7%;right:7.67%;top:0;bottom:0;cursor:crosshair;touch-action:none;z-index:3}
+.rzcross{position:absolute;top:0;bottom:0;width:1px;background:rgba(70,80,95,.55);display:none;pointer-events:none;z-index:2}
+.rzdot{position:absolute;width:7px;height:7px;border-radius:50%;border:1.5px solid #fff;display:none;pointer-events:none;transform:translate(-50%,-50%);z-index:4;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.rztip{position:absolute;display:none;background:rgba(255,255,255,.97);border:0.5px solid #d0d5dd;border-radius:8px;padding:5px 7px;font-size:11px;line-height:1.5;color:#30363d;pointer-events:none;white-space:nowrap;z-index:6;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.rztip .tt{font-weight:500;margin-bottom:2px}
 /* 板块资金哨兵：持仓卡片内高亮警报 */
 .rzalert{margin:4px 0 2px;border-radius:8px;overflow:hidden}
 .rza{display:flex;flex-direction:column;gap:1px;padding:6px 9px;font-size:11.5px;line-height:1.5;border-left:3px solid}
@@ -3493,7 +3498,18 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA){
   g += '<text x="' + (ML+2) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#1f9d55">■板块</text>';
   if(spts.length) g += '<text x="' + (ML+36) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#5fd6a0">┄个股</text>';
   g += '</svg>';
-  return g;
+  window.RZ_CHARTS = window.RZ_CHARTS || {};
+  window.RZ_CHART_SEQ = window.RZ_CHART_SEQ || 0;
+  var cid = 'rzc' + (++window.RZ_CHART_SEQ);
+  window.RZ_CHARTS[cid] = {
+    type:'flow', W:W, H:H, ML:ML, MR:MR, MT:MT, MB:MB, pw:pw, ph:ph,
+    START:START, END:END, SPAN:SPAN,
+    series:[
+      {axis:'L', color:'#1f9d55', pts:bpts, yfn:yB},
+      {axis:'R', color:'#5fd6a0', pts:spts, yfn:yS}
+    ]
+  };
+  return '<div class="rzchart" data-cid="'+cid+'">' + g + '<div class="rzover"></div><div class="rzcross"></div><span class="rzdot"></span><span class="rzdot"></span><div class="rztip"></div></div>';
 }
 // 置顶卡组合图：上证指数价格线（蓝）＋ 主力净流入曲线（绿涨/红跌·亿）同框，共享时间轴。
 // 只画价格线（不含量柱）。资金轴右、价格轴左，双 y 轴；零轴/昨收各作基准虚线。
@@ -3582,7 +3598,19 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
   g += '<text x="' + (ML+4) + '" y="' + (MT-5) + '" font-size="9.5" fill="#2563eb">■ ' + esc(priceLabel || '上证指数') + '</text>';
   g += '<text x="' + (ML+82) + '" y="' + (MT-5) + '" font-size="9.5" fill="#2bd67b">■ 主力净流入(亿)</text>';
   g += '</svg>';
-  return g;
+  window.RZ_CHARTS = window.RZ_CHARTS || {};
+  window.RZ_CHART_SEQ = window.RZ_CHART_SEQ || 0;
+  var cid = 'rzc' + (++window.RZ_CHART_SEQ);
+  var fcolor = (fpts.length && fpts[fpts.length-1][1] >= 0) ? '#2bd67b' : '#ff6f83';
+  window.RZ_CHARTS[cid] = {
+    type:'index', W:W, H:H, ML:ML, MR:MR, MT:MT, MB:MB, pw:pw, ph:ph,
+    START:START, END:END, SPAN:SPAN,
+    series:[
+      {axis:'L', color:'#2563eb', pts:pts, yfn:yP},
+      {axis:'R', color:fcolor, pts:fpts, yfn:yF}
+    ]
+  };
+  return '<div class="rzchart" data-cid="'+cid+'">' + g + '<div class="rzover"></div><div class="rzcross"></div><span class="rzdot"></span><span class="rzdot"></span><div class="rztip"></div></div>';
 }
 // 板块资金哨兵：从「当日分钟级累计净流入序列」提炼关键事件。
 // 序列是【累计值】：曲线下行＝该时段净流出；峰值回撤＝主力已撤出的量。
@@ -4136,6 +4164,50 @@ rzStart();
   renderBlocked();
   refresh();
   setInterval(tick,1000);
+
+  /* 图表滑动十字线 tooltip（方案A）：事件委托在 document，render 重绘后自动生效 */
+  function rzChartFromPoint(t){ while(t && t !== document){ if(t.classList && t.classList.contains('rzover')) return t.parentNode; t = t.parentNode; } return null; }
+  function rzHideTip(){
+    var els = document.querySelectorAll('.rzcross, .rztip'); for(var i=0;i<els.length;i++) els[i].style.display='none';
+    var ds = document.querySelectorAll('.rzdot'); for(var j=0;j<ds.length;j++) ds[j].style.display='none';
+  }
+  function rzUpdateTip(chart, e){
+    var cid = chart.getAttribute('data-cid'); var cfg = window.RZ_CHARTS && window.RZ_CHARTS[cid]; if(!cfg) return;
+    var rect = chart.getBoundingClientRect();
+    var ratio = (e.clientX - rect.left) / rect.width; if(ratio < 0 || ratio > 1) return;
+    var xvb = ratio * cfg.W;
+    var m = cfg.START + (xvb - cfg.ML) / cfg.pw * cfg.SPAN; if(m < cfg.START) m = cfg.START; if(m > cfg.END) m = cfg.END;
+    var crossPct = (cfg.ML + (m - cfg.START) / cfg.SPAN * cfg.pw) / cfg.W * 100;
+    var lines = [];
+    for(var i=0;i<cfg.series.length;i++){ var s = cfg.series[i]; if(!s.pts || !s.pts.length) continue;
+      var best = null, bd = Infinity; for(var j=0;j<s.pts.length;j++){ var d = Math.abs(s.pts[j][0] - m); if(d < bd){ bd = d; best = s.pts[j]; } }
+      if(best) lines.push({color:s.color, axis:s.axis, val:best[1], yPct:s.yfn(best[1]) / cfg.H * 100});
+    }
+    if(!lines.length) return;
+    var cross = chart.querySelector('.rzcross'); cross.style.display='block'; cross.style.left = crossPct + '%';
+    var dots = chart.querySelectorAll('.rzdot'); for(var k=0;k<dots.length;k++) dots[k].style.display='none';
+    var tip = chart.querySelector('.rztip');
+    var mr = Math.round(m); if(mr < START) mr = START; if(mr > END) mr = END;
+    var hh = Math.floor(mr/60), mm = mr % 60;
+    var tstr = (hh<10?'0':'')+hh + ':' + (mm<10?'0':'')+mm;
+    var html = '<div class="tt">'+tstr+'</div>';
+    for(var L=0;L<lines.length;L++){ var ln = lines[L];
+      var label = (cfg.type==='flow') ? (ln.axis==='L'?'板块':'个股') : (ln.axis==='L'?'价格':'资金');
+      var v = ln.val, vs;
+      if(cfg.type==='index' && ln.axis==='L'){ vs = v.toFixed(2); }
+      else { vs = (v>=0?'+':'') + v.toFixed(2) + ((cfg.type==='flow' || ln.axis==='R') ? '亿' : ''); }
+      html += '<div><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+ln.color+';margin-right:5px;vertical-align:middle"></span>'+label+' '+vs+'</div>';
+    }
+    tip.innerHTML = html; tip.style.display='block';
+    var tipW = tip.offsetWidth;
+    var leftPct = (crossPct > 55) ? crossPct - (tipW/rect.width*100) - 2 : crossPct + 2;
+    tip.style.left = Math.max(2, Math.min(96, leftPct)) + '%';
+    var di = 0; for(var M=0;M<lines.length;M++){ if(di < dots.length){ var d = dots[di++]; d.style.display='block'; d.style.left = crossPct + '%'; d.style.top = lines[M].yPct + '%'; d.style.background = lines[M].color; } }
+  }
+  document.addEventListener('pointermove', function(e){ var c = rzChartFromPoint(e.target); if(c) rzUpdateTip(c, e); }, {passive:true});
+  document.addEventListener('pointerdown', function(e){ var c = rzChartFromPoint(e.target); if(c) rzUpdateTip(c, e); }, {passive:true});
+  document.addEventListener('pointerup', function(){ setTimeout(rzHideTip, 1500); }, {passive:true});
+  document.addEventListener('pointercancel', rzHideTip, {passive:true});
 })();
 </script>
 </body>
