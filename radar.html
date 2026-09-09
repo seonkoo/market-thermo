@@ -199,6 +199,12 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .topbar .tb-meta{margin-left:auto;color:var(--txt3);font-size:11px;white-space:nowrap}
 .topbar .up{color:var(--up)}.topbar .down{color:var(--down)}.topbar .flat{color:var(--txt2)}
 .topbar .tb-load{color:var(--txt3)}
+/* 窄屏（手机看盘）恢复换行：桌面 nowrap 的稳定性在窄屏会让标题行溢出裁切 */
+@media (max-width:640px){
+  .rzhead{flex-wrap:wrap}
+  .rzcorr{flex:1 1 100%;min-width:0}
+  .topbar{flex-wrap:wrap}
+}
 </style>
 </head>
 <body>
