@@ -130,7 +130,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rza.ok{background:rgba(43,214,123,.12);border-color:var(--up);color:var(--up)}
 /* 板块资金变化时间轴（开盘/峰值/翻空/现在） */
 .rztl-wrap{overflow:visible;padding:0 10px;margin:2px 0 4px}
-.rztl{position:relative;height:48px;margin:8px 0 2px;border-top:1px dashed var(--line)}
+.rztl{position:relative;height:58px;margin:8px 0 2px;border-top:1px dashed var(--line)}
+.rztl-low{top:18px}
 .rztl-n{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;white-space:nowrap}
 .rztl-dot{width:7px;height:7px;border-radius:50%;margin-top:-4px}
 .rztl-lb{font-size:10px;font-weight:700;margin-top:2px}
@@ -3739,10 +3740,13 @@ function flowTimeline(a, ser){
   }
   var nx = Math.max(ser.length - 1, 1);
   var h = '<div class="rztl">';
+  var prevPct = -100;
   for(var m = 0; m < uniq.length; m++){
     var n2 = uniq[m], pct = Math.max(0, Math.min(100, n2.i / nx * 100));
+    var low = (pct - prevPct < 18);
+    if(!low) prevPct = pct;
     var vt = n2.k === 'flip' || n2.k === 'up' ? '跨0' : ((n2.v >= 0 ? '+' : '') + n2.v.toFixed(2) + '亿');
-    h += '<div class="rztl-n" style="left:' + pct.toFixed(1) + '%" title="' + esc(n2.label + ' ' + n2.t + ' ' + vt) + '">' +
+    h += '<div class="rztl-n' + (low ? ' rztl-low' : '') + '" style="left:' + pct.toFixed(1) + '%" title="' + esc(n2.label + ' ' + n2.t + ' ' + vt) + '">' +
          '<span class="rztl-dot" style="background:' + n2.color + '"></span>' +
          '<span class="rztl-lb" style="color:' + n2.color + '">' + n2.label + '</span>' +
          '<span class="rztl-t">' + n2.t + '</span>' +
