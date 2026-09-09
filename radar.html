@@ -4262,7 +4262,7 @@ rzStart();
     var html = '<div class="tt' + (chart === RZ_PIN ? ' pin' : '') + '">'+pinMark+tstr+'</div>';
     for(var L=0;L<lines.length;L++){ var ln = lines[L];
       var label, unit;
-      if(cfg.type==='flow'){ if(ln.axis==='L'){ label='板块'; unit='亿'; } else if(ln.axis==='R'){ label='个股净流入'; unit='亿'; } else if(ln.axis==='P'){ label='个股涨跌幅'; unit='%'; } else { label='个股'; unit='亿'; } }
+      if(cfg.type==='flow'){ if(ln.axis==='L'){ label='板块资金净流入'; unit='亿'; } else if(ln.axis==='R'){ label='个股资金净流入'; unit='亿'; } else if(ln.axis==='P'){ label='个股涨跌幅'; unit='%'; } else { label='个股'; unit='亿'; } }
       else { label = (ln.axis==='L'?'价格':'资金'); unit = (ln.axis==='L' ? '' : '亿'); }
       var v = ln.val, vs;
       if(cfg.type==='index' && ln.axis==='L'){ vs = v.toFixed(2); }
