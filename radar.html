@@ -245,7 +245,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
     <div class="hint" id="rzHint" style="min-height:16px">—</div>
     <div id="rzBody" class="rzcards"></div>
     <div class="hint" style="color:var(--txt3);line-height:1.85;margin-top:8px">
-      <b>判读口径</b>：· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 前5日全天均量，午后趋近真实）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单），卡片内嵌「板块当日累计主力净流入」迷你曲线（绿=净流入/红=净流出）；· <b>标的</b> = 个股/ETF 自身涨跌。<br>
+      <b>判读口径</b>：· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 昨日同时段，盘中唯一可比口径；前5日全天均量仅收盘后参考）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单），卡片内嵌「板块当日累计主力净流入」迷你曲线（绿=净流入/红=净流出）；· <b>标的</b> = 个股/ETF 自身涨跌。<br>
       <b>共振</b> = 大市升 × 板块流入 × 标的升 三条同时成立。ETF/基金无行业归属时按名称关键词匹配板块（如「科创半导体ETF→半导体」「通信ETF→通信」，标「名推」为推断非精确行业），曲线照常显示。<br>
       <b>注意</b>：板块资金流与标的涨跌为东财口径、盘中实时；做T动作仍以 A/B 线与量比为准，本模块只提示方向共振。
     </div>
@@ -280,7 +280,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
         <div class="kv"><span>同期比</span><b id="vRatio">—</b></div>
         <div class="kv"><span>全天投影</span><b id="vProj">—</b></div>
         <div class="kv"><span>5日平均全天成交量</span><b id="vAvg5">—</b></div>
-        <div class="kv"><span>今日 / 5日均（成交额口径）</span><b id="vRatio5">—</b></div>
+        <div class="kv"><span>今日 / 5日均（成交额口径·收盘后显示）</span><b id="vRatio5">—</b></div>
       </div>
       <div class="col">
         <div class="kv"><span>近5分钟 / 前15分钟</span><b id="vSlope">—</b></div>
@@ -660,6 +660,9 @@ function marketPhase(now){
   if(t <= 15*60) return {open:true, phase:'pm', label:'午后'};
   return {open:false, phase:'close', label:'已收盘'};
 }
+// 是否已进入"今日量能可比"状态：收盘后(含周末)今日量能已完整，方可与5日均比。
+// 盘中(含午休)今日量能还在累计，与固定分母的5日均比会天然偏小，不可比。
+function isAfterClose(){ return marketPhase(new Date()).phase === 'close'; }
 // 是否处于优选做T窗口
 function windowState(now){
   var t = now.getHours() * 60 + now.getMinutes();
@@ -2104,25 +2107,34 @@ function renderIndex(){
       ' <span class="pill ' + (r>=CFG.VOL_UP?'ok':(r<=CFG.VOL_DN?'warn':'na')) + '">' + (r>=CFG.VOL_UP?'放量':(r<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
   }
   $('vProj').textContent = isFinite(vc.projVol) ? _vf(vc.projVol) + '（' + (vc.projRatio*100).toFixed(0) + '% of 昨）' : '—';
-  // 5日平均全天成交额（亿元）：东财日K 提供真实成交额，指数/个股/ETF 统一口径。
+  // 5日平均全天成交额（亿元）：仅收盘后今日量能才完整、与5日均可比；盘中灰显「收盘后显示」
+  var closed = isAfterClose();
   var a5a = I.avg5Amt;
   if(a5a && isFinite(a5a.avg) && a5a.avg > 0){
-    var todayAmt = 0;
-    for(var k = 0; k < I.trends.today.length; k++) todayAmt += (I.trends.today[k].amt || 0);
     $('vAvg5').textContent = amtTxt(a5a.avg) + '（近' + a5a.n + '日）';
-    var r5 = todayAmt / a5a.avg;
-    $('vRatio5').innerHTML = '<span class="' + (isFinite(r5) ? cls(r5-1) : 'flat') + '">' + (isFinite(r5) ? r5.toFixed(2) + 'x' : '—') + '</span>' +
-      ' <span class="pill ' + (r5>=CFG.VOL_UP?'ok':(r5<=CFG.VOL_DN?'warn':'na')) + '">' + (r5>=CFG.VOL_UP?'放量':(r5<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
+    if(closed){
+      var todayAmt = 0;
+      for(var k = 0; k < I.trends.today.length; k++) todayAmt += (I.trends.today[k].amt || 0);
+      var r5 = todayAmt / a5a.avg;
+      $('vRatio5').innerHTML = '<span class="' + (isFinite(r5) ? cls(r5-1) : 'flat') + '">' + (isFinite(r5) ? r5.toFixed(2) + 'x' : '—') + '</span>' +
+        ' <span class="pill ' + (r5>=CFG.VOL_UP?'ok':(r5<=CFG.VOL_DN?'warn':'na')) + '">' + (r5>=CFG.VOL_UP?'放量':(r5<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
+    } else {
+      $('vRatio5').innerHTML = '<span class="rzna">收盘后显示（今日量能未完整）</span>';
+    }
   } else {
     // 降级：成交额不可得时退回成交量（手）口径，并诚实标注
     var a5 = I.avg5;
     if(a5 && isFinite(a5.avg) && a5.avg > 0){
-      var todayVol = 0;
-      for(var k2 = 0; k2 < I.trends.today.length; k2++) todayVol += (I.trends.today[k2].vol || 0);
       $('vAvg5').textContent = volTxt(a5.avg) + '（近' + a5.n + '日·手）';
-      var r5b = todayVol / a5.avg;
-      $('vRatio5').innerHTML = '<span class="' + (isFinite(r5b) ? cls(r5b-1) : 'flat') + '">' + (isFinite(r5b) ? r5b.toFixed(2) + 'x' : '—') + '</span>' +
-        ' <span class="pill ' + (r5b>=CFG.VOL_UP?'ok':(r5b<=CFG.VOL_DN?'warn':'na')) + '">' + (r5b>=CFG.VOL_UP?'放量':(r5b<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
+      if(closed){
+        var todayVol = 0;
+        for(var k2 = 0; k2 < I.trends.today.length; k2++) todayVol += (I.trends.today[k2].vol || 0);
+        var r5b = todayVol / a5.avg;
+        $('vRatio5').innerHTML = '<span class="' + (isFinite(r5b) ? cls(r5b-1) : 'flat') + '">' + (isFinite(r5b) ? r5b.toFixed(2) + 'x' : '—') + '</span>' +
+          ' <span class="pill ' + (r5b>=CFG.VOL_UP?'ok':(r5b<=CFG.VOL_DN?'warn':'na')) + '">' + (r5b>=CFG.VOL_UP?'放量':(r5b<=CFG.VOL_DN?'缩量':'平量')) + '</span>';
+      } else {
+        $('vRatio5').innerHTML = '<span class="rzna">收盘后显示（今日量能未完整）</span>';
+      }
     } else {
       $('vAvg5').textContent = '—';
       $('vRatio5').innerHTML = '— <span class="pill na">日K不足</span>';
@@ -3161,17 +3173,27 @@ function rzMarket(force){
     m.sameCurAmt = (same && isFinite(same.curAmt)) ? same.curAmt : NaN;
     // 置顶卡组合图（指数价格线 + 净流入线同框）所需的当日分时序列
     m.trends = (same && same.tr) ? { today: same.tr.today, yest: same.tr.yest, preClose: same.tr.preClose } : null;
-    // 优先用 5日平均成交量 作主口径（与页面判读口径一致），并把具体手数写出来。
+    // 5日平均全天成交额（收盘口径参考）
     if(avg5 && avg5.n5 > 0 && avg5.avg5Amt > 0 && avg5.curAmt > 0){
       m.vr = avg5.curAmt / avg5.avg5Amt;
       m.curAmt = avg5.curAmt; m.avg5Amt = avg5.avg5Amt; m.avg5N = avg5.n5;
+    } else {
+      m.vr = NaN; m.avg5Amt = NaN; m.avg5N = 0;
+      if(isFinite(m.sameCurAmt)) m.curAmt = m.sameCurAmt;
+    }
+    // 量能主口径随盘中/盘后自动切换：
+    //  - 盘中(含午休)：今日量能不完整，唯一可比口径是「今/昨日同期」。
+    //  - 盘后(含周末)：今日量能已完整，用「今/5日均」最稳（分母固定、无需猜）。
+    m.afterClose = isAfterClose();
+    if(m.afterClose && isFinite(m.vr)){
       var label5 = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
-      m.volTag = label5 + ' ' + m.vr.toFixed(2) + 'x（今' + amtTxt(avg5.curAmt) + ' / 5日均' + amtTxt(avg5.avg5Amt) + '）';
-    } else if(same && isFinite(same.vr)){
-      // 5日数据拿不到时降级为同期量比，并诚实标注
-      m.vr = same.vr; m.curAmt = same.curAmt || NaN;
-      var label = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
-      m.volTag = label + ' ' + m.vr.toFixed(2) + 'x（今/昨日同期，5日均暂不可用）';
+      m.volTag = label5 + ' ' + m.vr.toFixed(2) + 'x（今' + amtTxt(m.curAmt) + ' / 5日均' + amtTxt(m.avg5Amt) + '·收盘）';
+    } else if(isFinite(m.sameVr)){
+      var label = m.sameVr >= CFG.VOL_UP ? '放量' : (m.sameVr <= CFG.VOL_DN ? '缩量' : '平量');
+      m.volTag = label + ' ' + m.sameVr.toFixed(2) + 'x（今' + amtTxt(m.sameCurAmt) + ' / 昨日同期）';
+    } else if(isFinite(m.vr)){
+      var label5b = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
+      m.volTag = label5b + ' ' + m.vr.toFixed(2) + 'x（今' + amtTxt(m.curAmt) + ' / 5日均' + amtTxt(m.avg5Amt) + '·收盘参考）';
     } else {
       m.vr = NaN; m.volTag = '';
     }
@@ -3380,7 +3402,16 @@ function renderRzIndexTop(){
     var vSb = isFinite(vs)
       ? '<b class="' + cS + '">今/昨日同期 ' + vs.toFixed(2) + 'x ' + sS + '</b>'
       : '<span class="rzna">昨日同期量待查</span>';
-    volHtml = v5b + '<br>' + vSb;
+    if(m.afterClose){
+      // 收盘后：5日均可比 → 主口径；同期降为辅助
+      volHtml = v5b + ' <span class="rzna">(收盘·主口径)</span>' + '<br>' + vSb + ' <span class="rzna">(同期·辅助)</span>';
+    } else {
+      // 盘中：今日量能不完整，5日均不可比 → 主显同期，5日均灰显「收盘后显示」
+      var v5dim = isFinite(v5)
+        ? '<span style="opacity:.45">今/5日均 ' + v5.toFixed(2) + 'x ' + s5 + '（今' + amtTxt(m.curAmt) + ' / 5日均' + amtTxt(m.avg5Amt) + '）</span>'
+        : '<span class="rzna">5日均量待查</span>';
+      volHtml = vSb + ' <span class="rzna">(盘中·主口径)</span>' + '<br>' + v5dim + ' <span class="rzna">· 收盘后显示</span>';
+    }
   } else {
     volHtml = '<span class="rzna">—</span>';
   }
@@ -3762,9 +3793,12 @@ function stkVolHtml(vc, v5){
       (vc.fallback ? '<span class="rzna">（今日/昨日全天·日K）</span>' : '<span class="rzna">（今日/昨日同期）</span>') +
       (vc.ts ? rzAge(vc.ts, false, 180) : '');
   }
-  if(v5 && isFinite(v5.ratio) && v5.avg5Amt > 0){
+  // 5日均(今/5日)仅收盘后今日量能完整才可比；盘中今日量能累计中，灰显「收盘后显示」
+  if(isAfterClose() && v5 && isFinite(v5.ratio) && v5.avg5Amt > 0){
     var col5 = v5.ratio >= CFG.VOL_UP ? 'up' : (v5.ratio <= CFG.VOL_DN ? 'down' : 'flat');
     out += ' · <b class="' + col5 + '">' + v5.label + ' ' + v5.ratio.toFixed(2) + 'x（今' + amtTxt(v5.curAmt) + ' / 5日均' + amtTxt(v5.avg5Amt) + '）</b>';
+  } else if(v5 && isFinite(v5.ratio) && v5.avg5Amt > 0){
+    out += ' · <span class="rzna">5日均·收盘后显示</span>';
   }
   return out;
 }
