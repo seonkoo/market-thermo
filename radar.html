@@ -245,7 +245,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
     <div class="hint" id="rzHint" style="min-height:16px">—</div>
     <div id="rzBody" class="rzcards"></div>
     <div class="hint" style="color:var(--txt3);line-height:1.85;margin-top:8px">
-      <b>判读口径</b>：· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 昨日同时段，盘中唯一可比口径；前5日全天均量仅收盘后参考）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单），卡片内嵌「板块当日累计主力净流入」迷你曲线（绿=净流入/红=净流出）；· <b>标的</b> = 个股/ETF 自身涨跌。<br>
+      <b>判读口径</b>：· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 昨日同时段，盘中唯一可比口径；前5日全天均量仅收盘后参考）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单），卡片内嵌「板块当日累计主力净流入」迷你曲线（红=净流入/绿=净流出）；· <b>标的</b> = 个股/ETF 自身涨跌。<br>
       <b>共振</b> = 大市升 × 板块流入 × 标的升 三条同时成立。ETF/基金无行业归属时按名称关键词匹配板块（如「科创半导体ETF→半导体」「通信ETF→通信」，标「名推」为推断非精确行业），曲线照常显示。<br>
       <b>注意</b>：板块资金流与标的涨跌为东财口径、盘中实时；做T动作仍以 A/B 线与量比为准，本模块只提示方向共振。
     </div>
@@ -3437,7 +3437,7 @@ function renderRzIndexTop(){
   el.innerHTML = '<div class="rzcard rzcard-top">' +
     '<div class="rzrow"><span class="rk">大市总览</span>' + mktHtml + '</div>' +
     '<div class="rzrow"><span class="rk">量能</span>' + volHtml + '</div>' +
-    '<div class="rztl-wrap">' + flowHtml + '<div class="rzchartcap">上证分线（蓝）＋主力净流入（绿涨/红跌·亿）· 同框</div></div>' +
+    '<div class="rztl-wrap">' + flowHtml + '<div class="rzchartcap">上证分线（蓝）＋主力净流入（红涨/绿跌·亿）· 同框</div></div>' +
   '</div>';
 }
 
@@ -3456,7 +3456,7 @@ function rzFlowSVG(ser, flowYi, a){
   var last = ser[ser.length - 1], lx = X(nx), ly = Y(last[1]);
   var zeroY = (vmin < 0 && vmax > 0) ? Y(0) : (vmax <= 0 ? MT + ph : MT);
   var up = last[1] >= 0;
-  var col = up ? '#2bd67b' : '#ff6f83';
+  var col = up ? '#ff6f83' : '#2bd67b';
   var area = 'M' + X(0).toFixed(1) + ',' + zeroY.toFixed(1) + ' L' + pts.replace(/ /g, ' L') + ' L' + lx.toFixed(1) + ',' + zeroY.toFixed(1) + ' Z';
   var lbl = (up ? '+' : '') + last[1].toFixed(2) + '亿';
   var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="none" style="display:block">';
@@ -3467,17 +3467,17 @@ function rzFlowSVG(ser, flowYi, a){
   g += '<text x="' + (lx - 4) + '" y="' + (ly - 5) + '" font-size="11" fill="' + col + '" text-anchor="end">' + lbl + '</text>';
   g += '<text x="' + ML + '" y="' + (H - 3) + '" font-size="9" fill="#7e93b8">09:30</text>';
   g += '<text x="' + (ML + pw - 2) + '" y="' + (H - 3) + '" font-size="9" fill="#7e93b8" text-anchor="end">' + last[0] + '</text>';
-  // 拐点标记：峰值（绿圈）与翻空点（红虚线）——一眼看出"从哪开始退的"
+  // 拐点标记：峰值（红圈）与翻空点（绿虚线）——一眼看出"从哪开始退的"
   if(a){
     if(a.bigPeak && a.peak.i > 0 && a.peak.i < nx){
       var px = X(a.peak.i), py = Y(a.peak.v);
-      g += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3.2" fill="none" stroke="#2bd67b" stroke-width="1.4"/>';
-      g += '<text x="' + px.toFixed(1) + '" y="' + (py - 7).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="middle">峰值 ' + a.peak.t + '</text>';
+      g += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3.2" fill="none" stroke="#ff6f83" stroke-width="1.4"/>';
+      g += '<text x="' + px.toFixed(1) + '" y="' + (py - 7).toFixed(1) + '" font-size="9" fill="#ff6f83" text-anchor="middle">峰值 ' + a.peak.t + '</text>';
     }
     if(a.flipDown && a.flipDown.i > 0 && a.flipDown.i <= nx){
       var fx = X(a.flipDown.i);
-      g += '<line x1="' + fx.toFixed(1) + '" y1="' + MT + '" x2="' + fx.toFixed(1) + '" y2="' + (MT + ph) + '" stroke="#ff6f83" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
-      g += '<text x="' + (fx + 3).toFixed(1) + '" y="' + (MT + 10).toFixed(1) + '" font-size="9" fill="#ff6f83">翻空 ' + a.flipDown.t + '</text>';
+      g += '<line x1="' + fx.toFixed(1) + '" y1="' + MT + '" x2="' + fx.toFixed(1) + '" y2="' + (MT + ph) + '" stroke="#2bd67b" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
+      g += '<text x="' + (fx + 3).toFixed(1) + '" y="' + (MT + 10).toFixed(1) + '" font-size="9" fill="#2bd67b">翻空 ' + a.flipDown.t + '</text>';
     }
   }
   g += '</svg>';
@@ -3519,12 +3519,12 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA){
   if(bpts.length){
     var bLine = bpts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yB(p[1]).toFixed(1); }).join(' ');
     var bArea = 'M' + xmin(bpts[0][0]).toFixed(1) + ',' + yb0.toFixed(1) + ' L' + bLine.replace(/ /g,' L') + ' L' + xmin(bpts[bpts.length-1][0]).toFixed(1) + ',' + yb0.toFixed(1) + ' Z';
-    g += '<path d="' + bArea + '" fill="' + (bpts[bpts.length-1][1] >= 0 ? '#1f9d55' : '#e5484d') + '" opacity="0.14"/>';
-    g += '<polyline points="' + bLine + '" fill="none" stroke="' + (bpts[bpts.length-1][1] >= 0 ? '#1f9d55' : '#e5484d') + '" stroke-width="1.5" stroke-linejoin="round"/>';
+    g += '<path d="' + bArea + '" fill="' + (bpts[bpts.length-1][1] >= 0 ? '#e5484d' : '#1f9d55') + '" opacity="0.14"/>';
+    g += '<polyline points="' + bLine + '" fill="none" stroke="' + (bpts[bpts.length-1][1] >= 0 ? '#e5484d' : '#1f9d55') + '" stroke-width="1.5" stroke-linejoin="round"/>';
   }
   if(spts.length){
     var sLine = spts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yS(p[1]).toFixed(1); }).join(' ');
-    g += '<polyline points="' + sLine + '" fill="none" stroke="' + (spts[spts.length-1][1] >= 0 ? '#5fd6a0' : '#ff9aa2') + '" stroke-width="1.5" stroke-dasharray="4 2" stroke-linejoin="round"/>';
+    g += '<polyline points="' + sLine + '" fill="none" stroke="' + (spts[spts.length-1][1] >= 0 ? '#ff9aa2' : '#5fd6a0') + '" stroke-width="1.5" stroke-dasharray="4 2" stroke-linejoin="round"/>';
   }
   var marks = [[570,'09:30'],[660,'10:30'],[690,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
   var bx = xmin(120).toFixed(1);
@@ -3532,12 +3532,12 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA){
   for(var mi = 0; mi < marks.length; mi++){ var mx = xmin(tradeMin(marks[mi][0]));
     g += '<line x1="' + mx.toFixed(1) + '" y1="' + MT + '" x2="' + mx.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#f6f7f9" stroke-width="1"/>';
     g += '<text x="' + mx.toFixed(1) + '" y="' + (MT+ph+12) + '" font-size="9" fill="#c4cad3" text-anchor="middle">' + marks[mi][1] + '</text>'; }
-  g += '<text x="' + (ML-4) + '" y="' + (yB(bhi)+3).toFixed(1) + '" font-size="9" fill="#1f9d55" text-anchor="end">' + bhi.toFixed(0) + '</text>';
-  g += '<text x="' + (ML-4) + '" y="' + (yB(blo)+3).toFixed(1) + '" font-size="9" fill="#1f9d55" text-anchor="end">' + blo.toFixed(0) + '</text>';
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yS(shi)+3).toFixed(1) + '" font-size="9" fill="#5fd6a0" text-anchor="start">' + shi.toFixed(1) + '</text>';
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yS(slo)+3).toFixed(1) + '" font-size="9" fill="#5fd6a0" text-anchor="start">' + slo.toFixed(1) + '</text>';
-  g += '<text x="' + (ML+2) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#1f9d55">■板块</text>';
-  if(spts.length) g += '<text x="' + (ML+36) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#5fd6a0">┄个股</text>';
+  g += '<text x="' + (ML-4) + '" y="' + (yB(bhi)+3).toFixed(1) + '" font-size="9" fill="#e5484d" text-anchor="end">' + bhi.toFixed(0) + '</text>';
+  g += '<text x="' + (ML-4) + '" y="' + (yB(blo)+3).toFixed(1) + '" font-size="9" fill="#e5484d" text-anchor="end">' + blo.toFixed(0) + '</text>';
+  g += '<text x="' + (ML+pw+4) + '" y="' + (yS(shi)+3).toFixed(1) + '" font-size="9" fill="#ff9aa2" text-anchor="start">' + shi.toFixed(1) + '</text>';
+  g += '<text x="' + (ML+pw+4) + '" y="' + (yS(slo)+3).toFixed(1) + '" font-size="9" fill="#ff9aa2" text-anchor="start">' + slo.toFixed(1) + '</text>';
+  g += '<text x="' + (ML+2) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#e5484d">■板块</text>';
+  if(spts.length) g += '<text x="' + (ML+36) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#ff9aa2">┄个股</text>';
   g += '</svg>';
   window.RZ_CHARTS = window.RZ_CHARTS || {};
   window.RZ_CHART_SEQ = window.RZ_CHART_SEQ || 0;
@@ -3546,13 +3546,13 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA){
     type:'flow', W:W, H:H, ML:ML, MR:MR, MT:MT, MB:MB, pw:pw, ph:ph,
     START:START, END:END, SPAN:SPAN,
     series:[
-      {axis:'L', color:'#1f9d55', pts:bpts, yfn:yB},
-      {axis:'R', color:'#5fd6a0', pts:spts, yfn:yS}
+      {axis:'L', color:'#e5484d', pts:bpts, yfn:yB},
+      {axis:'R', color:'#ff9aa2', pts:spts, yfn:yS}
     ]
   };
   return '<div class="rzchart" data-cid="'+cid+'">' + g + '<div class="rzover"></div><div class="rzcross"></div><span class="rzdot"></span><span class="rzdot"></span><div class="rztip"></div></div>';
 }
-// 置顶卡组合图：上证指数价格线（蓝）＋ 主力净流入曲线（绿涨/红跌·亿）同框，共享时间轴。
+// 置顶卡组合图：上证指数价格线（蓝）＋ 主力净流入曲线（红涨/绿跌·亿）同框，共享时间轴。
 // 只画价格线（不含量柱）。资金轴右、价格轴左，双 y 轴；零轴/昨收各作基准虚线。
 function rzIndexComboSVG(tr, flowSer, a, priceLabel){
   if(!tr || !tr.today || !tr.today.length) return '<div class="rzna">分线数据不足</div>';
@@ -3598,12 +3598,12 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
   // 0 轴（资金，浅虚线）
   var y0 = yF(0);
   g += '<line x1="' + ML + '" y1="' + y0.toFixed(1) + '" x2="' + (ML+pw) + '" y2="' + y0.toFixed(1) + '" stroke="#e4e7ec" stroke-width="1"/>';
-  // 资金区域（按末值符号整体上色：绿涨/红跌）
+  // 资金区域（按末值符号整体上色：红涨/绿跌）
   if(fpts.length){
     var fLine = fpts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yF(p[1]).toFixed(1); }).join(' ');
     var area = 'M' + xmin(fpts[0][0]).toFixed(1) + ',' + y0.toFixed(1) + ' L' + fLine.replace(/ /g,' L') + ' L' + xmin(fpts[fpts.length-1][0]).toFixed(1) + ',' + y0.toFixed(1) + ' Z';
-    g += '<path d="' + area + '" fill="' + (fpts[fpts.length-1][1] >= 0 ? '#2bd67b' : '#ff6f83') + '" opacity="0.10"/>';
-    g += '<polyline points="' + fLine + '" fill="none" stroke="' + (fpts[fpts.length-1][1] >= 0 ? '#2bd67b' : '#ff6f83') + '" stroke-width="1.4" stroke-linejoin="round"/>';
+    g += '<path d="' + area + '" fill="' + (fpts[fpts.length-1][1] >= 0 ? '#ff6f83' : '#2bd67b') + '" opacity="0.10"/>';
+    g += '<polyline points="' + fLine + '" fill="none" stroke="' + (fpts[fpts.length-1][1] >= 0 ? '#ff6f83' : '#2bd67b') + '" stroke-width="1.4" stroke-linejoin="round"/>';
   }
   // 价格线（蓝）
   var pLine = pts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yP(p[1]).toFixed(1); }).join(' ');
@@ -3613,14 +3613,14 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
     if(a.bigPeak && a.peak.i > 0 && a.peak.i < fpts.length){
       var pm = fpts[a.peak.i];
       if(pm){ var px = xmin(pm[0]), py = yF(pm[1]);
-        g += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3" fill="none" stroke="#2bd67b" stroke-width="1.3"/>';
-        g += '<text x="' + px.toFixed(1) + '" y="' + (py-6).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="middle">峰' + a.peak.t + '</text>'; }
+        g += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3" fill="none" stroke="#ff6f83" stroke-width="1.3"/>';
+        g += '<text x="' + px.toFixed(1) + '" y="' + (py-6).toFixed(1) + '" font-size="9" fill="#ff6f83" text-anchor="middle">峰' + a.peak.t + '</text>'; }
     }
     if(a.flipDown && a.flipDown.i > 0 && a.flipDown.i <= fpts.length){
       var fmPt = fpts[a.flipDown.i];
       if(fmPt){ var fx2 = xmin(fmPt[0]);
-        g += '<line x1="' + fx2.toFixed(1) + '" y1="' + MT + '" x2="' + fx2.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#ff6f83" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
-        g += '<text x="' + (fx2+3).toFixed(1) + '" y="' + (MT+10).toFixed(1) + '" font-size="9" fill="#ff6f83">翻空' + a.flipDown.t + '</text>'; }
+        g += '<line x1="' + fx2.toFixed(1) + '" y1="' + MT + '" x2="' + fx2.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#2bd67b" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
+        g += '<text x="' + (fx2+3).toFixed(1) + '" y="' + (MT+10).toFixed(1) + '" font-size="9" fill="#2bd67b">翻空' + a.flipDown.t + '</text>'; }
     }
   }
   // 时间刻度
@@ -3635,16 +3635,16 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
   // y 标签：左价格，右亿
   g += '<text x="' + (ML-4) + '" y="' + (yP(hi)+3).toFixed(1) + '" font-size="9" fill="#9ca3af" text-anchor="end">' + hi.toFixed(0) + '</text>';
   g += '<text x="' + (ML-4) + '" y="' + (yP(lo)+3).toFixed(1) + '" font-size="9" fill="#9ca3af" text-anchor="end">' + lo.toFixed(0) + '</text>';
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yF(fhi)+3).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="start">' + fhi.toFixed(1) + '亿</text>';
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yF(flo)+3).toFixed(1) + '" font-size="9" fill="#ff6f83" text-anchor="start">' + flo.toFixed(1) + '亿</text>';
+  g += '<text x="' + (ML+pw+4) + '" y="' + (yF(fhi)+3).toFixed(1) + '" font-size="9" fill="#ff6f83" text-anchor="start">' + fhi.toFixed(1) + '亿</text>';
+  g += '<text x="' + (ML+pw+4) + '" y="' + (yF(flo)+3).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="start">' + flo.toFixed(1) + '亿</text>';
   // 图例
   g += '<text x="' + (ML+4) + '" y="' + (MT-5) + '" font-size="9.5" fill="#2563eb">■ ' + esc(priceLabel || '上证指数') + '</text>';
-  g += '<text x="' + (ML+82) + '" y="' + (MT-5) + '" font-size="9.5" fill="#2bd67b">■ 主力净流入(亿)</text>';
+  g += '<text x="' + (ML+82) + '" y="' + (MT-5) + '" font-size="9.5" fill="#ff6f83">■ 主力净流入(亿)</text>';
   g += '</svg>';
   window.RZ_CHARTS = window.RZ_CHARTS || {};
   window.RZ_CHART_SEQ = window.RZ_CHART_SEQ || 0;
   var cid = 'rzc' + (++window.RZ_CHART_SEQ);
-  var fcolor = (fpts.length && fpts[fpts.length-1][1] >= 0) ? '#2bd67b' : '#ff6f83';
+  var fcolor = (fpts.length && fpts[fpts.length-1][1] >= 0) ? '#ff6f83' : '#2bd67b';
   window.RZ_CHARTS[cid] = {
     type:'index', W:W, H:H, ML:ML, MR:MR, MT:MT, MB:MB, pw:pw, ph:ph,
     START:START, END:END, SPAN:SPAN,
@@ -3700,10 +3700,10 @@ function flowTimeline(a, ser){
   if(!a || !ser || ser.length < 2) return '';
   var G = CFG.FLOW_GUARD;
   var nodes = [{t: ser[0][0], i: 0, k: 'start', label: '开盘', v: ser[0][1], color: '#7e93b8'}];
-  if(a.bigPeak && a.peak.i > 0) nodes.push({t: a.peak.t, i: a.peak.i, k: 'peak', label: '峰值', v: a.peak.v, color: '#2bd67b'});
-  if(a.flipDown) nodes.push({t: a.flipDown.t, i: a.flipDown.i, k: 'flip', label: '翻空', v: 0, color: '#ff6f83'});
-  if(a.flipUp) nodes.push({t: a.flipUp.t, i: a.flipUp.i, k: 'up', label: '回流', v: 0, color: '#2bd67b'});
-  nodes.push({t: a.lastT, i: ser.length - 1, k: 'now', label: '现在', v: a.last, color: a.last >= 0 ? '#2bd67b' : '#ff6f83'});
+  if(a.bigPeak && a.peak.i > 0) nodes.push({t: a.peak.t, i: a.peak.i, k: 'peak', label: '峰值', v: a.peak.v, color: '#ff6f83'});
+  if(a.flipDown) nodes.push({t: a.flipDown.t, i: a.flipDown.i, k: 'flip', label: '翻空', v: 0, color: '#2bd67b'});
+  if(a.flipUp) nodes.push({t: a.flipUp.t, i: a.flipUp.i, k: 'up', label: '回流', v: 0, color: '#ff6f83'});
+  nodes.push({t: a.lastT, i: ser.length - 1, k: 'now', label: '现在', v: a.last, color: a.last >= 0 ? '#ff6f83' : '#2bd67b'});
   // 同一时刻只留优先级高的节点，并限制总数
   var pri = {now: 5, flip: 4, up: 4, peak: 3, start: 1}, byT = {}, uniq = [];
   for(var i = 0; i < nodes.length; i++){
@@ -3849,8 +3849,8 @@ function rzRender(){
         (bd ? rzAge(RZ.blist.ts, RZ.blist.stale, 300) : '') +
         (RZ.blist.partial ? ' <span class="rzage bad" title="板块榜仅拉到 ' + RZ.blist.seen + '/' + RZ.blist.total + ' 个，个别板块可能匹配不到">⚠榜不全</span>' : '') + '</div>' +
       (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert) + '<div class="rzchartcap">板块资金 · 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
-      // 个股自身：分线图（蓝）＋ 自身主力净流入（绿涨/红跌·亿）同框，复用上证置顶卡组合图器
-      (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert, '标的分线') + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（绿涨/红跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
+      // 个股自身：分线图（蓝）＋ 自身主力净流入（红涨/绿跌·亿）同框，复用上证置顶卡组合图器
+      (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert, '标的分线') + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（红涨/绿跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
       // 板块资金哨兵：翻空/急退/回流，直接高亮在持仓卡片里
       (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rzalert">' + o.bdAlert.alerts.map(function(al){
           return '<div class="rza ' + al.level + '"><b>' + (al.level === 'bad' ? '⚠️' : (al.level === 'warn' ? '⚡' : '✅')) + ' ' + esc(al.text) + '</b><span>' + esc(al.detail) + '</span></div>';
