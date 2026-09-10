@@ -222,7 +222,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 
 .rzchart{position:relative;margin:4px 0 2px;border:1px solid var(--line2);border-radius:12px;background:#fff;padding:6px 8px 4px;overflow:visible}
 
-.rzchart svg{width:100%;height:auto;display:block}
+.rzchart svg{width:100%;height:auto;aspect-ratio:3/1;display:block}
 
 .rzchartcap{font-size:10.5px;color:#aeb6c1;text-align:center;padding-top:2px}
 
@@ -6853,7 +6853,7 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
   if(!bdSer || bdSer.length < 2) return '';
 
-  var W = 600, H = 200, ML = 30, MR = 46, MT = 16, MB = 16;
+  var W = 600, H = 200, ML = 16, MR = 16, MT = 16, MB = 16;
 
   var pw = W - ML - MR, ph = H - MT - MB;
 
@@ -6989,13 +6989,13 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
     g += '<text x="' + mx.toFixed(1) + '" y="' + (MT+ph+12) + '" font-size="9" fill="#c4cad3" text-anchor="middle">' + marks[mi][1] + '</text>'; }
 
-  g += '<text x="' + (ML-4) + '" y="' + (yB(bhi)+3).toFixed(1) + '" font-size="9" fill="#e5484d" text-anchor="end">' + bhi.toFixed(0) + '</text>';
+  g += '<text x="' + (ML+3) + '" y="' + (yB(bhi)+3).toFixed(1) + '" font-size="9" fill="#e5484d" text-anchor="start">' + bhi.toFixed(0) + '</text>';
 
-  g += '<text x="' + (ML-4) + '" y="' + (yB(blo)+3).toFixed(1) + '" font-size="9" fill="#e5484d" text-anchor="end">' + blo.toFixed(0) + '</text>';
+  g += '<text x="' + (ML+3) + '" y="' + (yB(blo)+3).toFixed(1) + '" font-size="9" fill="#e5484d" text-anchor="start">' + blo.toFixed(0) + '</text>';
 
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yS(shi)+3).toFixed(1) + '" font-size="9" fill="#ff9aa2" text-anchor="start">' + shi.toFixed(1) + '</text>';
+  g += '<text x="' + (ML+pw-3) + '" y="' + (yS(shi)+3).toFixed(1) + '" font-size="9" fill="#ff9aa2" text-anchor="end">' + shi.toFixed(1) + '</text>';
 
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yS(slo)+3).toFixed(1) + '" font-size="9" fill="#ff9aa2" text-anchor="start">' + slo.toFixed(1) + '</text>';
+  g += '<text x="' + (ML+pw-3) + '" y="' + (yS(slo)+3).toFixed(1) + '" font-size="9" fill="#ff9aa2" text-anchor="end">' + slo.toFixed(1) + '</text>';
 
   g += '<text x="' + (ML+2) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#e5484d">■板块</text>';
 
@@ -7043,7 +7043,7 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
 
   if(!tr || !tr.today || !tr.today.length) return '<div class="rzna">分线数据不足</div>';
 
-  var W = 600, H = 200, ML = 30, MR = 46, MT = 16, MB = 16;
+  var W = 600, H = 200, ML = 16, MR = 16, MT = 16, MB = 16;
 
   var pw = W - ML - MR, ph = H - MT - MB;
 
@@ -7197,13 +7197,13 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
 
   // y 标签：左价格，右亿
 
-  g += '<text x="' + (ML-4) + '" y="' + (yP(hi)+3).toFixed(1) + '" font-size="9" fill="#9ca3af" text-anchor="end">' + hi.toFixed(0) + '</text>';
+  g += '<text x="' + (ML+3) + '" y="' + (yP(hi)+3).toFixed(1) + '" font-size="9" fill="#9ca3af" text-anchor="start">' + hi.toFixed(0) + '</text>';
 
-  g += '<text x="' + (ML-4) + '" y="' + (yP(lo)+3).toFixed(1) + '" font-size="9" fill="#9ca3af" text-anchor="end">' + lo.toFixed(0) + '</text>';
+  g += '<text x="' + (ML+3) + '" y="' + (yP(lo)+3).toFixed(1) + '" font-size="9" fill="#9ca3af" text-anchor="start">' + lo.toFixed(0) + '</text>';
 
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yF(fhi)+3).toFixed(1) + '" font-size="9" fill="#ff6f83" text-anchor="start">' + fhi.toFixed(1) + '亿</text>';
+  g += '<text x="' + (ML+pw-3) + '" y="' + (yF(fhi)+3).toFixed(1) + '" font-size="9" fill="#ff6f83" text-anchor="end">' + fhi.toFixed(1) + '亿</text>';
 
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yF(flo)+3).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="start">' + flo.toFixed(1) + '亿</text>';
+  g += '<text x="' + (ML+pw-3) + '" y="' + (yF(flo)+3).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="end">' + flo.toFixed(1) + '亿</text>';
 
   // 图例
 
