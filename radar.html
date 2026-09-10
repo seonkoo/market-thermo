@@ -208,6 +208,9 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzbadge.bad{background:rgba(15,157,88,.10);color:var(--down)}
 
 .rzbtn{margin-left:4px;font-size:11px;padding:1px 8px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--txt2);cursor:pointer}
+.rzbtn.rzbtn-danger{border-color:#e5484d;color:#e5484d;background:#fff5f5;font-weight:700}
+.rzbtns{display:inline-flex;align-items:center;gap:4px}
+.rzbtns .rzbtn{margin-left:0}
 
 .rzok{color:var(--up);font-weight:700}
 
@@ -219,7 +222,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzrl{color:var(--txt);font-size:12.5px;font-weight:700}
 .rzrv{font-weight:800;font-size:15.5px;font-variant-numeric:tabular-nums}
 .rzar{font-size:13px;font-style:normal}
-.rzsign{margin-left:auto;line-height:1;padding:0 2px}
+.rzsign{margin-left:auto;display:inline-flex;align-items:center;gap:2px;line-height:1;padding:0}
+.rzsl{color:var(--txt2);font-size:11px;font-weight:600;white-space:nowrap}
 .rzsign .rzok,.rzsign .rzno{font-size:17px;line-height:1}
 /* 添加自选输入框：手机上更显眼 */
 .rzadd{display:flex;gap:6px;align-items:center;background:linear-gradient(180deg,#eef6ff,#e2eeff);border:1px dashed #93c5fd;border-radius:11px;padding:7px 8px;margin:2px 0 6px}
@@ -7712,7 +7716,7 @@ function rzRender(){
 
       ((v.weak && v.weak.length) ? '<span class="rzage warn">⚠弱信号·' + esc(v.weak.join('，')) + '</span>' : '') +
 
-      '<button class="rzbtn" data-rz-re="' + code + '">重算</button><button class="rzbtn" data-rz-rm="' + code + '">移除</button></div>';
+      '<span class="rzbtns"><button class="rzbtn" data-rz-rm="' + code + '">移除</button><button class="rzbtn" data-rz-re="' + code + '">重算</button></span></div>';
 
     html += '<div class="rzcard">' + head +
 
@@ -7720,7 +7724,7 @@ function rzRender(){
 
         (mk ? rzAge(mk.qt || mk.ts, mk.stale, 90) : '') +
 
-        (mk ? '<span class="rzsign" title="大市信号">' + rzY(mk.pct > 0) + '</span>' : '') + '</div>' +
+        (mk ? '<span class="rzsign" title="大市信号"><span class="rzsl">大市信号</span>' + rzY(mk.pct > 0) + '</span>' : '') + '</div>' +
 
       '<div class="rzrow"><span class="rk">板块</span>' + (bd ? '<b class="rzn">' + esc(bd.name) + '</b><b class="rzpct">' + pctS(bd.pct) + '</b>' + (o.etfMatch ? '<span class="rzna">（名推）</span>' : '')
 
@@ -8083,7 +8087,18 @@ function rzStart(){
 
     var rm = b.getAttribute('data-rz-rm'), re = b.getAttribute('data-rz-re');
 
-    if(rm) rzRemove(rm); else if(re) rzRe(re);
+    if(rm){
+      // 两步确认，防误删：第一次点变成「确认移除？」，3 秒内再点才真删
+      if(b.getAttribute('data-cf') === '1'){ if(b._t) clearTimeout(b._t); rzRemove(rm); }
+      else {
+        b.setAttribute('data-cf', '1');
+        b.textContent = '确认移除？';
+        b.classList.add('rzbtn-danger');
+        if(b._t) clearTimeout(b._t);
+        b._t = setTimeout(function(){ b.removeAttribute('data-cf'); b.textContent = '移除'; b.classList.remove('rzbtn-danger'); }, 3000);
+      }
+    }
+    else if(re) rzRe(re);
 
   });
 
