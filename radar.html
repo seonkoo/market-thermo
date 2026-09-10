@@ -6869,6 +6869,7 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
     var bv = bdSer[i][1]; bpts.push([tradeMin(bm), bv]); blo = Math.min(blo, bv); bhi = Math.max(bhi, bv); }
 
+  if(bpts.length){ if(bpts[0][0] > 0) bpts.unshift([0, bpts[0][1]]); if(bpts[bpts.length-1][0] < 240) bpts.push([240, bpts[bpts.length-1][1]]); }
   if(!bpts.length) return '';
 
   blo = Math.min(blo, 0); bhi = Math.max(bhi, 0);
@@ -6885,6 +6886,7 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
   }
 
+  if(spts.length){ if(spts[0][0] > 0) spts.unshift([0, spts[0][1]]); if(spts[spts.length-1][0] < 240) spts.push([240, spts[spts.length-1][1]]); }
   if(spts.length){ slo = Math.min(slo, 0); shi = Math.max(shi, 0); } else { slo = -1; shi = 1; }
 
   var sp = (shi - slo) * 0.1; slo -= sp; shi += sp;
@@ -6907,6 +6909,7 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
   }
 
+  if(ppts.length){ if(ppts[0][0] > 0) ppts.unshift([0, ppts[0][1]]); if(ppts[ppts.length-1][0] < 240) ppts.push([240, ppts[ppts.length-1][1]]); }
   if(ppts.length){ var pr = Math.max(Math.abs(pmin), Math.abs(pmax), 1) * 1.15; pmin = -pr; pmax = pr; } else { pmin = -1; pmax = 1; }
 
   function yPct(p){ return MT + ph * (pmax - p) / (pmax - pmin); }
@@ -6925,7 +6928,8 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
       mpts.push([tradeMin(mm), (mcl - mpc) / mpc * 100]); }
 
-    hasMkt = mpts.length > 0;
+    if(mpts.length){ if(mpts[0][0] > 0) mpts.unshift([0, mpts[0][1]]); if(mpts[mpts.length-1][0] < 240) mpts.push([240, mpts[mpts.length-1][1]]); }
+  hasMkt = mpts.length > 0;
 
   }
 
@@ -7072,6 +7076,7 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
 
   }
 
+  if(pts.length){ if(pts[0][0] > 0) pts.unshift([0, pts[0][1]]); if(pts[pts.length-1][0] < 240) pts.push([240, pts[pts.length-1][1]]); }
   if(!pts.length) return '<div class="rzna">分线数据不足</div>';
 
   if(isFinite(tr.preClose)){ lo = Math.min(lo, tr.preClose); hi = Math.max(hi, tr.preClose); }
@@ -7100,6 +7105,7 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
 
   }
 
+  if(fpts.length){ if(fpts[0][0] > 0) fpts.unshift([0, fpts[0][1]]); if(fpts[fpts.length-1][0] < 240) fpts.push([240, fpts[fpts.length-1][1]]); }
   if(fpts.length){ flo = Math.min(flo, 0); fhi = Math.max(fhi, 0); } else { flo = -1; fhi = 1; }
 
   var fp = (fhi - flo) * 0.1; flo -= fp; fhi += fp;
