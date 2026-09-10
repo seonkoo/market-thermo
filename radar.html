@@ -211,6 +211,12 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzno{color:var(--down);font-weight:700}
 
 .rzna{color:var(--txt3)}
+.rzflow2{display:flex;gap:8px;margin:1px 0 3px}
+.rzfcell{flex:1;min-width:0;background:#fafbfc;border:1px solid #eef1f4;border-radius:8px;padding:5px 9px}
+.rzflabel{font-size:11px;color:#8a94a6;line-height:1.35}
+.rzfnum{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.flow-up{color:#e5484d}
+.flow-down{color:#1f9d55}
 
 /* 数据年龄徽标：鲜活性一眼可见。灰=即时，黄=偏旧，红=陈旧/取数失败 */
 
@@ -6981,7 +6987,7 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
   }
 
-  var marks = [[570,'09:30'],[660,'10:30'],[690,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
+  var marks = [[570,'09:30'],[630,'10:30'],[690,'11:30/13:00'],[870,'14:30'],[900,'15:00']];
 
   var bx = xmin(120).toFixed(1);
 
@@ -7186,7 +7192,7 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
 
   // 时间刻度
 
-  var marks = [[570,'09:30'],[660,'10:30'],[690,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
+  var marks = [[570,'09:30'],[630,'10:30'],[690,'11:30/13:00'],[870,'14:30'],[900,'15:00']];
 
   var bx = xmin(120).toFixed(1);
 
@@ -7523,6 +7529,18 @@ function rzVerdict(mkt, bd, it){
 
 function rzY(b){ return b ? '<span class="rzok">✓</span>' : '<span class="rzno">✗</span>'; }
 
+// 资金净流入高亮单元格：同一列对齐、红正绿负、带趋势箭头
+function rzFlowCell(label, valYi, prevYi){
+  if(valYi === null || valYi === undefined || !isFinite(valYi)) return '';
+  var up = valYi >= 0, arrow = '';
+  if(prevYi !== null && prevYi !== undefined && isFinite(prevYi)){
+    if(valYi > prevYi) arrow = ' <span style="font-size:12px">▲</span>';
+    else if(valYi < prevYi) arrow = ' <span style="font-size:12px">▼</span>';
+  }
+  return '<div class="rzfcell"><div class="rzflabel">' + label + '</div>' +
+    '<div class="rzfnum ' + (up ? 'flow-up' : 'flow-down') + '">' + (up ? '+' : '') + valYi.toFixed(2) + '亿' + arrow + '</div></div>';
+}
+
 // —— 数据鲜活性：每个维度都标出"这个数字是多久之前的" ——
 
 function rzAgo(ts){
@@ -7689,11 +7707,11 @@ function rzRender(){
 
         (mk ? rzAge(mk.qt || mk.ts, mk.stale, 90) : '') + '</div>' +
 
-      '<div class="rzrow"><span class="rk">板块</span>' + (bd ? esc(bd.name) + (o.etfMatch ? '<span class="rzna">（名推）</span>' : '') + ' ' + pctS(bd.pct) + ' · 主力 ' + (bd.flow >= 0 ? '+' : '') + (bd.flow / 1e8).toFixed(2) + '亿'
+      '<div class="rzrow"><span class="rk">板块</span>' + (bd ? esc(bd.name) + (o.etfMatch ? '<span class="rzna">（名推）</span>' : '') + ' ' + pctS(bd.pct)
 
         : (o.bdFail ? '<span class="rzna">板块榜取数失败</span>'
 
-                    : '<span class="rzna">' + (isETFCode(code) ? 'ETF 未匹配到板块' : '无行业归属') + '</span>')) + (bd ? ' ' + rzY(bd.flow > 0) : '') +
+                    : '<span class="rzna">' + (isETFCode(code) ? 'ETF 未匹配到板块' : '无行业归属') + '</span>')) +
 
         (bd ? rzAge(RZ.blist.ts, RZ.blist.stale, 300) : '') +
 
@@ -7711,11 +7729,12 @@ function rzRender(){
 
       '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
 
-      (o.stkAlert ? ' · 自身主力 ' + (o.stkAlert.last >= 0 ? '+' : '') + o.stkAlert.last.toFixed(2) + '亿 ' + rzY(o.stkAlert.last > 0) : '') +
+      '' +
 
       (q ? rzAge(q.qt, false, 90) : '') +
 
       stkVolHtml(o.stkV, o.stkV5) +
+      (bd || o.stkAlert ? '<div class="rzflow2">' + (bd ? rzFlowCell('板块资金净流入', bd.flow/1e8, o._bdPrev) : '') + (o.stkAlert ? rzFlowCell('个股净流入', o.stkAlert.last, o._stkPrev) : '') + '</div>' : '') +
 
       (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert, o.tr) + '<div class="rzchartcap">板块资金 · 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
 
@@ -7728,6 +7747,8 @@ function rzRender(){
       (o.stkSer && o.stkAlert ? flowSummary(o.stkAlert, o.stkSer) : '') +
 
       (bd ? '' : ' <span class="rzna">ETF 按「大市+标的」双线</span>') + '</div></div>';
+
+    o._bdPrev = bd ? bd.flow/1e8 : null; o._stkPrev = o.stkAlert ? o.stkAlert.last : null;
 
   });
 
