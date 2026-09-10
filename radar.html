@@ -3446,7 +3446,7 @@ function clockMin(tm){ if(!isFinite(tm)) return 570; if(tm <= 120) return tm + 5
 // 解决板块(几十~几百亿)与个股(几亿)量级悬殊——双 y 轴避免个股线被压成贴 0 直线。
 function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
   if(!bdSer || bdSer.length < 2) return '';
-  var W = 600, H = 152, ML = 42, MR = 46, MT = 14, MB = 16;
+  var W = 600, H = 200, ML = 42, MR = 46, MT = 16, MB = 16;
   var pw = W - ML - MR, ph = H - MT - MB;
   var START = 0, END = TRADE_SPAN, SPAN = TRADE_SPAN;
   function xmin(tm){ return ML + Math.max(0, Math.min(1, tm / SPAN)) * pw; }
