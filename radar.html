@@ -194,9 +194,9 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 
 .rzrow{font-size:11px;color:var(--txt2);display:flex;flex-wrap:wrap;gap:2px 10px;align-items:center}
 
-.rzrow .rk{color:var(--txt3)}
+.rzrow .rk{color:var(--txt);font-weight:700;letter-spacing:.3px}
 
-.rzbadge{margin-left:auto;font-size:11px;padding:1px 8px;border-radius:10px;background:#eef1f4;color:#334155;font-weight:600;white-space:nowrap}
+.rzbadge{margin-left:auto;font-size:12.5px;padding:4px 12px;border-radius:11px;background:#eef1f4;color:#334155;font-weight:700;white-space:nowrap;line-height:1.3}
 
 .rzbadge.good{background:rgba(217,43,43,.10);color:var(--up)}
 
@@ -211,10 +211,18 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzno{color:var(--down);font-weight:700}
 
 .rzna{color:var(--txt3)}
-.rzflow2{display:flex;gap:8px;margin:1px 0 3px}
-.rzfcell{flex:1;min-width:0;background:#fafbfc;border:1px solid #eef1f4;border-radius:8px;padding:5px 9px}
-.rzflabel{font-size:11px;color:#8a94a6;line-height:1.35}
-.rzfnum{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+/* 右侧对齐列：大市信号 / 板块·个股资金主力净流入 */
+.rzr{margin-left:auto;display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rzrl{color:#8a94a6;font-size:10.5px}
+.rzrv{font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.rzar{font-size:11px;font-style:normal}
+.rzsign{margin-left:auto;line-height:1;padding:0 2px}
+.rzsign .rzok,.rzsign .rzno{font-size:17px;line-height:1}
+/* 添加自选输入框：手机上更显眼 */
+.rzadd{display:flex;gap:6px;align-items:center;background:linear-gradient(180deg,#eef6ff,#e2eeff);border:1px dashed #93c5fd;border-radius:11px;padding:7px 8px;margin:2px 0 6px}
+.rzadd input{flex:1;min-width:0;padding:8px 10px;border:1px solid #93c5fd;border-radius:8px;font-size:16px;background:#fff}
+.rzadd input:focus{outline:none;border-color:var(--info);box-shadow:0 0 0 3px rgba(37,99,235,.16)}
+.rzadd .rzaddlbl{color:var(--info);font-size:15px;font-weight:800;line-height:1}
 .flow-up{color:#e5484d}
 .flow-down{color:#1f9d55}
 
@@ -252,7 +260,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 
 .rzalert{margin:4px 0 2px;border-radius:8px;overflow:hidden}
 
-.rza-wrap{min-height:30px}
+.rza-wrap{min-height:0}
 
 .rzsortbar{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;color:var(--txt3)}
 
@@ -596,9 +604,11 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 
     <div class="hint" style="margin-bottom:6px">自选个股/ETF，自动判定所属行业板块并实时拉取该板块主力资金流，与上证指数量能、标的自身涨跌做三线共振判读。三条全绿 = 顺势跟主力；出现背离 = 警惕。</div>
 
-    <div style="display:flex;gap:6px;margin-bottom:4px">
+    <div class="rzadd">
 
-      <input id="rzInp" placeholder="输入 6 位代码，如 600667 / 588170" maxlength="6" style="flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+      <span class="rzaddlbl">＋</span>
+
+      <input id="rzInp" placeholder="输入 6 位代码，如 600667 / 588170" maxlength="6" inputmode="numeric" autocomplete="off">
 
       <button class="primary" id="rzAdd" type="button">添加</button>
 
@@ -7529,16 +7539,16 @@ function rzVerdict(mkt, bd, it){
 
 function rzY(b){ return b ? '<span class="rzok">✓</span>' : '<span class="rzno">✗</span>'; }
 
-// 资金净流入高亮单元格：同一列对齐、红正绿负、带趋势箭头
-function rzFlowCell(label, valYi, prevYi){
+// 资金净流入：行内右对齐（标签灰 + 数值红正绿负 + 趋势箭头）
+function rzRowFlow(label, valYi, prevYi){
   if(valYi === null || valYi === undefined || !isFinite(valYi)) return '';
   var up = valYi >= 0, arrow = '';
   if(prevYi !== null && prevYi !== undefined && isFinite(prevYi)){
-    if(valYi > prevYi) arrow = ' <span style="font-size:12px">▲</span>';
-    else if(valYi < prevYi) arrow = ' <span style="font-size:12px">▼</span>';
+    if(valYi > prevYi) arrow = '<i class="rzar" style="color:var(--up)">▲</i>';
+    else if(valYi < prevYi) arrow = '<i class="rzar" style="color:var(--down)">▼</i>';
   }
-  return '<div class="rzfcell"><div class="rzflabel">' + label + '</div>' +
-    '<div class="rzfnum ' + (up ? 'flow-up' : 'flow-down') + '">' + (up ? '+' : '') + valYi.toFixed(2) + '亿' + arrow + '</div></div>';
+  return '<span class="rzr"><span class="rzrl">' + label + '</span>' +
+    '<b class="rzrv ' + (up ? 'flow-up' : 'flow-down') + '">' + (up ? '+' : '') + valYi.toFixed(2) + '亿</b>' + arrow + '</span>';
 }
 
 // —— 数据鲜活性：每个维度都标出"这个数字是多久之前的" ——
@@ -7703,9 +7713,11 @@ function rzRender(){
 
     html += '<div class="rzcard">' + head +
 
-      '<div class="rzrow"><span class="rk">大市</span><b>上证</b> ' + (mk ? pctS(mk.pct) + (mk.volTag ? ' <b>' + esc(mk.volTag) + '</b>' : '') : '<span class="rzna">—</span>') + (mk ? ' ' + rzY(mk.pct > 0) : '') +
+      '<div class="rzrow"><span class="rk">大市</span><b>上证</b> ' + (mk ? pctS(mk.pct) + (mk.volTag ? ' <b>' + esc(mk.volTag) + '</b>' : '') : '<span class="rzna">—</span>') +
 
-        (mk ? rzAge(mk.qt || mk.ts, mk.stale, 90) : '') + '</div>' +
+        (mk ? rzAge(mk.qt || mk.ts, mk.stale, 90) : '') +
+
+        (mk ? '<span class="rzsign" title="大市信号">' + rzY(mk.pct > 0) + '</span>' : '') + '</div>' +
 
       '<div class="rzrow"><span class="rk">板块</span>' + (bd ? esc(bd.name) + (o.etfMatch ? '<span class="rzna">（名推）</span>' : '') + ' ' + pctS(bd.pct)
 
@@ -7715,17 +7727,19 @@ function rzRender(){
 
         (bd ? rzAge(RZ.blist.ts, RZ.blist.stale, 300) : '') +
 
-        (RZ.blist.partial ? ' <span class="rzage bad" title="板块榜仅拉到 ' + RZ.blist.seen + '/' + RZ.blist.total + ' 个，个别板块可能匹配不到">⚠榜不全</span>' : '') + '</div>' +
+        (RZ.blist.partial ? ' <span class="rzage bad" title="板块榜仅拉到 ' + RZ.blist.seen + '/' + RZ.blist.total + ' 个，个别板块可能匹配不到">⚠榜不全</span>' : '') +
+
+        (bd ? rzRowFlow('板块资金主力净流入', bd.flow / 1e8, o._bdPrev) : '') + '</div>' +
 
 
 
       // 板块资金哨兵：翻空/急退/回流，直接高亮在持仓卡片里
 
-      '<div class="rza-wrap">' + (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rzalert">' + o.bdAlert.alerts.map(function(al){
+      (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rza-wrap"><div class="rzalert">' + o.bdAlert.alerts.map(function(al){
 
           return '<div class="rza ' + al.level + '"><b>' + (al.level === 'bad' ? '⚠️' : (al.level === 'warn' ? '⚡' : '✅')) + ' ' + esc(al.text) + '</b><span>' + esc(al.detail) + '</span></div>';
 
-        }).join('') + '</div>' : '') + '</div>' +
+        }).join('') + '</div></div>' : '') +
 
       '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
 
@@ -7734,7 +7748,7 @@ function rzRender(){
       (q ? rzAge(q.qt, false, 90) : '') +
 
       stkVolHtml(o.stkV, o.stkV5) +
-      (bd || o.stkAlert ? '<div class="rzflow2">' + (bd ? rzFlowCell('板块资金净流入', bd.flow/1e8, o._bdPrev) : '') + (o.stkAlert ? rzFlowCell('个股净流入', o.stkAlert.last, o._stkPrev) : '') + '</div>' : '') +
+      (o.stkAlert ? rzRowFlow('个股资金主力净流入', o.stkAlert.last, o._stkPrev) : '') +
 
       (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert, o.tr) + '<div class="rzchartcap">板块资金 · 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
 
