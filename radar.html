@@ -623,7 +623,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 
     <div class="hint" id="rzHint" style="min-height:16px">—</div>
 
-    <div class="rzsortbar"><span class="rzsortlbl">排序</span><button class="rzsort on" data-sort="res">共振强弱</button><button class="rzsort" data-sort="raw">原始顺序</button></div>
+    <div class="rzsortbar"><span class="rzsortlbl">排序</span><button class="rzsort" data-sort="res">共振强弱</button><button class="rzsort on" data-sort="raw" id="rzSortRaw">添加时间↓</button></div>
 
     <div id="rzBody" class="rzcards"></div>
 
@@ -6097,7 +6097,7 @@ var RZ = {
 
   timer: null, gen: 0,
 
-  sortDirty: false, initialSorted: false, sortMode: 'res'
+  sortDirty: false, initialSorted: false, sortMode: 'raw', rawDir: 1  // rawDir: 1=新→旧, -1=旧→新
 
 };
 
@@ -6105,7 +6105,17 @@ var RZ = {
 
 var PZT = { nin: 0, nout: 0, ts: 0 };
 
-function rzLoad(){ try{ RZ.list = JSON.parse(localStorage.getItem('rz_watch') || '[]'); }catch(e){ RZ.list = []; } if(!Array.isArray(RZ.list)) RZ.list = []; RZ.order = RZ.list.slice(); }
+function rzLoad(){
+  try{ RZ.list = JSON.parse(localStorage.getItem('rz_watch') || '[]'); }catch(e){ RZ.list = []; }
+  if(!Array.isArray(RZ.list)) RZ.list = [];
+  // 迁移：旧格式纯字符串数组 → {c, _at} 对象数组
+  if(RZ.list.length && typeof RZ.list[0] === 'string'){
+    var now = Date.now();
+    RZ.list = RZ.list.map(function(c, i){ return {c: c, _at: now - (RZ.list.length - i) * 1000}; });
+    rzSave(); // 一次性写回新格式
+  }
+  RZ.order = RZ.list.slice();
+}
 
 function rzSave(){ try{ localStorage.setItem('rz_watch', JSON.stringify(RZ.list)); }catch(e){} }
 
@@ -6113,13 +6123,16 @@ function rzSave(){ try{ localStorage.setItem('rz_watch', JSON.stringify(RZ.list)
 
 function rzSortOrder(){
 
-  if(RZ.sortMode === 'raw'){ RZ.order = RZ.list.slice(); return; }  // 原始添加顺序
+  if(RZ.sortMode === 'raw'){
+    RZ.order = RZ.list.slice().sort(function(a, b){ return (b._at - a._at) * RZ.rawDir; }).map(function(x){ return x.c; });
+    return;
+  }  // 按添加时间排序，rawDir 控制方向
 
   var rank = { good: 0, warn: 1, na: 2 };
 
   RZ.order = RZ.list.slice().sort(function(a, b){
 
-    var oa = RZ.state[a], ob = RZ.state[b];
+    var oa = RZ.state[a.c], ob = RZ.state[b.c];
 
     var ca = (oa && oa.v && oa.v.cls) || 'na';
 
@@ -6129,13 +6142,22 @@ function rzSortOrder(){
 
     if(ra !== rb) return ra - rb;
 
-    return a < b ? -1 : (a > b ? 1 : 0);
+    return a.c < b.c ? -1 : (a.c > b.c ? 1 : 0);
 
   });
 
 }
 
-function rzSetSort(mode){ RZ.sortMode = mode; RZ.sortDirty = true; RZ.initialSorted = true; rzRender(); }
+function rzSetSort(mode){
+  if(mode === RZ.sortMode && mode === 'raw'){
+    RZ.rawDir = -RZ.rawDir; // 切换正倒序
+    var btn = document.getElementById('rzSortRaw');
+    if(btn) btn.textContent = '添加时间' + (RZ.rawDir > 0 ? '↓' : '↑');
+  } else {
+    RZ.sortMode = mode;
+  }
+  RZ.sortDirty = true; RZ.initialSorted = true; rzRender();
+}
 
 // 多主机 jsonp 轮询（东财限流按主机独立）
 
@@ -7658,11 +7680,11 @@ function rzRender(){
 
   if(!RZ.list.length){ body.innerHTML = '<div class="hint" style="color:var(--txt3);padding:6px 0">暂无自选，输入代码点「添加」开始。</div>'; if(tag){ tag.textContent = '空'; tag.className = 'pill na'; } return; }
 
-  if(!RZ.order.length) RZ.order = RZ.list.slice();
+  if(!RZ.order.length) RZ.order = RZ.list.map(function(x){ return x.c; });
 
   // 重排只在：①增删后(sortDirty) ②共振模式下首次全部判定就绪时；自动刷新不重排，避免卡片乱跳
 
-  var allReady = RZ.list.length && RZ.list.every(function(c){ return RZ.state[c] && RZ.state[c].v && RZ.state[c].v.cls; });
+  var allReady = RZ.list.length && RZ.list.every(function(x){ return RZ.state[x.c] && RZ.state[x.c].v && RZ.state[x.c].v.cls; });
 
   if(RZ.sortMode === 'res' && (RZ.sortDirty || (!RZ.initialSorted && allReady))){ rzSortOrder(); RZ.sortDirty = false; RZ.initialSorted = true; }
 
@@ -7827,7 +7849,7 @@ function rzOverview(){
 
   var tot = RZ.list.length, res = 0;
 
-  RZ.list.forEach(function(c){ var o = RZ.state[c]; if(o && o.v && o.v.cls === 'good') res++; });
+  RZ.list.forEach(function(x){ var o = RZ.state[x.c]; if(o && o.v && o.v.cls === 'good') res++; });
 
   var itTxt = tot ? (res + '/' + tot + ' 共振') : '—';
 
@@ -8007,7 +8029,7 @@ function rzRefresh(force){
 
   if(!RZ.list.length) return;
 
-  RZ.list.forEach(function(code){ rzOne(code, force); });
+  RZ.list.forEach(function(item){ rzOne(item.c, force); });
 
 }
 
@@ -8023,9 +8045,9 @@ function rzAdd(codeRaw){
 
   c = m[2];
 
-  if(RZ.list.indexOf(c) >= 0){ var h2 = $('rzHint'); if(h2) h2.textContent = c + ' 已在列表中。'; return; }
+  if(RZ.list.some(function(x){ return x.c === c; })){ var h2 = $('rzHint'); if(h2) h2.textContent = c + ' 已在列表中。'; return; }
 
-  RZ.list.push(c);
+  RZ.list.push({c: c, _at: Date.now()});
 
   rzSave();
 
@@ -8041,7 +8063,7 @@ function rzAdd(codeRaw){
 
 function rzRemove(code){
 
-  RZ.list = RZ.list.filter(function(x){ return x !== code; });
+  RZ.list = RZ.list.filter(function(x){ return x.c !== code; });
 
   delete RZ.state[code];
 
