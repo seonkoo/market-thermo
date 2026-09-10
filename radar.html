@@ -242,8 +242,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
     <div class="hint" style="margin-bottom:8px">全市场板块主力资金净流入（累计·亿元），分钟级、几十秒延迟。切换 概念/行业，可屏蔽干扰板块。</div>
     <div class="ml" style="margin-bottom:10px;flex-wrap:wrap;gap:8px">
       <div class="seg" id="pztKindSeg">
-        <button type="button" data-k="0" class="on">概念板块</button>
-        <button type="button" data-k="1">行业板块</button>
+        <button type="button" data-k="0">概念板块</button>
+        <button type="button" data-k="1" class="on">行业板块</button>
       </div>
       <button class="primary" id="pztRefresh" type="button">立即刷新</button>
       <span class="hint" id="pztUpdated" style="margin-left:auto">—</span>
@@ -377,120 +377,6 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
       </div>
     </div>
     <div class="hint" style="margin-top:8px">广度 = 全市场 5200+ 只的聚合视角（做T 先看"大势"是否值得动手）；下方 ② 是单票量价深度。同屏即「广度+深度」融合。行业/期指为东财实时，两融仅 T-1（见 ② 条件1）。</div>
-  </div>
-
-  <!-- 做T环境 -->
-  <div class="card">
-    <h2>② 实时做T环境 <span id="tLight" class="pill na">—</span></h2>
-    <div id="tSummary" class="hint" style="font-size:13px;color:var(--txt2);margin-bottom:10px">—</div>
-    <table>
-      <thead><tr><th style="width:130px">检查项</th><th style="width:64px">判定</th><th>说明</th></tr></thead>
-      <tbody id="tRules"><tr><td colspan="3" style="color:var(--txt3)">—</td></tr></tbody>
-    </table>
-    <div style="margin-top:10px">
-      <div class="hint" style="margin-bottom:6px">昨日板块主力资金（前5流入 / 后3流出）<span id="thermoTag" style="margin-left:6px"></span></div>
-      <div id="sectorFlow" class="hint">—</div>
-    </div>
-  </div>
-
-  <!-- 个股 -->
-  <div class="card">
-    <h2>③ 个股量价诊断 <span class="tag">输入 6 位代码</span></h2>
-    <div class="row" style="align-items:center">
-      <input type="text" id="code" placeholder="股票/ETF 代码：600519 / 510500 / 513500 / 159928 / 588170" style="width:260px">
-      <button class="primary" id="btnQuery">查询</button>
-      <span class="hint" style="align-self:center">Enter 查询 · 支持股票与 ETF（510500 中证500 / 513500 标普500 / 159928 消费ETF / 588170 半导体ETF 等）</span>
-      <div style="flex-basis:100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-        <span class="hint" style="align-self:center">ETF 一键：</span>
-        <button class="etfbtn" data-c="510500">中证500</button>
-        <button class="etfbtn" data-c="513500">标普500</button>
-        <button class="etfbtn" data-c="510300">沪深300</button>
-        <button class="etfbtn" data-c="513100">纳指100</button>
-        <button class="etfbtn" data-c="513520">日经225</button>
-        <button class="etfbtn" data-c="588170">半导体</button>
-        <button class="etfbtn" data-c="588200">科创50</button>
-        <button class="etfbtn" data-c="159928">消费ETF</button>
-        <button class="etfbtn" data-c="512760">半导体50</button>
-        <button class="etfbtn" data-c="159002">货币ETF</button>
-      </div>
-    </div>
-    <div id="stkErr" class="err" style="display:none"></div>
-    <div id="stkBody" style="display:none;margin-top:12px">
-      <div class="row">
-        <div class="col" style="flex:0 0 200px">
-          <div class="big" id="sPrice">—</div>
-          <div class="bigsub" id="sChg">—</div>
-          <div class="hint" id="sName">—</div>
-        </div>
-        <div class="col">
-          <div class="kv"><span>今日累计</span><b id="sVNow">—</b></div>
-          <div class="kv"><span>昨日同期</span><b id="sVSame">—</b></div>
-          <div class="kv"><span>今日量比昨日</span><b id="sVRatio">—</b></div>
-          <div class="kv"><span>官方量比（5日均）</span><b id="sVR">—</b></div>
-        </div>
-        <div class="col">
-          <div class="kv"><span>均价线（黄线）</span><b id="sAvg" class="ylwc">—</b></div>
-          <div class="kv"><span>现价 vs 均价</span><b id="sVsAvg">—</b></div>
-          <div class="kv"><span>全天投影</span><b id="sVProj">—</b></div>
-          <div class="kv"><span>投影换手参考</span><b id="sTurn">—</b></div>
-        </div>
-        <div class="col">
-          <div class="kv"><span>上方最近压力</span><b id="sRes">—</b></div>
-          <div class="kv"><span>下方最近支撑</span><b id="sSup">—</b></div>
-          <div class="kv"><span>箱体位置（20日）</span><b id="sBox">—</b></div>
-          <div class="kv"><span>量价相关系数</span><b id="sCorr">—</b></div>
-        </div>
-      </div>
-      <div style="margin-top:10px" id="sChart"></div>
-      <div style="margin-top:12px">
-        <div class="hint" style="margin-bottom:6px">识别到的量价关系</div>
-        <div class="chips" id="sChips">—</div>
-        <table style="margin-top:10px">
-          <thead><tr><th style="width:118px">形态</th><th style="width:56px">方向</th><th>含义与对做T的提示</th></tr></thead>
-          <tbody id="sPatterns"><tr><td colspan="3" style="color:var(--txt3)">—</td></tr></tbody>
-        </table>
-      </div>
-      <div style="margin-top:12px;background:#fafbfc;border:1px solid var(--line);border-radius:9px;padding:10px 12px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px">个股做T建议 <span id="sAdvice" class="pill na">—</span></div>
-        <div id="sAdviceTxt" class="hint" style="color:var(--txt2);font-size:13px">—</div>
-      </div>
-      <div id="sTrigBox" style="margin-top:10px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:#fff">
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px">触发参考（自动生成·非荐股） <span id="sTrig" class="pill na">—</span></div>
-        <div id="sTrigBody" class="hint" style="color:var(--txt2);font-size:12px;line-height:1.95">—</div>
-        <div id="sTViewRow" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)">
-          <div style="font-size:13px;font-weight:600;margin-bottom:3px">做T 视角（日内参考） <span id="sTView" class="pill na">—</span></div>
-          <div id="sTViewTxt" class="hint" style="color:var(--txt2);font-size:12px;line-height:1.85">—</div>
-        </div>
-      </div>
-      <div id="sDipBox" style="display:none;margin-top:10px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:#fff">
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px">分时回踩低吸（日内执行） <span id="sDip" class="pill na">—</span></div>
-        <div id="sDipTxt" class="hint" style="color:var(--txt2);font-size:12px;line-height:1.85">—</div>
-        <div id="sDipSvg" style="margin-top:6px"></div>
-      </div>
-      <div style="margin-top:10px">
-        <button class="etfbtn" id="wAddFromStk">＋ 加入观察池</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 观察池 -->
-  <div class="card">
-    <h2>③b 观察池 · 触发提醒 <span class="tag" id="wTag">页面需保持打开</span></h2>
-    <div class="row" style="align-items:center">
-      <input type="text" id="wCode" placeholder="加入观察池：6 位代码（如 588170）" style="width:230px">
-      <button id="wAdd">加入</button>
-      <button id="wNotify">🔔 开启浏览器通知</button>
-      <button id="wRecalc">立即重算</button>
-      <span class="hint" id="wMeta" style="align-self:center">快轮询 30s 判价格 · 量能 5min 重算 · 非交易时段自动暂停</span>
-    </div>
-    <div id="wErr" class="err" style="display:none"></div>
-    <div class="hint" style="margin-top:8px;color:var(--txt3);line-height:1.85">
-      ⚠️ <b>能力边界（务必看清）</b>：提醒<b>只在本页保持打开时生效</b>——关闭标签页、切到后台被系统冻结或手机息屏即停止。这是静态页，<b>没有后台、没有服务端、没有推送</b>，它不会在你不在时喊你。<br>
-      · A 线判据含「同期量比 ≥<span id="wVolUp">120</span>%」，量比每 5 分钟重算一次，价格每秒级变化、量比分钟级变化，30s 轮询对两者都够用。<br>
-      · A/B 线在<b>加入观察池时锁定</b>（不随价格滚动），跨交易日自动重置；同一天内 A、B 各只提醒一次，避免反复弹窗。<br>
-      · 提醒仅为<b>你自己的规则被触发</b>的技术提示，非买卖建议。<br>
-    </div>
-    <div id="wBody" class="wcards" style="margin-top:10px"></div>
   </div>
 
   <!-- 教学 -->
@@ -2920,9 +2806,7 @@ function onBreadth(I, dj, brd){
   I.ruleOut = buildTRules(ctx);
   I.sum = summarizeT(I.ruleOut, ctx);
   renderIndex();
-  renderT();
   renderBreadth(brd);                         // ①-b 市场广度
-  loadSector();                               // ② 板块资金流改用东财实时（失败则快照）
 }
 
 function loadIndex(){
@@ -3048,7 +2932,6 @@ function refreshAll(){
   var t0 = Date.now();
   loadIndex().then(function(){
     renderIndex();
-    renderT();
     if(STATE.stock) renderStock();
     var now = new Date();
     var srcTxt = (STATE.idx && STATE.idx.src === 'tx+em1m') ? '腾讯+东财K线' : (STATE.idx && STATE.idx.src === 'tx') ? '腾讯兜底' : '东方财富';
@@ -3057,7 +2940,6 @@ function refreshAll(){
     setStatus('实时', 'ok');
     if(STATE.idx && STATE.idx.breadth) renderBreadth(STATE.idx.breadth);  // ①-b 市场广度（每轮刷新）
     if(window.rzOverview) rzOverview();   // 顶部概览条：大市速览
-    loadSector();   // ② 板块资金流：每轮用东财实时渲染，失败降级温度计快照
     if(STATE.stock) refreshStockPrice();
   }).catch(function(e){
     console.error(e);
@@ -3086,12 +2968,10 @@ function recomputeMetric(){
   I.ruleOut = buildTRules(ctx);
   I.sum = summarizeT(I.ruleOut, ctx);
   renderIndex();
-  renderT();
   var S = STATE.stock;
   if(S){
     S.vc = volCompare(S.trends.today, S.trends.yest, STATE.metric);
     S.pats = detectPatterns({today: S.trends.today, yest: S.trends.yest, vc: S.vc, slope: S.slope, yw: S.yw, daily: S.daily, snap: S.snap, preClose: S.preClose});
-    renderStock();
   }
 }
 function setMetric(m){
@@ -3108,43 +2988,17 @@ $('metSeg').addEventListener('click', function(e){
   var b = e.target;
   if(b && b.tagName === 'BUTTON' && b.getAttribute('data-m')) setMetric(b.getAttribute('data-m'));
 });
-// ETF 一键按钮：填入代码并触发查询
-document.querySelectorAll('.etfbtn').forEach(function(btn){
-  btn.addEventListener('click', function(){
-    var c = btn.getAttribute('data-c');
-    if(!c) return;
-    $('code').value = c;
-    queryStock();
-  });
-});
-$('btnQuery').addEventListener('click', queryStock);
 $('freq').addEventListener('change', setTimer);
-$('code').addEventListener('keydown', function(e){ if(e.key === 'Enter') queryStock(); });
 
-/* ============ 观察池绑定 ============ */
-$('wAdd').addEventListener('click', function(){ wAdd($('wCode').value); $('wCode').value = ''; });
-$('wCode').addEventListener('keydown', function(e){
-  if(e.key === 'Enter'){ wAdd($('wCode').value); $('wCode').value = ''; }
-});
-$('wNotify').addEventListener('click', wNotifyEnable);
-$('wRecalc').addEventListener('click', wRecalcAll);
-$('wAddFromStk').addEventListener('click', function(){ wAdd($('code').value); });
-$('wBody').addEventListener('click', function(e){
-  var b = e.target;
-  if(!b || b.tagName !== 'BUTTON') return;
-  var rm = b.getAttribute('data-rm'), re = b.getAttribute('data-re');
-  if(rm) wRemove(rm);
-  else if(re){ var it = wFind(re); if(it) wInit(it).then(function(){ renderWatch(); }); }
-});
 
 (function init(){
   var m = window.location.search.match(/code=(\d{6})/);
-  if(m) $('code').value = m[1];
+  var codeEl = $('code');
+  if(m && codeEl) codeEl.value = m[1];
   var vu = $('wVolUp');
   if(vu) vu.textContent = (CFG.VOL_UP * 100).toFixed(0);
   refreshAll();
   setTimer();
-  wStart();
 })();
 
 /* ============ ◎ 三体共振：大市量能 × 行业主力 × 个股/ETF ============
@@ -3973,12 +3827,14 @@ function rzRender(){
           return '<div class="rza ' + al.level + '"><b>' + (al.level === 'bad' ? '⚠️' : (al.level === 'warn' ? '⚡' : '✅')) + ' ' + esc(al.text) + '</b><span>' + esc(al.detail) + '</span></div>';
         }).join('') + '</div>' : '') + '</div>' +
       '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
+      (o.stkAlert ? ' · 自身主力 ' + (o.stkAlert.last >= 0 ? '+' : '') + o.stkAlert.last.toFixed(2) + '亿 ' + rzY(o.stkAlert.last > 0) : '') +
       (q ? rzAge(q.qt, false, 90) : '') +
       stkVolHtml(o.stkV, o.stkV5) +
       (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert, o.tr) + '<div class="rzchartcap">板块资金 · 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
       (bd && o.bdSer && o.bdAlert ? flowSummary(o.bdAlert, o.bdSer) : '') +
       // 个股自身：分线图（蓝）＋ 自身主力净流入（红涨/绿跌·亿）同框，复用上证置顶卡组合图器
       (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert, '标的分线') + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（红涨/绿跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
+      (o.stkSer && o.stkAlert ? flowSummary(o.stkAlert, o.stkSer) : '') +
       (bd ? '' : ' <span class="rzna">ETF 按「大市+标的」双线</span>') + '</div></div>';
   });
   body.innerHTML = html;
@@ -4149,7 +4005,7 @@ rzStart();
 /* ============ 盘中信息台（原生内嵌，浅色）============ */
 (function(){
   var HOST = 'https://push2delay.eastmoney.com';
-  var CFG = { industry:false, top:8, intervalSec:300, anomalyWin:5, anomalyRank:3, anomalyFloor:2.0 };
+  var CFG = { industry:true, top:8, intervalSec:300, anomalyWin:5, anomalyRank:3, anomalyFloor:2.0 };
   var TRADE26 = "0105,0106,0107,0108,0109,0112,0113,0114,0115,0116,0119,0120,0121,0122,0123,0126,0127,0128,0129,0130,0202,0203,0204,0205,0206,0209,0210,0211,0212,0213,0224,0225,0226,0227,0302,0303,0304,0305,0306,0309,0310,0311,0312,0313,0316,0317,0318,0319,0320,0323,0324,0325,0326,0327,0330,0331,0401,0402,0403,0407,0408,0409,0410,0413,0414,0415,0416,0417,0420,0421,0422,0423,0424,0427,0428,0429,0430,0506,0507,0508,0511,0512,0513,0514,0515,0518,0519,0520,0521,0522,0525,0526,0527,0528,0529,0601,0602,0603,0604,0605,0608,0609,0610,0611,0612,0615,0616,0617,0618,0622,0623,0624,0625,0626,0629,0630,0701,0702,0703,0706,0707,0708,0709,0710,0713,0714,0715,0716,0717,0720,0721,0722,0723,0724,0727,0728,0729,0730,0731,0803,0804,0805,0806,0807,0810,0811,0812,0813,0814,0817,0818,0819,0820,0821,0824,0825,0826,0827,0828,0831,0901,0902,0903,0904,0907,0908,0909,0910,0911,0914,0915,0916,0917,0918,0921,0922,0923,0924,0928,0929,0930,1008,1009,1012,1013,1014,1015,1016,1019,1020,1021,1022,1023,1026,1027,1028,1029,1030,1102,1103,1104,1105,1106,1109,1110,1111,1112,1113,1116,1117,1118,1119,1120,1123,1124,1125,1126,1127,1130,1201,1202,1203,1204,1207,1208,1209,1210,1211,1214,1215,1216,1217,1218,1221,1222,1223,1224,1225,1228,1229,1230,1231".split(",");
   var BLOCK = ["融资融券","富时","罗素","MSCI","标普","道琼斯","股通","北向","北上","大盘","中盘","小盘","沪深300","上证50","上证180","中证","创业板综","科创板","AH股","含H股","含B股","含可转债","重仓","预盈","预增","预减","预亏","高送转","破净","国企改革","央企","标准普尔","权重","深成","HS300","沪深","深证","上证","全指","成份","成分","百元股","热股","振幅","昨日","涨停","跌停","连板","近端次新","次新股","龙头","白马股","蓝筹","风格","趋势股","茅指数","组合","微盘","ST股","低价","举牌","红利","扭亏","季报","年报","中报"];
   var isBasket = function(n){ return BLOCK.some(function(k){ return n.indexOf(k) >= 0; }); };
