@@ -22,8 +22,8 @@ body{margin:0;background:var(--bg);color:var(--txt);
 .wrap{max-width:1080px;margin:0 auto}
 h1{font-size:19px;margin:0 0 2px}
 .sub{color:var(--txt3);font-size:12px;margin-bottom:12px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
-.card h2{font-size:14px;margin:0 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:10px}
+.card h2{font-size:14px;margin:0 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .card h2 .tag{font-size:11px;font-weight:400;color:var(--txt3);border:1px solid var(--line);border-radius:20px;padding:1px 8px}
 .row{display:flex;gap:12px;flex-wrap:wrap}
 .col{flex:1 1 240px;min-width:220px}
@@ -52,7 +52,7 @@ button{font:inherit;padding:7px 12px;border:1px solid var(--line);background:#ff
 button:hover{background:#f4f6f8}
 button.primary{background:var(--info);border-color:var(--info);color:#fff}
 button.primary:hover{filter:brightness(1.05)}
-.hint{font-size:12px;color:var(--txt3);margin-top:6px}
+.hint{font-size:12px;color:var(--txt3);margin-top:6px;line-height:1.7}
 .err{background:var(--badbg);border:1px solid #f3c2c2;color:#b3261e;border-radius:8px;padding:8px 10px;font-size:12px;margin-top:8px}
 details{background:#fafbfc;border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-top:10px}
 details summary{cursor:pointer;font-size:13px;font-weight:600;outline:none}
@@ -86,16 +86,16 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .wline b{color:var(--txt1);font-weight:600}
 .wline .sep{color:var(--txt3)}
 /* 三体共振：大市量能 × 行业主力 × 个股/ETF */
-.rzcards{display:flex;flex-direction:column;gap:8px;margin-top:6px}
-.rzcard{border:1px solid var(--line);border-radius:10px;padding:8px 10px 7px;background:#fff;display:flex;flex-direction:column;gap:5px}
+.rzcards{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.rzcard{border:1px solid var(--line);border-radius:10px;padding:7px 9px 6px;background:#fff;display:flex;flex-direction:column;gap:4px}
 /* 置顶卡：大市总览，强调"先看大市再做T"，用左边框 + 淡蓝底区分于自选个股卡 */
 .rzcard-top{border-left:3px solid var(--info,#3b82f6);background:linear-gradient(180deg,#f5f8ff 0%,#fff 60%);box-shadow:0 1px 4px rgba(59,130,246,.08)}
 .rzcard-top .rk{font-weight:600;color:var(--txt2)}
-.rzhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.rznm{font-size:15px;font-weight:700}
+.rzhead{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
+.rznm{font-size:15px;font-weight:700;white-space:nowrap}
 .rzpx{font-size:14px;font-weight:700}
 .rzsub{font-size:11px;color:var(--txt3)}
-.rzrow{font-size:11px;color:var(--txt2);display:flex;flex-wrap:wrap;gap:2px 14px;align-items:center}
+.rzrow{font-size:11px;color:var(--txt2);display:flex;flex-wrap:wrap;gap:2px 10px;align-items:center}
 .rzrow .rk{color:var(--txt3)}
 .rzbadge{margin-left:auto;font-size:11px;padding:1px 8px;border-radius:10px;background:#eef1f4;color:#334155;font-weight:600;white-space:nowrap}
 .rzbadge.good{background:rgba(217,43,43,.10);color:var(--up)}
@@ -109,11 +109,24 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzage{font-size:10px;color:var(--txt3);margin-left:4px;white-space:nowrap}
 .rzage.warn{color:#b7791f}
 .rzage.bad{color:var(--down);font-weight:600}
-.rzchart{margin:2px 0 1px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,#fafbfd,#f4f6f9);padding:4px 6px 2px;overflow:hidden}
+.rzchart{position:relative;margin:4px 0 2px;border:1px solid var(--line2);border-radius:12px;background:#fff;padding:6px 8px 4px;overflow:visible}
 .rzchart svg{width:100%;height:auto;display:block}
-.rzchartcap{font-size:10px;color:var(--txt3);text-align:center;padding-top:1px}
+.rzchartcap{font-size:10.5px;color:#aeb6c1;text-align:center;padding-top:2px}
+.rzover{position:absolute;left:7%;right:7.67%;top:0;bottom:0;cursor:crosshair;touch-action:none;z-index:3}
+.rzcross{position:absolute;top:0;bottom:0;width:1px;background:rgba(70,80,95,.55);display:none;pointer-events:none;z-index:2}
+.rzdot{position:absolute;width:7px;height:7px;border-radius:50%;border:1.5px solid #fff;display:none;pointer-events:none;transform:translate(-50%,-50%);z-index:4;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.rztip{position:absolute;top:5px;display:none;background:rgba(255,255,255,.98);border:0.5px solid #6b7280;border-radius:8px;padding:6px 8px;font-size:12px;line-height:1.55;color:#1f2328;pointer-events:none;white-space:nowrap;z-index:20;box-shadow:0 3px 10px rgba(0,0,0,.18)}
+.rztip .tt{font-weight:500;margin-bottom:2px}
+.rztip .tt.pin{color:#2563eb}
+.rzchart.rz-pinned{box-shadow:0 0 0 2px #2563eb inset;border-radius:10px}
+.rzchart.rz-pinned .rzcross{background:rgba(37,99,235,.5);width:2px}
 /* 板块资金哨兵：持仓卡片内高亮警报 */
 .rzalert{margin:4px 0 2px;border-radius:8px;overflow:hidden}
+.rza-wrap{min-height:30px}
+.rzsortbar{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;color:var(--txt3)}
+.rzsortlbl{margin-right:2px}
+.rzsort{font-size:11px;padding:2px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--txt2);cursor:pointer}
+.rzsort.on{background:#eef4ff;border-color:#4da3ff;color:#1d6fd0;font-weight:600}
 .rza{display:flex;flex-direction:column;gap:1px;padding:6px 9px;font-size:11.5px;line-height:1.5;border-left:3px solid}
 .rza b{font-size:12.5px}
 .rza span{color:var(--txt3);font-size:10.5px}
@@ -122,12 +135,19 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rza.ok{background:rgba(43,214,123,.12);border-color:var(--up);color:var(--up)}
 /* 板块资金变化时间轴（开盘/峰值/翻空/现在） */
 .rztl-wrap{overflow:visible;padding:0 10px;margin:2px 0 4px}
-.rztl{position:relative;height:48px;margin:8px 0 2px;border-top:1px dashed var(--line)}
+.rztl{position:relative;height:58px;margin:8px 0 2px;border-top:1px dashed var(--line)}
+.rztl-low{top:18px}
 .rztl-n{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;white-space:nowrap}
 .rztl-dot{width:7px;height:7px;border-radius:50%;margin-top:-4px}
 .rztl-lb{font-size:10px;font-weight:700;margin-top:2px}
 .rztl-t{font-size:9.5px;color:var(--txt3)}
 .rztl-v{font-size:9.5px;color:var(--txt2)}
+/* 板块资金变化：文字版（开盘/峰值/翻空/现在），flex 换行避免重叠 */
+.rztl-text{display:flex;flex-wrap:wrap;gap:3px 12px;margin:5px 0 2px;font-size:11px;line-height:1.6;color:var(--txt2)}
+.rztl-text b{font-variant-numeric:tabular-nums;color:var(--txt1);font-weight:600}
+.rztl-text .up{color:#e5484d}
+.rztl-text .dn{color:#1f9d55}
+.rztl-text .ar{color:#c2c8d0;padding:0 2px;font-weight:400}
 .rzbar{height:4px;border-radius:2px;background:#eef1f4;overflow:hidden}
 .rzbar i{display:block;height:100%;background:var(--up)}
 .wact{flex:0 0 auto;display:flex;gap:4px}
@@ -163,6 +183,25 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .pzt-two .empty{color:var(--txt3);padding:8px 2px}
 .pzt-b{color:var(--txt3);opacity:.5;cursor:pointer;padding:0 4px}
 .pzt-b:hover{opacity:1;color:var(--down)}
+
+/* 顶部常驻概览条 */
+.topbar{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;min-height:34px;
+  background:rgba(255,255,255,.94);backdrop-filter:saturate(150%) blur(6px);border:1px solid var(--line);
+  border-radius:12px;padding:7px 12px;margin:0 0 12px;font-size:12px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+.topbar .tb-item{display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap}
+.topbar .tb-item[data-jump]{cursor:pointer;border-radius:6px;padding:1px 4px;margin:-1px -4px;transition:background .12s}
+.topbar .tb-item[data-jump]:hover{background:rgba(77,163,255,.12)}
+.topbar .tb-k{color:var(--txt3);font-weight:600}
+.topbar .tb-v{font-variant-numeric:tabular-nums;font-weight:700}
+.topbar .tb-sep{width:1px;height:14px;background:var(--line)}
+.topbar .tb-meta{margin-left:auto;color:var(--txt3);font-size:11px;white-space:nowrap}
+.topbar .up{color:var(--up)}.topbar .down{color:var(--down)}.topbar .flat{color:var(--txt2)}
+.topbar .tb-load{color:var(--txt3)}
+/* 窄屏（手机看盘）恢复换行：桌面 nowrap 的稳定性在窄屏会让标题行溢出裁切 */
+@media (max-width:640px){
+  .rzhead{flex-wrap:wrap}
+  .topbar{flex-wrap:wrap}
+}
 </style>
 </head>
 <body>
@@ -171,6 +210,9 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
   <h1>量能做T雷达</h1>
   <div class="sub">上证指数实时量能（成交额/成交量口径可切）· 做T环境判定 · 个股量价关系识别　|　浏览器直连 东方财富(主) + 腾讯(兜底)，GitHub Pages 托管，随时可开</div>
   <div style="margin:-6px 0 10px"><a href="index.html" style="color:#4da3ff;text-decoration:none">📊 回到市场温度计（环境层）</a></div>
+
+  <!-- 顶部常驻概览条：大市 / 板块 / 标的 一眼速览，滚动时常驻 -->
+  <div class="topbar" id="rzTopBar"><span class="tb-load">加载中…</span></div>
 
   <div class="card">
     <div class="row" style="align-items:flex-end">
@@ -235,16 +277,20 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
       <button class="primary" id="rzAdd" type="button">添加</button>
     </div>
     <div class="hint" id="rzHint" style="min-height:16px">—</div>
+    <div class="rzsortbar"><span class="rzsortlbl">排序</span><button class="rzsort on" data-sort="res">共振强弱</button><button class="rzsort" data-sort="raw">原始顺序</button></div>
     <div id="rzBody" class="rzcards"></div>
-    <div class="hint" style="color:var(--txt3);line-height:1.85;margin-top:8px">
-      <b>判读口径</b>：· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 昨日同时段，盘中唯一可比口径；前5日全天均量仅收盘后参考）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单），卡片内嵌「板块当日累计主力净流入」迷你曲线（绿=净流入/红=净流出）；· <b>标的</b> = 个股/ETF 自身涨跌。<br>
-      <b>共振</b> = 大市升 × 板块流入 × 标的升 三条同时成立。ETF/基金无行业归属时按名称关键词匹配板块（如「科创半导体ETF→半导体」「通信ETF→通信」，标「名推」为推断非精确行业），曲线照常显示。<br>
-      <b>注意</b>：板块资金流与标的涨跌为东财口径、盘中实时；做T动作仍以 A/B 线与量比为准，本模块只提示方向共振。
-    </div>
+    <details style="margin-top:8px">
+      <summary style="color:var(--txt3)">判读口径 · 共振定义（点击展开）</summary>
+      <div class="body" style="color:var(--txt3);line-height:1.85">
+        <p>· <b>大市</b> = 上证指数涨跌 + 量能比（实时累计量 ÷ 昨日同时段，盘中唯一可比口径；前5日全天均量仅收盘后参考）；· <b>板块</b> = 个股所属东财行业板块的实时主力净流入（主力 = 超大单+大单），卡片内嵌「板块当日累计主力净流入」迷你曲线（红=净流入/绿=净流出）；· <b>标的</b> = 个股/ETF 自身涨跌。</p>
+        <p><b>共振</b> = 大市升 × 板块流入 × 标的升 三条同时成立。ETF/基金无行业归属时按名称关键词匹配板块（如「科创半导体ETF→半导体」「通信ETF→通信」，标「名推」为推断非精确行业），曲线照常显示。</p>
+        <p><b>注意</b>：板块资金流与标的涨跌为东财口径、盘中实时；做T动作仍以 A/B 线与量比为准，本模块只提示方向共振。</p>
+      </div>
+    </details>
   </div>
 
   <!-- 大盘 -->
-  <div class="card">
+  <div class="card" id="mktRoot">
     <h2>① 大盘量能 <span class="tag">上证指数 000001</span> <span id="mktTag" class="pill na">—</span></h2>
     <div class="row" style="align-items:center;margin:0 0 6px">
       <div class="seg" id="metSeg">
@@ -2155,7 +2201,7 @@ function renderIndex(){
   $('mktTag').textContent = mp.label;
   $('mktTag').className = 'pill ' + (mp.open ? 'ok' : 'na');
 
-  drawTrend('ixChart', I.trends.today, I.trends.yest, preClose, {h: 300, dec: 2});
+  drawTrend('ixChart', I.trends.today, I.trends.yest, preClose, {h: 340, dec: 2});
   drawKline('ixKline', I.daily || [], {show: 90, h: 300, meta: 'ixKMeta'});
 }
 
@@ -2223,7 +2269,7 @@ function renderStock(){
   $('sBox').textContent = boxTxt(lv);
   $('sCorr').textContent = isFinite(S.corr) ? S.corr.toFixed(2) : '—';
 
-  drawTrend('sChart', tr.today, tr.yest, preClose, {h: 280, dec: 2});
+  drawTrend('sChart', tr.today, tr.yest, preClose, {h: 320, dec: 2});
 
   // 形态 chips
   var chips = '';
@@ -3010,6 +3056,7 @@ function refreshAll(){
     $('lastTime').textContent = '更新于 ' + now.toLocaleTimeString('zh-CN', {hour12:false}) + '（耗时 ' + ((Date.now()-t0)/1000).toFixed(1) + 's）｜源:' + srcTxt + yTxt;
     setStatus('实时', 'ok');
     if(STATE.idx && STATE.idx.breadth) renderBreadth(STATE.idx.breadth);  // ①-b 市场广度（每轮刷新）
+    if(window.rzOverview) rzOverview();   // 顶部概览条：大市速览
     loadSector();   // ② 板块资金流：每轮用东财实时渲染，失败降级温度计快照
     if(STATE.stock) refreshStockPrice();
   }).catch(function(e){
@@ -3106,16 +3153,33 @@ $('wBody').addEventListener('click', function(e){
      · 上证日K量能：腾讯 ifzq fqkline day（末根含当日实时量）
    共振 = 大市升(上证涨) × 板块主力流入 × 标的涨，三条同绿=顺势跟主力。 */
 var RZ = {
-  list: [], state: {},
+  list: [], order: [], state: {},
   board: { ts: 0, data: null },   // 大盘 60s 缓存
   blist: { ts: 0, idx: null },    // 行业板块榜 90s 缓存
   ind: {},                        // secid -> 行业名（12h）
   mktTop: null,                   // 置顶卡共享的上证量能数据
   idxFlow: null, idxAlert: null, idxTs: 0,  // 上证主力净流入曲线 + 哨兵
-  timer: null, gen: 0
+  timer: null, gen: 0,
+  sortDirty: false, initialSorted: false, sortMode: 'res'
 };
-function rzLoad(){ try{ RZ.list = JSON.parse(localStorage.getItem('rz_watch') || '[]'); }catch(e){ RZ.list = []; } if(!Array.isArray(RZ.list)) RZ.list = []; }
+// 盘中信息台板块广度（净流入/净流出板块数），由 pzt refresh 写入，供概览条读取
+var PZT = { nin: 0, nout: 0, ts: 0 };
+function rzLoad(){ try{ RZ.list = JSON.parse(localStorage.getItem('rz_watch') || '[]'); }catch(e){ RZ.list = []; } if(!Array.isArray(RZ.list)) RZ.list = []; RZ.order = RZ.list.slice(); }
 function rzSave(){ try{ localStorage.setItem('rz_watch', JSON.stringify(RZ.list)); }catch(e){} }
+// 显示顺序：共振(good) > 观察/背离(warn) > 加载中/观察(na)，同档按代码稳定排序避免抖动
+function rzSortOrder(){
+  if(RZ.sortMode === 'raw'){ RZ.order = RZ.list.slice(); return; }  // 原始添加顺序
+  var rank = { good: 0, warn: 1, na: 2 };
+  RZ.order = RZ.list.slice().sort(function(a, b){
+    var oa = RZ.state[a], ob = RZ.state[b];
+    var ca = (oa && oa.v && oa.v.cls) || 'na';
+    var cb = (ob && ob.v && ob.v.cls) || 'na';
+    var ra = rank.hasOwnProperty(ca) ? rank[ca] : 2, rb = rank.hasOwnProperty(cb) ? rank[cb] : 2;
+    if(ra !== rb) return ra - rb;
+    return a < b ? -1 : (a > b ? 1 : 0);
+  });
+}
+function rzSetSort(mode){ RZ.sortMode = mode; RZ.sortDirty = true; RZ.initialSorted = true; rzRender(); }
 // 多主机 jsonp 轮询（东财限流按主机独立）
 function rzGet(path, parser, t){
   var hosts = ['push2delay.eastmoney.com', 'push2.eastmoney.com'], i = 0;
@@ -3127,8 +3191,8 @@ function rzGet(path, parser, t){
   return go();
 }
 // 大盘：上证现价/涨跌 + 量能比
-// 量能主口径随盘中/盘后自动切换：盘中=今日累计量÷昨日同时段(唯一可比)；盘后=今日÷前5日全天均量(最稳)。
-// 二者都计算并保留，最终由 isAfterClose() 决定 volTag / 量能双比 用哪一个。
+// 主口径 = 今日累计成交额 ÷ 近5日全天平均成交额（判读口径一致）。
+// 同步保留「今/昨日同期量比」作为辅助信息，但 volTag 优先展示5日均对比及具体金额。
 function rzMarket(force){
   var now = Date.now();
   if(!force && RZ.board.data && now - RZ.board.ts < 60000){
@@ -3150,47 +3214,46 @@ function rzMarket(force){
     }
     return out;
   }).catch(function(){ return null; });
-    // 5日均：收盘后今日量能完整才有判读意义，盘中今日仍在累计、不可比（仅收盘后主显）。
-    var q5 = getDailyAmt('1.000001').then(function(arr){
-      if(!arr || arr.length < 3) return null;
-      var cur = arr[arr.length - 1].amt, sum = 0, n = 0;
-      for(var i = arr.length - 2; i >= Math.max(0, arr.length - 6); i--){ sum += arr[i].amt; n++; }
-      return { curAmt: cur, avg5Amt: n > 0 ? sum / n : NaN, n5: n };
-    }).catch(function(){ return null; });
-    return Promise.all([p, qSame, q5]).then(function(r){
-      var m = r[0], same = r[1] || null, avg5 = r[2] || null;
-      // 置顶卡需要"今/昨日同期量比"（盘中主口径）。
-      m.sameVr = (same && isFinite(same.vr)) ? same.vr : NaN;
-      m.sameCurAmt = (same && isFinite(same.curAmt)) ? same.curAmt : NaN;
-      // 置顶卡组合图（指数价格线 + 净流入线同框）所需的当日分时序列
-      m.trends = (same && same.tr) ? { today: same.tr.today, yest: same.tr.yest, preClose: same.tr.preClose } : null;
-      // 5日平均全天成交额（收盘口径参考）
-      if(avg5 && avg5.n5 > 0 && avg5.avg5Amt > 0 && avg5.curAmt > 0){
-        m.vr = avg5.curAmt / avg5.avg5Amt;
-        m.curAmt = avg5.curAmt; m.avg5Amt = avg5.avg5Amt; m.avg5N = avg5.n5;
-      } else {
-        m.vr = NaN; m.avg5Amt = NaN; m.avg5N = 0;
-        // 5日拿不到时至少用同期口径的今日累计金额兜底
-        if(isFinite(m.sameCurAmt)) m.curAmt = m.sameCurAmt;
-      }
-      // 量能主口径随盘中/盘后自动切换：
-      //  - 盘中(含午休)：今日量能不完整，唯一可比口径是「今/昨日同期」。
-      //  - 盘后(含周末)：今日量能已完整，用「今/5日均」最稳（分母固定、无需猜）。
-      m.afterClose = isAfterClose();
-      if(m.afterClose && isFinite(m.vr)){
-        var label5 = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
-        m.volTag = label5 + ' ' + m.vr.toFixed(2) + 'x（今' + amtTxt(m.curAmt) + ' / 5日均' + amtTxt(m.avg5Amt) + '·收盘）';
-      } else if(isFinite(m.sameVr)){
-        var label = m.sameVr >= CFG.VOL_UP ? '放量' : (m.sameVr <= CFG.VOL_DN ? '缩量' : '平量');
-        m.volTag = label + ' ' + m.sameVr.toFixed(2) + 'x（今' + amtTxt(m.sameCurAmt) + ' / 昨日同期）';
-      } else if(isFinite(m.vr)){
-        // 同期不可得时降级为5日均，并诚实标注
-        var label5b = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
-        m.volTag = label5b + ' ' + m.vr.toFixed(2) + 'x（今' + amtTxt(m.curAmt) + ' / 5日均' + amtTxt(m.avg5Amt) + '·收盘参考）';
-      } else {
-        m.vr = NaN; m.volTag = '';
-      }
-      m.ts = Date.now(); m.stale = false;
+  // 主口径：东财日K 计算今日累计成交额 ÷ 近5日平均全天成交额（元→亿元）。
+  // 东财日K 对指数/个股/ETF 均返回真实成交额(amt)，与①大盘量能区一致。
+  var q5 = getDailyAmt('1.000001').then(function(arr){
+    if(!arr || arr.length < 3) return null;
+    var cur = arr[arr.length - 1].amt, sum = 0, n = 0;
+    for(var i = arr.length - 2; i >= Math.max(0, arr.length - 6); i--){ sum += arr[i].amt; n++; }
+    return { curAmt: cur, avg5Amt: n > 0 ? sum / n : NaN, n5: n };
+  }).catch(function(){ return null; });
+  return Promise.all([p, qSame, q5]).then(function(r){
+    var m = r[0], same = r[1] || null, avg5 = r[2] || null;
+    // 置顶卡需要"今/昨日同期量比"，rzMarket 默认只把 5日均 留作主口径，这里显式补回。
+    m.sameVr = (same && isFinite(same.vr)) ? same.vr : NaN;
+    m.sameCurAmt = (same && isFinite(same.curAmt)) ? same.curAmt : NaN;
+    // 置顶卡组合图（指数价格线 + 净流入线同框）所需的当日分时序列
+    m.trends = (same && same.tr) ? { today: same.tr.today, yest: same.tr.yest, preClose: same.tr.preClose } : null;
+    // 5日平均全天成交额（收盘口径参考）
+    if(avg5 && avg5.n5 > 0 && avg5.avg5Amt > 0 && avg5.curAmt > 0){
+      m.vr = avg5.curAmt / avg5.avg5Amt;
+      m.curAmt = avg5.curAmt; m.avg5Amt = avg5.avg5Amt; m.avg5N = avg5.n5;
+    } else {
+      m.vr = NaN; m.avg5Amt = NaN; m.avg5N = 0;
+      if(isFinite(m.sameCurAmt)) m.curAmt = m.sameCurAmt;
+    }
+    // 量能主口径随盘中/盘后自动切换：
+    //  - 盘中(含午休)：今日量能不完整，唯一可比口径是「今/昨日同期」。
+    //  - 盘后(含周末)：今日量能已完整，用「今/5日均」最稳（分母固定、无需猜）。
+    m.afterClose = isAfterClose();
+    if(m.afterClose && isFinite(m.vr)){
+      var label5 = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
+      m.volTag = label5 + ' ' + m.vr.toFixed(2) + 'x（今' + amtTxt(m.curAmt) + ' / 5日均' + amtTxt(m.avg5Amt) + '·收盘）';
+    } else if(isFinite(m.sameVr)){
+      var label = m.sameVr >= CFG.VOL_UP ? '放量' : (m.sameVr <= CFG.VOL_DN ? '缩量' : '平量');
+      m.volTag = label + ' ' + m.sameVr.toFixed(2) + 'x（今' + amtTxt(m.sameCurAmt) + ' / 昨日同期）';
+    } else if(isFinite(m.vr)){
+      var label5b = m.vr >= CFG.VOL_UP ? '放量' : (m.vr <= CFG.VOL_DN ? '缩量' : '平量');
+      m.volTag = label5b + ' ' + m.vr.toFixed(2) + 'x（今' + amtTxt(m.curAmt) + ' / 5日均' + amtTxt(m.avg5Amt) + '·收盘参考）';
+    } else {
+      m.vr = NaN; m.volTag = '';
+    }
+    m.ts = Date.now(); m.stale = false;
     RZ.board = { ts: m.ts, data: m };
     return m;
   }).catch(function(){
@@ -3382,28 +3445,28 @@ function renderRzIndexTop(){
     mktHtml = '<b class="' + pcls + '">上证 ' + fx(m.px) + ' ' + (pc>=0?'+':'') + pc.toFixed(2) + '%</b>' +
       (m.stale ? ' <span class="rzage bad" title="本次取数失败，显示上一轮缓存">⚠旧·' + rzAgo(m.ts) + '</span>' : rzAge(m.ts, false, 90));
   }
-  // 量能双比：盘中主显「今/昨日同期」，盘后主显「今/5日均」（5日均盘中不可比，灰显待收盘）
+  // 量能双比：今/5日均（主口径）+ 今/昨日同期
   var volHtml = '';
   if(m){
-    var vs = m.sameVr, sS = isFinite(vs) ? (vs>=CFG.VOL_UP?'放量':(vs<=CFG.VOL_DN?'缩量':'平量')) : '—';
-    var cS = isFinite(vs) ? (vs>=CFG.VOL_UP?'up':(vs<=CFG.VOL_DN?'down':'flat')) : 'flat';
-    var vSb = isFinite(vs)
-      ? '<b class="' + cS + '">今/昨日同期 ' + vs.toFixed(2) + 'x ' + sS + '</b>'
-      : '<span class="rzna">昨日同期量待查</span>';
     var v5 = m.vr, s5 = isFinite(v5) ? (v5>=CFG.VOL_UP?'放量':(v5<=CFG.VOL_DN?'缩量':'平量')) : '—';
     var c5 = isFinite(v5) ? (v5>=CFG.VOL_UP?'up':(v5<=CFG.VOL_DN?'down':'flat')) : 'flat';
     var v5b = isFinite(v5)
       ? '<b class="' + c5 + '">今/5日均 ' + v5.toFixed(2) + 'x ' + s5 + '</b> <span class="rzna">(今' + amtTxt(m.curAmt) + ' / 5日均' + amtTxt(m.avg5Amt) + ')</span>'
       : '<span class="rzna">5日均量待查</span>';
+    var vs = m.sameVr, sS = isFinite(vs) ? (vs>=CFG.VOL_UP?'放量':(vs<=CFG.VOL_DN?'缩量':'平量')) : '—';
+    var cS = isFinite(vs) ? (vs>=CFG.VOL_UP?'up':(vs<=CFG.VOL_DN?'down':'flat')) : 'flat';
+    var vSb = isFinite(vs)
+      ? '<b class="' + cS + '">今/昨日同期 ' + vs.toFixed(2) + 'x ' + sS + '</b>'
+      : '<span class="rzna">昨日同期量待查</span>';
     if(m.afterClose){
       // 收盘后：5日均可比 → 主口径；同期降为辅助
-      volHtml = v5b + ' <span class="rzna">(收盘·主口径)</span><br>' + vSb + ' <span class="rzna">(同期·辅助)</span>';
+      volHtml = v5b + ' <span class="rzna">(收盘·主口径)</span>' + '<br>' + vSb + ' <span class="rzna">(同期·辅助)</span>';
     } else {
       // 盘中：今日量能不完整，5日均不可比 → 主显同期，5日均灰显「收盘后显示」
       var v5dim = isFinite(v5)
         ? '<span style="opacity:.45">今/5日均 ' + v5.toFixed(2) + 'x ' + s5 + '（今' + amtTxt(m.curAmt) + ' / 5日均' + amtTxt(m.avg5Amt) + '）</span>'
         : '<span class="rzna">5日均量待查</span>';
-      volHtml = vSb + ' <span class="rzna">(盘中·主口径)</span><br>' + v5dim + ' <span class="rzna">· 收盘后显示</span>';
+      volHtml = vSb + ' <span class="rzna">(盘中·主口径)</span>' + '<br>' + v5dim + ' <span class="rzna">· 收盘后显示</span>';
     }
   } else {
     volHtml = '<span class="rzna">—</span>';
@@ -3412,7 +3475,7 @@ function renderRzIndexTop(){
   var flowHtml;
   if(ser && ser.length){
     if(m && m.trends){
-      flowHtml = rzIndexComboSVG(m.trends, ser, a);
+      flowHtml = rzIndexComboSVG(m.trends, ser, a, '上证指数');
     } else {
       var last = ser[ser.length - 1];
       flowHtml = rzFlowSVG(ser, last[1], a);
@@ -3430,14 +3493,14 @@ function renderRzIndexTop(){
   el.innerHTML = '<div class="rzcard rzcard-top">' +
     '<div class="rzrow"><span class="rk">大市总览</span>' + mktHtml + '</div>' +
     '<div class="rzrow"><span class="rk">量能</span>' + volHtml + '</div>' +
-    '<div class="rztl-wrap">' + flowHtml + '<div class="rzchartcap">上证分线（蓝）＋主力净流入（绿涨/红跌·亿）· 同框</div></div>' +
+    '<div class="rztl-wrap">' + flowHtml + '<div class="rzchartcap">上证分线（蓝）＋主力净流入（红涨/绿跌·亿）· 同框</div></div>' +
   '</div>';
 }
 
 // a = analyzeFlow() 结果；传入后在曲线上标出峰值与翻空点
 function rzFlowSVG(ser, flowYi, a){
   if(!ser || ser.length < 2) return '';
-  var W = 600, H = 96, ML = 34, MR = 8, MT = 8, MB = 16, pw = W - ML - MR, ph = H - MT - MB;
+  var W = 600, H = 128, ML = 34, MR = 8, MT = 8, MB = 16, pw = W - ML - MR, ph = H - MT - MB;
   var vals = ser.map(function(s){ return s[1]; });
   var vmin = Math.min.apply(null, vals), vmax = Math.max.apply(null, vals);
   if(vmax - vmin < 0.01){ vmin -= 0.5; vmax += 0.5; }
@@ -3449,7 +3512,7 @@ function rzFlowSVG(ser, flowYi, a){
   var last = ser[ser.length - 1], lx = X(nx), ly = Y(last[1]);
   var zeroY = (vmin < 0 && vmax > 0) ? Y(0) : (vmax <= 0 ? MT + ph : MT);
   var up = last[1] >= 0;
-  var col = up ? '#2bd67b' : '#ff6f83';
+  var col = up ? '#ff6f83' : '#2bd67b';
   var area = 'M' + X(0).toFixed(1) + ',' + zeroY.toFixed(1) + ' L' + pts.replace(/ /g, ' L') + ' L' + lx.toFixed(1) + ',' + zeroY.toFixed(1) + ' Z';
   var lbl = (up ? '+' : '') + last[1].toFixed(2) + '亿';
   var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="none" style="display:block">';
@@ -3460,46 +3523,69 @@ function rzFlowSVG(ser, flowYi, a){
   g += '<text x="' + (lx - 4) + '" y="' + (ly - 5) + '" font-size="11" fill="' + col + '" text-anchor="end">' + lbl + '</text>';
   g += '<text x="' + ML + '" y="' + (H - 3) + '" font-size="9" fill="#7e93b8">09:30</text>';
   g += '<text x="' + (ML + pw - 2) + '" y="' + (H - 3) + '" font-size="9" fill="#7e93b8" text-anchor="end">' + last[0] + '</text>';
-  // 拐点标记：峰值（绿圈）与翻空点（红虚线）——一眼看出"从哪开始退的"
+  // 拐点标记：峰值（红圈）与翻空点（绿虚线）——一眼看出"从哪开始退的"
   if(a){
     if(a.bigPeak && a.peak.i > 0 && a.peak.i < nx){
       var px = X(a.peak.i), py = Y(a.peak.v);
-      g += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3.2" fill="none" stroke="#2bd67b" stroke-width="1.4"/>';
-      g += '<text x="' + px.toFixed(1) + '" y="' + (py - 7).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="middle">峰值 ' + a.peak.t + '</text>';
+      g += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3.2" fill="none" stroke="#ff6f83" stroke-width="1.4"/>';
+      g += '<text x="' + px.toFixed(1) + '" y="' + (py - 7).toFixed(1) + '" font-size="9" fill="#ff6f83" text-anchor="middle">峰值 ' + a.peak.t + '</text>';
     }
     if(a.flipDown && a.flipDown.i > 0 && a.flipDown.i <= nx){
       var fx = X(a.flipDown.i);
-      g += '<line x1="' + fx.toFixed(1) + '" y1="' + MT + '" x2="' + fx.toFixed(1) + '" y2="' + (MT + ph) + '" stroke="#ff6f83" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
-      g += '<text x="' + (fx + 3).toFixed(1) + '" y="' + (MT + 10).toFixed(1) + '" font-size="9" fill="#ff6f83">翻空 ' + a.flipDown.t + '</text>';
+      g += '<line x1="' + fx.toFixed(1) + '" y1="' + MT + '" x2="' + fx.toFixed(1) + '" y2="' + (MT + ph) + '" stroke="#2bd67b" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
+      g += '<text x="' + (fx + 3).toFixed(1) + '" y="' + (MT + 10).toFixed(1) + '" font-size="9" fill="#2bd67b">翻空 ' + a.flipDown.t + '</text>';
     }
   }
   g += '</svg>';
   return g;
 }
+// 分时图时间轴：时钟分钟 -> 交易分钟，剔除 11:30–13:00 午休（该时段无成交，画出来是一条平线）。
+// 09:30→0 … 11:30→120 … 13:00→120 … 15:00→240，午休段压缩为 0 宽。
+var TRADE_SPAN = 240;
+function tradeMin(m){ if(!isFinite(m)) return 0; if(m < 690) return Math.max(0, m - 570); return Math.min(240, Math.max(120, m - 660)); }
+function clockMin(tm){ if(!isFinite(tm)) return 570; if(tm <= 120) return tm + 570; return Math.min(900, tm + 660); }
 // 板块(深■)＋个股(浅┄)主力净流入双线同框：左轴=板块亿、右轴=个股亿，共享时间轴。
 // 解决板块(几十~几百亿)与个股(几亿)量级悬殊——双 y 轴避免个股线被压成贴 0 直线。
-function rzFlowComboSVG(bdSer, stkSer, bdA, stkA){
+function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
   if(!bdSer || bdSer.length < 2) return '';
-  var W = 600, H = 120, ML = 42, MR = 46, MT = 14, MB = 16;
+  var W = 600, H = 152, ML = 42, MR = 46, MT = 14, MB = 16;
   var pw = W - ML - MR, ph = H - MT - MB;
-  var START = 570, END = 900, SPAN = END - START;
-  function xmin(m){ return ML + Math.max(0, Math.min(1, (m - START) / SPAN)) * pw; }
+  var START = 0, END = TRADE_SPAN, SPAN = TRADE_SPAN;
+  function xmin(tm){ return ML + Math.max(0, Math.min(1, tm / SPAN)) * pw; }
   function parseMin(t){ var p = String(t).split(':'); if(p.length < 2) return NaN; var m = parseInt(p[0],10)*60 + parseInt(p[1],10); return isFinite(m) ? m : NaN; }
   var bpts = [], blo = Infinity, bhi = -Infinity;
   for(var i = 0; i < bdSer.length; i++){ var bm = parseMin(bdSer[i][0]); if(!isFinite(bm)) continue;
-    var bv = bdSer[i][1]; bpts.push([bm, bv]); blo = Math.min(blo, bv); bhi = Math.max(bhi, bv); }
+    var bv = bdSer[i][1]; bpts.push([tradeMin(bm), bv]); blo = Math.min(blo, bv); bhi = Math.max(bhi, bv); }
   if(!bpts.length) return '';
   blo = Math.min(blo, 0); bhi = Math.max(bhi, 0);
   var bp = (bhi - blo) * 0.1; blo -= bp; bhi += bp;
   var spts = [], slo = Infinity, shi = -Infinity;
   if(stkSer && stkSer.length){
     for(var j = 0; j < stkSer.length; j++){ var sm = parseMin(stkSer[j][0]); if(!isFinite(sm)) continue;
-      var sv = stkSer[j][1]; spts.push([sm, sv]); slo = Math.min(slo, sv); shi = Math.max(shi, sv); }
+      var sv = stkSer[j][1]; spts.push([tradeMin(sm), sv]); slo = Math.min(slo, sv); shi = Math.max(shi, sv); }
   }
   if(spts.length){ slo = Math.min(slo, 0); shi = Math.max(shi, 0); } else { slo = -1; shi = 1; }
   var sp = (shi - slo) * 0.1; slo -= sp; shi += sp;
   function yB(v){ return MT + ph * (bhi - v) / (bhi - blo); }
   function yS(v){ return MT + ph * (shi - v) / (shi - slo); }
+  // 个股涨跌幅% 序列（相对昨收），与板块/个股资金共用时间轴，看板块资金与个股走势共振
+  var ppts = [], pmin = 0, pmax = 0;
+  if(stkTr && stkTr.today && stkTr.today.length && isFinite(stkTr.preClose) && stkTr.preClose > 0){
+    for(var pi = 0; pi < stkTr.today.length; pi++){ var po = stkTr.today[pi]; var pm = parseMin(po.t); if(!isFinite(pm)) continue;
+      var pv = (po.close > 0 ? po.close : (po.open > 0 ? po.open : NaN)); if(!isFinite(pv)) continue;
+      var pct = (pv - stkTr.preClose) / stkTr.preClose * 100; ppts.push([tradeMin(pm), pct]); pmin = Math.min(pmin, pct); pmax = Math.max(pmax, pct); }
+  }
+  if(ppts.length){ var pr = Math.max(Math.abs(pmin), Math.abs(pmax), 1) * 1.15; pmin = -pr; pmax = pr; } else { pmin = -1; pmax = 1; }
+  function yPct(p){ return MT + ph * (pmax - p) / (pmax - pmin); }
+  // 大市参考线：上证指数分时 %，与个股涨跌幅% 共用 yPct 轴，一眼看出板块/个股是否跑赢大盘
+  var mpts = [], hasMkt = false;
+  if(STATE.idx && STATE.idx.trends && STATE.idx.trends.today && STATE.idx.trends.today.length && isFinite(STATE.idx.trends.preClose) && STATE.idx.trends.preClose > 0){
+    var mpc = STATE.idx.trends.preClose;
+    for(var mii = 0; mii < STATE.idx.trends.today.length; mii++){ var moo = STATE.idx.trends.today[mii]; var mm = parseMin(moo.t); if(!isFinite(mm)) continue;
+      var mcl = (moo.close > 0 ? moo.close : (moo.open > 0 ? moo.open : NaN)); if(!isFinite(mcl)) continue;
+      mpts.push([tradeMin(mm), (mcl - mpc) / mpc * 100]); }
+    hasMkt = mpts.length > 0;
+  }
   var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="none" style="display:block">';
   g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#fff"/>';
   var yb0 = yB(0);
@@ -3507,34 +3593,60 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA){
   if(bpts.length){
     var bLine = bpts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yB(p[1]).toFixed(1); }).join(' ');
     var bArea = 'M' + xmin(bpts[0][0]).toFixed(1) + ',' + yb0.toFixed(1) + ' L' + bLine.replace(/ /g,' L') + ' L' + xmin(bpts[bpts.length-1][0]).toFixed(1) + ',' + yb0.toFixed(1) + ' Z';
-    g += '<path d="' + bArea + '" fill="' + (bpts[bpts.length-1][1] >= 0 ? '#1f9d55' : '#e5484d') + '" opacity="0.14"/>';
-    g += '<polyline points="' + bLine + '" fill="none" stroke="' + (bpts[bpts.length-1][1] >= 0 ? '#1f9d55' : '#e5484d') + '" stroke-width="1.5" stroke-linejoin="round"/>';
+    g += '<path d="' + bArea + '" fill="' + (bpts[bpts.length-1][1] >= 0 ? '#e5484d' : '#1f9d55') + '" opacity="0.14"/>';
+    g += '<polyline points="' + bLine + '" fill="none" stroke="' + (bpts[bpts.length-1][1] >= 0 ? '#e5484d' : '#1f9d55') + '" stroke-width="1.5" stroke-linejoin="round"/>';
   }
   if(spts.length){
     var sLine = spts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yS(p[1]).toFixed(1); }).join(' ');
-    g += '<polyline points="' + sLine + '" fill="none" stroke="' + (spts[spts.length-1][1] >= 0 ? '#5fd6a0' : '#ff9aa2') + '" stroke-width="1.5" stroke-dasharray="4 2" stroke-linejoin="round"/>';
+    g += '<polyline points="' + sLine + '" fill="none" stroke="' + (spts[spts.length-1][1] >= 0 ? '#ff9aa2' : '#5fd6a0') + '" stroke-width="1.5" stroke-dasharray="4 2" stroke-linejoin="round"/>';
   }
-  var marks = [[570,'09:30'],[660,'10:30'],[750,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
-  for(var mi = 0; mi < marks.length; mi++){ var mx = xmin(marks[mi][0]);
+  if(ppts.length){
+    var pLine = ppts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yPct(p[1]).toFixed(1); }).join(' ');
+    g += '<polyline points="' + pLine + '" fill="none" stroke="#2563eb" stroke-width="1.6" stroke-linejoin="round"/>';
+    var yp0 = yPct(0);
+    g += '<line x1="' + ML + '" y1="' + yp0.toFixed(1) + '" x2="' + (ML+pw) + '" y2="' + yp0.toFixed(1) + '" stroke="#bcd0f0" stroke-width="1" stroke-dasharray="2 2" opacity="0.7"/>';
+  }
+  if(hasMkt){
+    var mLine = mpts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yPct(p[1]).toFixed(1); }).join(' ');
+    g += '<polyline points="' + mLine + '" fill="none" stroke="#8a94a6" stroke-width="1.3" stroke-dasharray="1 3" stroke-linejoin="round" opacity="0.9"/>';
+  }
+  var marks = [[570,'09:30'],[660,'10:30'],[690,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
+  var bx = xmin(120).toFixed(1);
+  g += '<line x1="' + bx + '" y1="' + MT + '" x2="' + bx + '" y2="' + (MT+ph) + '" stroke="#e6e9ef" stroke-width="1" stroke-dasharray="3 3"/>';
+  for(var mi = 0; mi < marks.length; mi++){ var mx = xmin(tradeMin(marks[mi][0]));
     g += '<line x1="' + mx.toFixed(1) + '" y1="' + MT + '" x2="' + mx.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#f6f7f9" stroke-width="1"/>';
     g += '<text x="' + mx.toFixed(1) + '" y="' + (MT+ph+12) + '" font-size="9" fill="#c4cad3" text-anchor="middle">' + marks[mi][1] + '</text>'; }
-  g += '<text x="' + (ML-4) + '" y="' + (yB(bhi)+3).toFixed(1) + '" font-size="9" fill="#1f9d55" text-anchor="end">' + bhi.toFixed(0) + '</text>';
-  g += '<text x="' + (ML-4) + '" y="' + (yB(blo)+3).toFixed(1) + '" font-size="9" fill="#1f9d55" text-anchor="end">' + blo.toFixed(0) + '</text>';
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yS(shi)+3).toFixed(1) + '" font-size="9" fill="#5fd6a0" text-anchor="start">' + shi.toFixed(1) + '</text>';
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yS(slo)+3).toFixed(1) + '" font-size="9" fill="#5fd6a0" text-anchor="start">' + slo.toFixed(1) + '</text>';
-  g += '<text x="' + (ML+2) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#1f9d55">■板块</text>';
-  if(spts.length) g += '<text x="' + (ML+36) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#5fd6a0">┄个股</text>';
+  g += '<text x="' + (ML-4) + '" y="' + (yB(bhi)+3).toFixed(1) + '" font-size="9" fill="#e5484d" text-anchor="end">' + bhi.toFixed(0) + '</text>';
+  g += '<text x="' + (ML-4) + '" y="' + (yB(blo)+3).toFixed(1) + '" font-size="9" fill="#e5484d" text-anchor="end">' + blo.toFixed(0) + '</text>';
+  g += '<text x="' + (ML+pw+4) + '" y="' + (yS(shi)+3).toFixed(1) + '" font-size="9" fill="#ff9aa2" text-anchor="start">' + shi.toFixed(1) + '</text>';
+  g += '<text x="' + (ML+pw+4) + '" y="' + (yS(slo)+3).toFixed(1) + '" font-size="9" fill="#ff9aa2" text-anchor="start">' + slo.toFixed(1) + '</text>';
+  g += '<text x="' + (ML+2) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#e5484d">■板块</text>';
+  if(spts.length) g += '<text x="' + (ML+40) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#ff9aa2">┄个股</text>';
+  if(ppts.length) g += '<text x="' + (ML+80) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#2563eb">—涨跌幅%</text>';
+  if(hasMkt) g += '<text x="' + (ML+150) + '" y="' + (MT+9).toFixed(1) + '" font-size="9" fill="#8a94a6">┄上证%</text>';
   g += '</svg>';
-  return g;
+  window.RZ_CHARTS = window.RZ_CHARTS || {};
+  window.RZ_CHART_SEQ = window.RZ_CHART_SEQ || 0;
+  var cid = 'rzc' + (++window.RZ_CHART_SEQ);
+  window.RZ_CHARTS[cid] = {
+    type:'flow', W:W, H:H, ML:ML, MR:MR, MT:MT, MB:MB, pw:pw, ph:ph,
+    START:START, END:END, SPAN:SPAN,
+    series:[
+      {axis:'L', color:'#e5484d', pts:bpts, yfn:yB},
+      {axis:'R', color:'#ff9aa2', pts:spts, yfn:yS},
+      {axis:'P', color:'#2563eb', pts:ppts, yfn:yPct}
+    ]
+  };
+  return '<div class="rzchart" data-cid="'+cid+'">' + g + '<div class="rzover"></div><div class="rzcross"></div><span class="rzdot"></span><span class="rzdot"></span><div class="rztip"></div></div>';
 }
-// 置顶卡组合图：上证指数价格线（蓝）＋ 主力净流入曲线（绿涨/红跌·亿）同框，共享时间轴。
+// 置顶卡组合图：上证指数价格线（蓝）＋ 主力净流入曲线（红涨/绿跌·亿）同框，共享时间轴。
 // 只画价格线（不含量柱）。资金轴右、价格轴左，双 y 轴；零轴/昨收各作基准虚线。
-function rzIndexComboSVG(tr, flowSer, a){
+function rzIndexComboSVG(tr, flowSer, a, priceLabel){
   if(!tr || !tr.today || !tr.today.length) return '<div class="rzna">分线数据不足</div>';
-  var W = 600, H = 158, ML = 42, MR = 46, MT = 16, MB = 16;
+  var W = 600, H = 200, ML = 42, MR = 46, MT = 16, MB = 16;
   var pw = W - ML - MR, ph = H - MT - MB;
-  var START = 570, END = 900, SPAN = END - START; // 09:30 → 15:00，共 330 分钟
-  function xmin(m){ return ML + Math.max(0, Math.min(1, (m - START) / SPAN)) * pw; }
+  var START = 0, END = TRADE_SPAN, SPAN = TRADE_SPAN; // 交易分钟 0→240，已剔除 11:30–13:00 午休
+  function xmin(tm){ return ML + Math.max(0, Math.min(1, tm / SPAN)) * pw; }
   function parseMin(t){ var p = String(t).split(':'); if(p.length < 2) return NaN; var m = parseInt(p[0],10)*60 + parseInt(p[1],10); return isFinite(m) ? m : NaN; }
   // 价格序列（用收盘价，缺失回退开盘）
   var pts = [], lo = Infinity, hi = -Infinity;
@@ -3543,7 +3655,7 @@ function rzIndexComboSVG(tr, flowSer, a){
     if(!isFinite(m)) continue;
     var v = (o.close > 0) ? o.close : (o.open > 0 ? o.open : NaN);
     if(!isFinite(v)) continue;
-    pts.push([m, v]); lo = Math.min(lo, v); hi = Math.max(hi, v);
+    pts.push([tradeMin(m), v]); lo = Math.min(lo, v); hi = Math.max(hi, v);
   }
   if(!pts.length) return '<div class="rzna">分线数据不足</div>';
   if(isFinite(tr.preClose)){ lo = Math.min(lo, tr.preClose); hi = Math.max(hi, tr.preClose); }
@@ -3556,7 +3668,7 @@ function rzIndexComboSVG(tr, flowSer, a){
       var fm = parseMin(flowSer[k][0]);
       if(!isFinite(fm)) continue;
       var fv = flowSer[k][1];
-      fpts.push([fm, fv]); flo = Math.min(flo, fv); fhi = Math.max(fhi, fv);
+      fpts.push([tradeMin(fm), fv]); flo = Math.min(flo, fv); fhi = Math.max(fhi, fv);
     }
   }
   if(fpts.length){ flo = Math.min(flo, 0); fhi = Math.max(fhi, 0); } else { flo = -1; fhi = 1; }
@@ -3573,12 +3685,12 @@ function rzIndexComboSVG(tr, flowSer, a){
   // 0 轴（资金，浅虚线）
   var y0 = yF(0);
   g += '<line x1="' + ML + '" y1="' + y0.toFixed(1) + '" x2="' + (ML+pw) + '" y2="' + y0.toFixed(1) + '" stroke="#e4e7ec" stroke-width="1"/>';
-  // 资金区域（按末值符号整体上色：绿涨/红跌）
+  // 资金区域（按末值符号整体上色：红涨/绿跌）
   if(fpts.length){
     var fLine = fpts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yF(p[1]).toFixed(1); }).join(' ');
     var area = 'M' + xmin(fpts[0][0]).toFixed(1) + ',' + y0.toFixed(1) + ' L' + fLine.replace(/ /g,' L') + ' L' + xmin(fpts[fpts.length-1][0]).toFixed(1) + ',' + y0.toFixed(1) + ' Z';
-    g += '<path d="' + area + '" fill="' + (fpts[fpts.length-1][1] >= 0 ? '#2bd67b' : '#ff6f83') + '" opacity="0.10"/>';
-    g += '<polyline points="' + fLine + '" fill="none" stroke="' + (fpts[fpts.length-1][1] >= 0 ? '#2bd67b' : '#ff6f83') + '" stroke-width="1.4" stroke-linejoin="round"/>';
+    g += '<path d="' + area + '" fill="' + (fpts[fpts.length-1][1] >= 0 ? '#ff6f83' : '#2bd67b') + '" opacity="0.10"/>';
+    g += '<polyline points="' + fLine + '" fill="none" stroke="' + (fpts[fpts.length-1][1] >= 0 ? '#ff6f83' : '#2bd67b') + '" stroke-width="1.4" stroke-linejoin="round"/>';
   }
   // 价格线（蓝）
   var pLine = pts.map(function(p){ return xmin(p[0]).toFixed(1) + ',' + yP(p[1]).toFixed(1); }).join(' ');
@@ -3588,33 +3700,47 @@ function rzIndexComboSVG(tr, flowSer, a){
     if(a.bigPeak && a.peak.i > 0 && a.peak.i < fpts.length){
       var pm = fpts[a.peak.i];
       if(pm){ var px = xmin(pm[0]), py = yF(pm[1]);
-        g += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3" fill="none" stroke="#2bd67b" stroke-width="1.3"/>';
-        g += '<text x="' + px.toFixed(1) + '" y="' + (py-6).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="middle">峰' + a.peak.t + '</text>'; }
+        g += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3" fill="none" stroke="#ff6f83" stroke-width="1.3"/>';
+        g += '<text x="' + px.toFixed(1) + '" y="' + (py-6).toFixed(1) + '" font-size="9" fill="#ff6f83" text-anchor="middle">峰' + a.peak.t + '</text>'; }
     }
     if(a.flipDown && a.flipDown.i > 0 && a.flipDown.i <= fpts.length){
       var fmPt = fpts[a.flipDown.i];
       if(fmPt){ var fx2 = xmin(fmPt[0]);
-        g += '<line x1="' + fx2.toFixed(1) + '" y1="' + MT + '" x2="' + fx2.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#ff6f83" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
-        g += '<text x="' + (fx2+3).toFixed(1) + '" y="' + (MT+10).toFixed(1) + '" font-size="9" fill="#ff6f83">翻空' + a.flipDown.t + '</text>'; }
+        g += '<line x1="' + fx2.toFixed(1) + '" y1="' + MT + '" x2="' + fx2.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#2bd67b" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
+        g += '<text x="' + (fx2+3).toFixed(1) + '" y="' + (MT+10).toFixed(1) + '" font-size="9" fill="#2bd67b">翻空' + a.flipDown.t + '</text>'; }
     }
   }
   // 时间刻度
-  var marks = [[570,'09:30'],[660,'10:30'],[750,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
+  var marks = [[570,'09:30'],[660,'10:30'],[690,'11:30/13:00'],[840,'14:30'],[900,'15:00']];
+  var bx = xmin(120).toFixed(1);
+  g += '<line x1="' + bx + '" y1="' + MT + '" x2="' + bx + '" y2="' + (MT+ph) + '" stroke="#e6e9ef" stroke-width="1" stroke-dasharray="3 3"/>';
   for(var mi = 0; mi < marks.length; mi++){
-    var mx = xmin(marks[mi][0]);
+    var mx = xmin(tradeMin(marks[mi][0]));
     g += '<line x1="' + mx.toFixed(1) + '" y1="' + MT + '" x2="' + mx.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#f6f7f9" stroke-width="1"/>';
     g += '<text x="' + mx.toFixed(1) + '" y="' + (MT+ph+12) + '" font-size="9" fill="#c4cad3" text-anchor="middle">' + marks[mi][1] + '</text>';
   }
   // y 标签：左价格，右亿
   g += '<text x="' + (ML-4) + '" y="' + (yP(hi)+3).toFixed(1) + '" font-size="9" fill="#9ca3af" text-anchor="end">' + hi.toFixed(0) + '</text>';
   g += '<text x="' + (ML-4) + '" y="' + (yP(lo)+3).toFixed(1) + '" font-size="9" fill="#9ca3af" text-anchor="end">' + lo.toFixed(0) + '</text>';
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yF(fhi)+3).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="start">' + fhi.toFixed(1) + '亿</text>';
-  g += '<text x="' + (ML+pw+4) + '" y="' + (yF(flo)+3).toFixed(1) + '" font-size="9" fill="#ff6f83" text-anchor="start">' + flo.toFixed(1) + '亿</text>';
+  g += '<text x="' + (ML+pw+4) + '" y="' + (yF(fhi)+3).toFixed(1) + '" font-size="9" fill="#ff6f83" text-anchor="start">' + fhi.toFixed(1) + '亿</text>';
+  g += '<text x="' + (ML+pw+4) + '" y="' + (yF(flo)+3).toFixed(1) + '" font-size="9" fill="#2bd67b" text-anchor="start">' + flo.toFixed(1) + '亿</text>';
   // 图例
-  g += '<text x="' + (ML+4) + '" y="' + (MT-5) + '" font-size="9.5" fill="#2563eb">■ 上证指数</text>';
-  g += '<text x="' + (ML+82) + '" y="' + (MT-5) + '" font-size="9.5" fill="#2bd67b">■ 主力净流入(亿)</text>';
+  g += '<text x="' + (ML+4) + '" y="' + (MT-5) + '" font-size="9.5" fill="#2563eb">■ ' + esc(priceLabel || '上证指数') + '</text>';
+  g += '<text x="' + (ML+82) + '" y="' + (MT-5) + '" font-size="9.5" fill="#ff6f83">■ 主力净流入(亿)</text>';
   g += '</svg>';
-  return g;
+  window.RZ_CHARTS = window.RZ_CHARTS || {};
+  window.RZ_CHART_SEQ = window.RZ_CHART_SEQ || 0;
+  var cid = 'rzc' + (++window.RZ_CHART_SEQ);
+  var fcolor = (fpts.length && fpts[fpts.length-1][1] >= 0) ? '#ff6f83' : '#2bd67b';
+  window.RZ_CHARTS[cid] = {
+    type:'index', W:W, H:H, ML:ML, MR:MR, MT:MT, MB:MB, pw:pw, ph:ph,
+    START:START, END:END, SPAN:SPAN,
+    series:[
+      {axis:'L', color:'#2563eb', pts:pts, yfn:yP},
+      {axis:'R', color:fcolor, pts:fpts, yfn:yF}
+    ]
+  };
+  return '<div class="rzchart" data-cid="'+cid+'">' + g + '<div class="rzover"></div><div class="rzcross"></div><span class="rzdot"></span><span class="rzdot"></span><div class="rztip"></div></div>';
 }
 // 板块资金哨兵：从「当日分钟级累计净流入序列」提炼关键事件。
 // 序列是【累计值】：曲线下行＝该时段净流出；峰值回撤＝主力已撤出的量。
@@ -3661,10 +3787,10 @@ function flowTimeline(a, ser){
   if(!a || !ser || ser.length < 2) return '';
   var G = CFG.FLOW_GUARD;
   var nodes = [{t: ser[0][0], i: 0, k: 'start', label: '开盘', v: ser[0][1], color: '#7e93b8'}];
-  if(a.bigPeak && a.peak.i > 0) nodes.push({t: a.peak.t, i: a.peak.i, k: 'peak', label: '峰值', v: a.peak.v, color: '#2bd67b'});
-  if(a.flipDown) nodes.push({t: a.flipDown.t, i: a.flipDown.i, k: 'flip', label: '翻空', v: 0, color: '#ff6f83'});
-  if(a.flipUp) nodes.push({t: a.flipUp.t, i: a.flipUp.i, k: 'up', label: '回流', v: 0, color: '#2bd67b'});
-  nodes.push({t: a.lastT, i: ser.length - 1, k: 'now', label: '现在', v: a.last, color: a.last >= 0 ? '#2bd67b' : '#ff6f83'});
+  if(a.bigPeak && a.peak.i > 0) nodes.push({t: a.peak.t, i: a.peak.i, k: 'peak', label: '峰值', v: a.peak.v, color: '#ff6f83'});
+  if(a.flipDown) nodes.push({t: a.flipDown.t, i: a.flipDown.i, k: 'flip', label: '翻空', v: 0, color: '#2bd67b'});
+  if(a.flipUp) nodes.push({t: a.flipUp.t, i: a.flipUp.i, k: 'up', label: '回流', v: 0, color: '#ff6f83'});
+  nodes.push({t: a.lastT, i: ser.length - 1, k: 'now', label: '现在', v: a.last, color: a.last >= 0 ? '#ff6f83' : '#2bd67b'});
   // 同一时刻只留优先级高的节点，并限制总数
   var pri = {now: 5, flip: 4, up: 4, peak: 3, start: 1}, byT = {}, uniq = [];
   for(var i = 0; i < nodes.length; i++){
@@ -3683,10 +3809,13 @@ function flowTimeline(a, ser){
   }
   var nx = Math.max(ser.length - 1, 1);
   var h = '<div class="rztl">';
+  var prevPct = -100;
   for(var m = 0; m < uniq.length; m++){
     var n2 = uniq[m], pct = Math.max(0, Math.min(100, n2.i / nx * 100));
+    var low = (pct - prevPct < 18);
+    if(!low) prevPct = pct;
     var vt = n2.k === 'flip' || n2.k === 'up' ? '跨0' : ((n2.v >= 0 ? '+' : '') + n2.v.toFixed(2) + '亿');
-    h += '<div class="rztl-n" style="left:' + pct.toFixed(1) + '%" title="' + esc(n2.label + ' ' + n2.t + ' ' + vt) + '">' +
+    h += '<div class="rztl-n' + (low ? ' rztl-low' : '') + '" style="left:' + pct.toFixed(1) + '%" title="' + esc(n2.label + ' ' + n2.t + ' ' + vt) + '">' +
          '<span class="rztl-dot" style="background:' + n2.color + '"></span>' +
          '<span class="rztl-lb" style="color:' + n2.color + '">' + n2.label + '</span>' +
          '<span class="rztl-t">' + n2.t + '</span>' +
@@ -3695,6 +3824,30 @@ function flowTimeline(a, ser){
   h += '</div>';
   return h;
 }
+  // 板块资金变化：文字版（开盘/峰值/翻空/现在），不按刻度排，分行避免重叠
+  function flowSummary(a, ser){
+    if(!a || !ser || ser.length < 2) return '';
+    var items = [], openT = ser[0][0], openV = ser[0][1];
+    items.push({lb:'开盘', t:openT, v:openV, cross:false});
+    if(a.bigPeak && a.peak.i > 0) items.push({lb:'峰值', t:a.peak.t, v:a.peak.v, cross:false});
+    if(a.flipDown) items.push({lb:'翻空', t:a.flipDown.t, v:0, cross:true});
+    if(a.flipUp) items.push({lb:'回流', t:a.flipUp.t, v:0, cross:true});
+    items.push({lb:'现在', t:a.lastT, v:a.last, cross:false});
+    var h = '<div class="rztl-text">'
+    for(var i=0;i<items.length;i++){
+      var it = items[i];
+      var vc = it.cross ? '跨0' : ((it.v>=0?'+':'') + it.v.toFixed(2) + '亿');
+      var cls = it.cross ? '' : (it.v>=0 ? 'up' : 'dn');
+      if(i>0) h += '<span class="ar">›</span>';
+      h += '<span>' + it.lb + ' <b>' + it.t + '</b> <span class="' + cls + '">' + vc + '</span></span>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+// 相关性标签：个股分时涨跌究竟跟「板块资金流」还是「自身资金流」更同步
+//   β 板块跟随型 = 与板块资金流变化高度同步；α 个股独立型 = 与自身资金流变化更同步
+//   用真实的 Pearson 相关系数，不硬编结论；样本不足则返回空。
 // 三线判读
 function rzVerdict(mkt, bd, it){
   var mUp = !!(mkt && mkt.pct > 0);
@@ -3776,8 +3929,13 @@ function rzRender(){
   var body = $('rzBody'), tag = $('rzTag');
   if(!body) return;
   if(!RZ.list.length){ body.innerHTML = '<div class="hint" style="color:var(--txt3);padding:6px 0">暂无自选，输入代码点「添加」开始。</div>'; if(tag){ tag.textContent = '空'; tag.className = 'pill na'; } return; }
+  if(!RZ.order.length) RZ.order = RZ.list.slice();
+  // 重排只在：①增删后(sortDirty) ②共振模式下首次全部判定就绪时；自动刷新不重排，避免卡片乱跳
+  var allReady = RZ.list.length && RZ.list.every(function(c){ return RZ.state[c] && RZ.state[c].v && RZ.state[c].v.cls; });
+  if(RZ.sortMode === 'res' && (RZ.sortDirty || (!RZ.initialSorted && allReady))){ rzSortOrder(); RZ.sortDirty = false; RZ.initialSorted = true; }
+  else if(RZ.sortMode === 'raw' && RZ.sortDirty){ rzSortOrder(); RZ.sortDirty = false; RZ.initialSorted = true; }
   var html = '', ok = 0;
-  RZ.list.forEach(function(code){
+  RZ.order.forEach(function(code){
     var o = RZ.state[code] || (RZ.state[code] = {});
     if(o.v && o.v.cls === 'good') ok++;
     var head;
@@ -3809,18 +3967,18 @@ function rzRender(){
                     : '<span class="rzna">' + (isETFCode(code) ? 'ETF 未匹配到板块' : '无行业归属') + '</span>')) + (bd ? ' ' + rzY(bd.flow > 0) : '') +
         (bd ? rzAge(RZ.blist.ts, RZ.blist.stale, 300) : '') +
         (RZ.blist.partial ? ' <span class="rzage bad" title="板块榜仅拉到 ' + RZ.blist.seen + '/' + RZ.blist.total + ' 个，个别板块可能匹配不到">⚠榜不全</span>' : '') + '</div>' +
-      (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert) + '<div class="rzchartcap">板块(■)＋个股(┄)主力净流入（亿）· 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
-      // 个股自身：分线图（蓝）＋ 自身主力净流入（绿涨/红跌·亿）同框，复用上证置顶卡组合图器
-      (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert) + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（绿涨/红跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
+
       // 板块资金哨兵：翻空/急退/回流，直接高亮在持仓卡片里
-      (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rzalert">' + o.bdAlert.alerts.map(function(al){
+      '<div class="rza-wrap">' + (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rzalert">' + o.bdAlert.alerts.map(function(al){
           return '<div class="rza ' + al.level + '"><b>' + (al.level === 'bad' ? '⚠️' : (al.level === 'warn' ? '⚡' : '✅')) + ' ' + esc(al.text) + '</b><span>' + esc(al.detail) + '</span></div>';
-        }).join('') + '</div>' : '') +
-      // 板块资金变化时间轴：开盘 → 峰值 → 翻空 → 现在，事后一眼看出几点开始跑
-      (bd && o.bdSer && o.bdAlert ? '<div class="rztl-wrap">' + flowTimeline(o.bdAlert, o.bdSer) + '<div class="rzchartcap">板块资金变化时间轴（当日累计净流入）</div></div>' : '') +
+        }).join('') + '</div>' : '') + '</div>' +
       '<div class="rzrow"><span class="rk">标的</span><b>' + esc(qName) + '</b> ' + qPct + ' ' + qChk +
       (q ? rzAge(q.qt, false, 90) : '') +
       stkVolHtml(o.stkV, o.stkV5) +
+      (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert, o.tr) + '<div class="rzchartcap">板块资金 · 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
+      (bd && o.bdSer && o.bdAlert ? flowSummary(o.bdAlert, o.bdSer) : '') +
+      // 个股自身：分线图（蓝）＋ 自身主力净流入（红涨/绿跌·亿）同框，复用上证置顶卡组合图器
+      (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert, '标的分线') + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（红涨/绿跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
       (bd ? '' : ' <span class="rzna">ETF 按「大市+标的」双线</span>') + '</div></div>';
   });
   body.innerHTML = html;
@@ -3830,6 +3988,35 @@ function rzRender(){
     else if(RZ.list.length){ tag.textContent = RZ.list.length + ' 只观察'; tag.className = 'pill na'; }
     else { tag.textContent = '空'; tag.className = 'pill na'; }
   }
+  rzOverview();
+}
+// 顶部常驻概览条：大市 / 板块 / 标的 一眼速览（读取全局 STATE / PZT / RZ）
+function rzOverview(){
+  var el = document.getElementById('rzTopBar');
+  if(!el) return;
+  if(!el.dataset.bind){ el.dataset.bind = '1';
+    el.addEventListener('click', function(e){ var t = e.target.closest('[data-jump]'); if(!t) return;
+      var tar = document.getElementById(t.getAttribute('data-jump')); if(tar) tar.scrollIntoView({behavior:'smooth', block:'start'}); }); }
+  // 大市：上证指数涨跌 + 量能比（今日累计 ÷ 昨日同期）
+  var mk = STATE.idx, mkPct = (mk && isFinite(mk.pct)) ? mk.pct : null;
+  var mkCls = mkPct === null ? 'flat' : (mkPct > 0 ? 'up' : (mkPct < 0 ? 'down' : 'flat'));
+  var mkTxt = mkPct === null ? '—' : pctS(mkPct);
+  var vc = mk && mk.vc, vr = (vc && !vc.unavail && isFinite(vc.ratio)) ? vc.ratio : null;
+  var vrCls = vr === null ? 'flat' : (vr >= 1 ? 'up' : 'down');
+  var vrTxt = vr === null ? '' : (' · 量能 ' + (vr*100).toFixed(0) + '%' + (vc && vc.fallback ? '(参)' : ''));
+  // 板块：净流入/净流出板块数
+  var bIn = PZT.nin, bOut = PZT.nout, bTxt = (PZT.ts ? (bIn + ' 流入 / ' + bOut + ' 流出') : '—');
+  // 标的：自选共振 / 总数
+  var tot = RZ.list.length, res = 0;
+  RZ.list.forEach(function(c){ var o = RZ.state[c]; if(o && o.v && o.v.cls === 'good') res++; });
+  var itTxt = tot ? (res + '/' + tot + ' 共振') : '—';
+  el.innerHTML =
+    '<span class="tb-item" data-jump="mktRoot"><span class="tb-k">大市</span><span class="tb-v ' + mkCls + '">' + mkTxt + '</span><span class="tb-v ' + vrCls + '">' + vrTxt + '</span></span>' +
+    '<span class="tb-sep"></span>' +
+    '<span class="tb-item" data-jump="pztRoot"><span class="tb-k">板块</span><span class="tb-v">' + bTxt + '</span></span>' +
+    '<span class="tb-sep"></span>' +
+    '<span class="tb-item" data-jump="rzRoot"><span class="tb-k">标的</span><span class="tb-v">' + itTxt + '</span></span>' +
+    '<span class="tb-meta" id="rzTopMeta">更新 ' + new Date().toLocaleTimeString('zh-CN', {hour12:false}) + '</span>';
 }
 function rzOne(code, force){
   var o = RZ.state[code] = RZ.state[code] || {};
@@ -3922,6 +4109,7 @@ function rzAdd(codeRaw){
   if(RZ.list.indexOf(c) >= 0){ var h2 = $('rzHint'); if(h2) h2.textContent = c + ' 已在列表中。'; return; }
   RZ.list.push(c);
   rzSave();
+  RZ.sortDirty = true;
   var h3 = $('rzHint'); if(h3) h3.textContent = '';
   rzOne(c, true);
   if(!RZ.timer){ RZ.timer = setInterval(function(){ rzRefresh(false); }, 30000); }
@@ -3930,6 +4118,7 @@ function rzRemove(code){
   RZ.list = RZ.list.filter(function(x){ return x !== code; });
   delete RZ.state[code];
   rzSave();
+  RZ.sortDirty = true;
   rzRender();
 }
 function rzStart(){
@@ -3938,6 +4127,13 @@ function rzStart(){
   if(!a || !inp || !body) return;
   a.addEventListener('click', function(){ rzAdd(inp.value); inp.value = ''; });
   inp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ rzAdd(inp.value); inp.value = ''; } });
+  Array.prototype.forEach.call(document.querySelectorAll('.rzsort'), function(btn){
+    btn.addEventListener('click', function(){
+      var mode = btn.getAttribute('data-sort');
+      rzSetSort(mode);
+      Array.prototype.forEach.call(document.querySelectorAll('.rzsort'), function(b){ b.classList.toggle('on', b === btn); });
+    });
+  });
   body.addEventListener('click', function(e){
     var b = e.target;
     if(!b || b.tagName !== 'BUTTON') return;
@@ -4146,6 +4342,8 @@ rzStart();
         document.getElementById("pztCardAnomMeta").textContent=tradingNow(now)?("急流入 "+ain.length+" · 急流出 "+aout.length):"盘中才计";
         document.getElementById("pztCardBreadth").textContent=nin+" / "+nout;
         document.getElementById("pztCardBreadthMeta").textContent="净流入 "+nin+" · 净流出 "+nout+"（共 "+(nin+nout)+" 板块）";
+        PZT.nin = nin; PZT.nout = nout; PZT.ts = Date.now();
+        if(window.rzOverview) rzOverview();
         var st=statusText(now);
         document.getElementById("pztStatus").textContent=st;
         document.getElementById("pztStatus").className="pill "+(tradingNow(now)?"ok":"na");
@@ -4171,6 +4369,73 @@ rzStart();
   renderBlocked();
   refresh();
   setInterval(tick,1000);
+
+  /* 图表滑动十字线 tooltip（方案A）：事件委托在 document，render 重绘后自动生效 */
+  function rzChartFromPoint(t){ while(t && t !== document){ if(t.classList && t.classList.contains('rzover')) return t.parentNode; t = t.parentNode; } return null; }
+  function rzHideTip(){
+    var els = document.querySelectorAll('.rzcross, .rztip'); for(var i=0;i<els.length;i++) els[i].style.display='none';
+    var ds = document.querySelectorAll('.rzdot'); for(var j=0;j<ds.length;j++) ds[j].style.display='none';
+  }
+  var RZ_PIN = null, RZ_PIN_T = null, RZ_DOWN_C = null, RZ_DOWN_T = 0, RZ_DOWN_X = 0, RZ_MOVED = false, RZ_LONG = false;
+  function rzSetPin(on, chart){ if(chart && chart.classList) chart.classList.toggle('rz-pinned', on); }
+  function rzUnpin(){ if(RZ_PIN){ rzSetPin(false, RZ_PIN); RZ_PIN = null; } }
+  function rzPin(c){ if(RZ_PIN && RZ_PIN !== c) rzSetPin(false, RZ_PIN); RZ_PIN = c; rzSetPin(true, c); }
+  function rzUpdateTip(chart, e){
+    var cid = chart.getAttribute('data-cid'); var cfg = window.RZ_CHARTS && window.RZ_CHARTS[cid]; if(!cfg) return;
+    var rect = chart.getBoundingClientRect();
+    var ratio = (e.clientX - rect.left) / rect.width; if(ratio < 0 || ratio > 1) return;
+    var xvb = ratio * cfg.W;
+    var m = cfg.START + (xvb - cfg.ML) / cfg.pw * cfg.SPAN; if(m < cfg.START) m = cfg.START; if(m > cfg.END) m = cfg.END;
+    var mClock = clockMin(m);
+    var crossPct = (cfg.ML + (m - cfg.START) / cfg.SPAN * cfg.pw) / cfg.W * 100;
+    var lines = [];
+    for(var i=0;i<cfg.series.length;i++){ var s = cfg.series[i]; if(!s.pts || !s.pts.length) continue;
+      var best = null, bd = Infinity; for(var j=0;j<s.pts.length;j++){ var d = Math.abs(s.pts[j][0] - m); if(d < bd){ bd = d; best = s.pts[j]; } }
+      if(best) lines.push({color:s.color, axis:s.axis, val:best[1], yPct:s.yfn(best[1]) / cfg.H * 100});
+    }
+    if(!lines.length) return;
+    var cross = chart.querySelector('.rzcross'); cross.style.display='block'; cross.style.left = crossPct + '%';
+    var dots = chart.querySelectorAll('.rzdot'); for(var k=0;k<dots.length;k++) dots[k].style.display='none';
+    var tip = chart.querySelector('.rztip');
+    var mr = Math.round(mClock); if(mr < 570) mr = 570; if(mr > 900) mr = 900;
+    var hh = Math.floor(mr/60), mm = mr % 60;
+    var tstr = (hh<10?'0':'')+hh + ':' + (mm<10?'0':'')+mm;
+    var pinMark = (chart === RZ_PIN) ? '📌 ' : '';
+    var html = '<div class="tt' + (chart === RZ_PIN ? ' pin' : '') + '">'+pinMark+tstr+'</div>';
+    for(var L=0;L<lines.length;L++){ var ln = lines[L];
+      var label, unit;
+      if(cfg.type==='flow'){ if(ln.axis==='L'){ label='板块资金净流入'; unit='亿'; } else if(ln.axis==='R'){ label='个股资金净流入'; unit='亿'; } else if(ln.axis==='P'){ label='个股涨跌幅'; unit='%'; } else { label='个股'; unit='亿'; } }
+      else { label = (ln.axis==='L'?'价格':'资金'); unit = (ln.axis==='L' ? '' : '亿'); }
+      var v = ln.val, vs;
+      if(cfg.type==='index' && ln.axis==='L'){ vs = v.toFixed(2); }
+      else { vs = (v>=0?'+':'') + v.toFixed(2) + unit; }
+      html += '<div><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+ln.color+';margin-right:5px;vertical-align:middle"></span>'+label+' '+vs+'</div>';
+    }
+    tip.innerHTML = html; tip.style.display='block';
+    var tipW = tip.offsetWidth;
+    var leftPct = (crossPct > 55) ? crossPct - (tipW/rect.width*100) - 2 : crossPct + 2;
+    tip.style.left = Math.max(2, Math.min(96, leftPct)) + '%';
+    var di = 0; for(var M=0;M<lines.length;M++){ if(di < dots.length){ var d = dots[di++]; d.style.display='block'; d.style.left = crossPct + '%'; d.style.top = lines[M].yPct + '%'; d.style.background = lines[M].color; } }
+  }
+  document.addEventListener('pointerdown', function(e){
+    var c = rzChartFromPoint(e.target); if(!c) return;
+    RZ_DOWN_C = c; RZ_DOWN_T = Date.now(); RZ_DOWN_X = e.clientX; RZ_MOVED = false; RZ_LONG = false;
+    rzUpdateTip(c, e);
+    clearTimeout(RZ_PIN_T);
+    RZ_PIN_T = setTimeout(function(){ RZ_LONG = true; if(RZ_MOVED) return; if(RZ_PIN === c) rzUnpin(); else rzPin(c); }, 450);
+  }, {passive:true});
+  document.addEventListener('pointermove', function(e){
+    var c = rzChartFromPoint(e.target); if(!c) return;
+    if(Math.abs(e.clientX - RZ_DOWN_X) > 6) RZ_MOVED = true;
+    rzUpdateTip(c, e);
+  }, {passive:true});
+  document.addEventListener('pointerup', function(){
+    clearTimeout(RZ_PIN_T);
+    if(RZ_DOWN_C === RZ_PIN && !RZ_MOVED && !RZ_LONG){ rzUnpin(); rzHideTip(); }
+    if(RZ_PIN) return;
+    setTimeout(rzHideTip, 1500);
+  }, {passive:true});
+  document.addEventListener('pointercancel', rzHideTip, {passive:true});
 })();
 </script>
 </body>
