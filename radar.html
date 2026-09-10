@@ -3812,8 +3812,6 @@ function rzRender(){
       (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert) + '<div class="rzchartcap">板块(■)＋个股(┄)主力净流入（亿）· 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
       // 个股自身：分线图（蓝）＋ 自身主力净流入（绿涨/红跌·亿）同框，复用上证置顶卡组合图器
       (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert) + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（绿涨/红跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
-      // 个股资金变化时间轴：开盘 → 峰值/翻空/回流 → 现在
-      (o.stkSer && o.stkAlert ? '<div class="rztl-wrap">' + flowTimeline(o.stkAlert, o.stkSer) + '<div class="rzchartcap">个股资金变化时间轴（当日累计净流入）</div></div>' : '') +
       // 板块资金哨兵：翻空/急退/回流，直接高亮在持仓卡片里
       (bd && o.bdAlert && o.bdAlert.alerts.length ? '<div class="rzalert">' + o.bdAlert.alerts.map(function(al){
           return '<div class="rza ' + al.level + '"><b>' + (al.level === 'bad' ? '⚠️' : (al.level === 'warn' ? '⚡' : '✅')) + ' ' + esc(al.text) + '</b><span>' + esc(al.detail) + '</span></div>';
