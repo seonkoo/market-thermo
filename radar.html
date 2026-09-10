@@ -232,7 +232,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 
 .rzchartcap{font-size:10.5px;color:#aeb6c1;text-align:center;padding-top:2px}
 
-.rzover{position:absolute;left:7%;right:7.67%;top:0;bottom:0;cursor:crosshair;touch-action:none;z-index:3}
+.rzover{position:absolute;left:0;right:0;top:0;bottom:0;cursor:crosshair;touch-action:none;z-index:3}
 
 .rzcross{position:absolute;top:0;bottom:0;width:1px;background:rgba(70,80,95,.55);display:none;pointer-events:none;z-index:2}
 
@@ -8556,7 +8556,21 @@ rzStart();
 
     var rect = chart.getBoundingClientRect();
 
-    var ratio = (e.clientX - rect.left) / rect.width; if(ratio < 0 || ratio > 1) return;
+    // SVG 被 .rzchart 内边距内缩，十字线/圆点按 padding-box 定位，故须用 SVG 自身 rect 做像素↔SVG 坐标转换，
+    // 否则 tooltip 十字线与曲线/时间轴刻度会整体错位（内侧偏移 ~padding）。
+    var svgEl = chart.querySelector('svg'); var srect = svgEl ? svgEl.getBoundingClientRect() : rect;
+
+    var cstyle = getComputedStyle(chart);
+
+    var blw = parseFloat(cstyle.borderLeftWidth)||0, brw = parseFloat(cstyle.borderRightWidth)||0, btw = parseFloat(cstyle.borderTopWidth)||0, bbw = parseFloat(cstyle.borderBottomWidth)||0;
+
+    var pbLeft = rect.left + blw, pbTop = rect.top + btw, pbW = rect.width - blw - brw, pbH = rect.height - btw - bbw;
+
+    function xPct(xsvg){ return (srect.left + xsvg / cfg.W * srect.width - pbLeft) / pbW * 100; }
+
+    function yPctF(ycfg){ return (srect.top + ycfg / cfg.H * srect.height - pbTop) / pbH * 100; }
+
+    var ratio = (e.clientX - srect.left) / srect.width; if(ratio < -0.15 || ratio > 1.15) return;
 
     var xvb = ratio * cfg.W;
 
@@ -8564,19 +8578,22 @@ rzStart();
 
     var mClock = clockMin(m);
 
-    var crossPct = (cfg.ML + (m - cfg.START) / cfg.SPAN * cfg.pw) / cfg.W * 100;
+    var crossPct = xPct(cfg.ML + (m - cfg.START) / cfg.SPAN * cfg.pw);
 
-    var lines = [];
+    var lines = [], snapTm = null, snapD = Infinity;
 
     for(var i=0;i<cfg.series.length;i++){ var s = cfg.series[i]; if(!s.pts || !s.pts.length) continue;
 
-      var best = null, bd = Infinity; for(var j=0;j<s.pts.length;j++){ var d = Math.abs(s.pts[j][0] - m); if(d < bd){ bd = d; best = s.pts[j]; } }
+      var best = null, bd = Infinity; for(var j=0;j<s.pts.length;j++){ var d = Math.abs(s.pts[j][0] - m); if(d < bd){ bd = d; best = s.pts[j]; } } if(best && bd < snapD){ snapD = bd; snapTm = best[0]; }
 
-      if(best) lines.push({color:s.color, axis:s.axis, val:best[1], yPct:s.yfn(best[1]) / cfg.H * 100});
+      if(best) lines.push({color:s.color, axis:s.axis, val:best[1], ycfg:s.yfn(best[1])});
 
     }
 
     if(!lines.length) return;
+
+    // 十字线/圆点吸附到最近的真实数据点，确保 tooltip 显示的时点与曲线、时间轴刻度严格对齐
+    if(snapTm !== null){ m = snapTm; mClock = clockMin(m); crossPct = xPct(cfg.ML + (m - cfg.START) / cfg.SPAN * cfg.pw); }
 
     var cross = chart.querySelector('.rzcross'); cross.style.display='block'; cross.style.left = crossPct + '%';
 
@@ -8616,11 +8633,11 @@ rzStart();
 
     var tipW = tip.offsetWidth;
 
-    var leftPct = (crossPct > 55) ? crossPct - (tipW/rect.width*100) - 2 : crossPct + 2;
+    var leftPct = (crossPct > 55) ? crossPct - (tipW/pbW*100) - 2 : crossPct + 2;
 
     tip.style.left = Math.max(2, Math.min(96, leftPct)) + '%';
 
-    var di = 0; for(var M=0;M<lines.length;M++){ if(di < dots.length){ var d = dots[di++]; d.style.display='block'; d.style.left = crossPct + '%'; d.style.top = lines[M].yPct + '%'; d.style.background = lines[M].color; } }
+    var di = 0; for(var M=0;M<lines.length;M++){ if(di < dots.length){ var d = dots[di++]; d.style.display='block'; d.style.left = crossPct + '%'; d.style.top = yPctF(lines[M].ycfg) + '%'; d.style.background = lines[M].color; } }
 
   }
 
