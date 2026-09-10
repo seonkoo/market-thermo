@@ -6114,7 +6114,7 @@ function rzLoad(){
     RZ.list = RZ.list.map(function(c, i){ return {c: c, _at: now - (RZ.list.length - i) * 1000}; });
     rzSave(); // 一次性写回新格式
   }
-  RZ.order = RZ.list.slice();
+  RZ.order = RZ.list.map(function(x){ return x.c; });
 }
 
 function rzSave(){ try{ localStorage.setItem('rz_watch', JSON.stringify(RZ.list)); }catch(e){} }
@@ -6144,7 +6144,7 @@ function rzSortOrder(){
 
     return a.c < b.c ? -1 : (a.c > b.c ? 1 : 0);
 
-  });
+  }).map(function(x){ return x.c; });
 
 }
 
