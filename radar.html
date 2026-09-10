@@ -3640,7 +3640,7 @@ function drawTrend(hostId, today, yest, preClose, opt){
 
   var s = '';
 
-  s += '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:auto">';
+  s += '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto">';
 
   // 背景
 
@@ -3848,7 +3848,7 @@ function drawKline(hostId, daily, opt){
 
   var s = '';
 
-  s += '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:auto">';
+  s += '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto">';
 
   s += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#fff"/>';
 
@@ -4932,7 +4932,7 @@ function dipSvg(today, st){
 
   function Y(v){ return pt + (hiT - v) / (hiT - loT) * ch; }
 
-  var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:auto;display:block">';
+  var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;display:block">';
 
   var pC = [], pV = [];
 
@@ -6787,7 +6787,7 @@ function rzFlowSVG(ser, flowYi, a){
 
   var lbl = (up ? '+' : '') + last[1].toFixed(2) + '亿';
 
-  var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="none" style="display:block">';
+  var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block">';
 
   g += '<line x1="' + ML + '" y1="' + zeroY.toFixed(1) + '" x2="' + (ML + pw) + '" y2="' + zeroY.toFixed(1) + '" stroke="rgba(125,154,211,0.35)" stroke-width="1"/>';
 
@@ -6929,7 +6929,7 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
   }
 
-  var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="none" style="display:block">';
+  var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block">';
 
   g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#fff"/>';
 
@@ -6987,7 +6987,8 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
     g += '<line x1="' + mx.toFixed(1) + '" y1="' + MT + '" x2="' + mx.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#f6f7f9" stroke-width="1"/>';
 
-    g += '<text x="' + mx.toFixed(1) + '" y="' + (MT+ph+12) + '" font-size="9" fill="#c4cad3" text-anchor="middle">' + marks[mi][1] + '</text>'; }
+    var tanchor = (mi===0)?'start':(mi===marks.length-1)?'end':'middle';
+        g += '<text x="' + mx.toFixed(1) + '" y="' + (MT+ph+12) + '" font-size="9" fill="#c4cad3" text-anchor="'+tanchor+'">' + marks[mi][1] + '</text>'; }
 
   g += '<text x="' + (ML+3) + '" y="' + (yB(bhi)+3).toFixed(1) + '" font-size="9" fill="#e5484d" text-anchor="start">' + bhi.toFixed(0) + '</text>';
 
@@ -7107,7 +7108,7 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
 
   function yF(v){ return MT + ph * (fhi - v) / (fhi - flo); }
 
-  var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="none" style="display:block">';
+  var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block">';
 
   g += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#fff"/>';
 
@@ -7191,7 +7192,8 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
 
     g += '<line x1="' + mx.toFixed(1) + '" y1="' + MT + '" x2="' + mx.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#f6f7f9" stroke-width="1"/>';
 
-    g += '<text x="' + mx.toFixed(1) + '" y="' + (MT+ph+12) + '" font-size="9" fill="#c4cad3" text-anchor="middle">' + marks[mi][1] + '</text>';
+    var tanchor = (mi===0)?'start':(mi===marks.length-1)?'end':'middle';
+        g += '<text x="' + mx.toFixed(1) + '" y="' + (MT+ph+12) + '" font-size="9" fill="#c4cad3" text-anchor="'+tanchor+'">' + marks[mi][1] + '</text>';
 
   }
 
