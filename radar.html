@@ -186,9 +186,13 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 
 .rzhead{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
 
-.rznm{font-size:15px;font-weight:700;white-space:nowrap}
+.rznm{font-size:15px;font-weight:700;white-space:nowrap;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
 
-.rzpx{font-size:14px;font-weight:700}
+/* 标的涨幅：右对齐、放大加粗、红涨绿跌；价格保留为浅灰小字 */
+.rzpx{margin-left:auto;flex:0 0 auto;display:inline-flex;align-items:baseline;gap:6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rzpxp{font-size:11px;color:var(--txt3);font-style:normal;font-weight:600}
+.rzpxc{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+.rzpx .rzar{font-size:11px;margin-left:2px;font-style:normal}
 
 .rzsub{font-size:11px;color:var(--txt3)}
 
@@ -426,7 +430,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 
 @media (max-width:640px){
 
-  .rzhead{flex-wrap:wrap}
+  .rzhead{flex-wrap:nowrap}
 
   .topbar{flex-wrap:wrap}
 
@@ -7735,13 +7739,15 @@ function rzRender(){
 
     var mk = o.market, bd = o.boardRow, q = o.quote, v = o.v;
 
-    var qName = q ? q.name : code, qPx = q ? (fx(q.px) + ' ' + pctS(q.pct)) : '—', qPct = q ? pctS(q.pct) : '—';
+    var qName = q ? q.name : code, qPct = q ? pctS(q.pct) : '—';
+
+    var qArrow = q ? (q.pct > 0 ? '▲' : (q.pct < 0 ? '▼' : '')) : '';
 
     var qChk = q ? rzY(q.pct > 0) : '';
 
     head = '<div class="rzhead"><span class="rznm">' + esc(qName) + ' <span class="rzsub">' + esc(code) + '</span></span>' +
 
-      '<span class="rzpx ' + (q ? cls(q.pct) : '') + '">' + qPx + '</span></div>' +
+      '<span class="rzpx">' + (q ? '<i class="rzpxp">' + fx(q.px) + '</i>' : '') + '<b class="rzpxc ' + (q ? cls(q.pct) : '') + '">' + qPct + (qArrow ? '<i class="rzar">' + qArrow + '</i>' : '') + '</b></span></div>' +
 
       '<div class="rzstatline">' +
 
