@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-11 19:36:37 GMT+8",
+ "generated_at": "2026-09-11 20:19:41 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [],
  "indices": [
@@ -103,9 +103,9 @@
    "name": "美元指数",
    "group": "欧美",
    "code": "UDI",
-   "price": 99.17,
-   "pct": 0.1,
-   "change": 0.1
+   "price": 99.16,
+   "pct": 0.09,
+   "change": 0.09
   }
  ],
  "breadth": {
@@ -116,56 +116,56 @@
    {
     "g": 1,
     "n": 34,
-    "pct_above": 97.1,
-    "avg_amt": 2.18
+    "pct_above": 100.0,
+    "avg_amt": 2.22
    },
    {
     "g": 2,
     "n": 34,
     "pct_above": 85.3,
-    "avg_amt": 3.79
+    "avg_amt": 3.85
    },
    {
     "g": 3,
     "n": 34,
-    "pct_above": 73.5,
-    "avg_amt": 5.04
+    "pct_above": 70.6,
+    "avg_amt": 5.11
    },
    {
     "g": 4,
     "n": 34,
     "pct_above": 52.9,
-    "avg_amt": 6.04
+    "avg_amt": 6.11
    },
    {
     "g": 5,
     "n": 34,
-    "pct_above": 55.9,
-    "avg_amt": 7.18
+    "pct_above": 52.9,
+    "avg_amt": 7.25
    },
    {
     "g": 6,
     "n": 34,
     "pct_above": 50.0,
-    "avg_amt": 8.24
+    "avg_amt": 8.31
    },
    {
     "g": 7,
     "n": 34,
-    "pct_above": 35.3,
-    "avg_amt": 9.28
+    "pct_above": 38.2,
+    "avg_amt": 9.31
    },
    {
     "g": 8,
     "n": 34,
-    "pct_above": 41.2,
-    "avg_amt": 10.02
+    "pct_above": 38.2,
+    "avg_amt": 10.04
    },
    {
     "g": 9,
     "n": 34,
-    "pct_above": 35.3,
-    "avg_amt": 10.91
+    "pct_above": 38.2,
+    "avg_amt": 10.93
    },
    {
     "g": 10,
@@ -183,59 +183,59 @@
     "g": 12,
     "n": 34,
     "pct_above": 11.8,
-    "avg_amt": 15.48
+    "avg_amt": 15.41
    },
    {
     "g": 13,
     "n": 34,
     "pct_above": 41.2,
-    "avg_amt": 17.79
+    "avg_amt": 17.78
    },
    {
     "g": 14,
     "n": 34,
     "pct_above": 32.4,
-    "avg_amt": 20.65
+    "avg_amt": 20.56
    },
    {
     "g": 15,
     "n": 34,
-    "pct_above": 32.4,
-    "avg_amt": 24.71
+    "pct_above": 29.4,
+    "avg_amt": 24.39
    },
    {
     "g": 16,
     "n": 34,
-    "pct_above": 35.3,
-    "avg_amt": 30.41
+    "pct_above": 38.2,
+    "avg_amt": 29.8
    },
    {
     "g": 17,
     "n": 34,
-    "pct_above": 38.2,
-    "avg_amt": 39.61
+    "pct_above": 32.4,
+    "avg_amt": 38.71
    },
    {
     "g": 18,
     "n": 34,
-    "pct_above": 38.2,
-    "avg_amt": 56.21
+    "pct_above": 41.2,
+    "avg_amt": 53.91
    },
    {
     "g": 19,
     "n": 34,
-    "pct_above": 52.9,
-    "avg_amt": 408.08
+    "pct_above": 50.0,
+    "avg_amt": 348.88
    },
    {
     "g": 20,
-    "n": 39,
-    "pct_above": 15.4,
-    "avg_amt": 1248.96
+    "n": 40,
+    "pct_above": 20.0,
+    "avg_amt": 1129.59
    }
   ],
-  "sample": 685,
-  "head_pct": 35.5,
+  "sample": 686,
+  "head_pct": 37.1,
   "tail_pct": 85.3,
   "scope": "成交额Top800"
  },
@@ -593,7 +593,7 @@
    "label": "小微盘/题材活跃（不追）",
    "advice": "题材热闹但持续性差，长线账户不追、只看核心。",
    "evidence": [
-    "尾部 85% 强于头部 36% → 微盘在冲，投机性高",
+    "尾部 85% 强于头部 37% → 微盘在冲，投机性高",
     "资金集中度 45% 偏高 → 抱团核心，宜跟随头部"
    ]
   },
@@ -748,5 +748,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 284.7
+ "elapsed": 293.2
 }
