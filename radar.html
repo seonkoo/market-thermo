@@ -7078,6 +7078,8 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
     START:START, END:END, SPAN:SPAN,
 
+    preClose: (stkTr && isFinite(stkTr.preClose) && stkTr.preClose > 0) ? stkTr.preClose : null,
+
     series:[
 
       {axis:'L', color:'#e5484d', pts:bpts, yfn:yB},
@@ -8696,7 +8698,28 @@ rzStart();
 
       var v = ln.val, vs;
 
-      if(cfg.type==='index' && ln.axis==='L'){
+      // 红涨绿跌 + 涨跌箭头（资金净流入 / 涨跌幅 通用）
+      var tcol = v > 0 ? 'var(--up)' : (v < 0 ? 'var(--down)' : 'var(--txt2)');
+      var tarr = v > 0 ? '▲' : (v < 0 ? '▼' : '');
+      var tsign = v > 0 ? '+' : '';
+
+      if(cfg.type==='flow' && ln.axis==='P'){
+
+        // 个股涨跌幅：红涨绿跌带箭头，并附个股股价（由昨收反算）
+        vs = '<b style="color:' + tcol + '">' + tsign + v.toFixed(2) + '%' + tarr + '</b>';
+
+        if(cfg.preClose) vs += ' <span style="color:var(--txt3);font-size:11px">价格 ' + (cfg.preClose * (1 + v / 100)).toFixed(2) + '</span>';
+
+      }
+
+      else if(cfg.type==='flow'){
+
+        // 板块资金净流入 / 个股资金净流入：正值红↑，负值绿↓
+        vs = '<b style="color:' + tcol + '">' + tsign + v.toFixed(2) + unit + (tarr ? ' ' + tarr : '') + '</b>';
+
+      }
+
+      else if(ln.axis==='L'){
 
         vs = v.toFixed(2);
 
@@ -8714,7 +8737,12 @@ rzStart();
 
       }
 
-      else { vs = (v>=0?'+':'') + v.toFixed(2) + unit; }
+      else {
+
+        // 个股分时图的个股资金：同为红涨绿跌带箭头
+        vs = '<b style="color:' + tcol + '">' + tsign + v.toFixed(2) + unit + (tarr ? ' ' + tarr : '') + '</b>';
+
+      }
 
       html += '<div><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+ln.color+';margin-right:5px;vertical-align:middle"></span>'+label+' '+vs+'</div>';
 
