@@ -8669,6 +8669,9 @@ rzStart();
 
     if(!lines.length) return;
 
+    // 个股分时图：资金净流入移到上面，价格/涨跌幅放下面（series 原序为 [价格, 资金]）
+    if(cfg.type==='index' && cfg.showPct) lines.reverse();
+
     // 十字线/圆点吸附到最近的真实数据点，确保 tooltip 显示的时点与曲线、时间轴刻度严格对齐
     if(snapTm !== null){ m = snapTm; mClock = clockMin(m); crossPct = xPct(cfg.ML + (m - cfg.START) / cfg.SPAN * cfg.pw); }
 
