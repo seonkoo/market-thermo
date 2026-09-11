@@ -213,7 +213,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 
 .rzbtn{margin-left:4px;font-size:11px;padding:1px 8px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--txt2);cursor:pointer}
 .rzbtn.rzbtn-danger{border-color:#e5484d;color:#e5484d;background:#fff5f5;font-weight:700}
-.rzbtns{display:inline-flex;align-items:center;gap:4px;margin-left:auto}
+.rzbtns{display:inline-flex;align-items:center;gap:4px}
+.rzbtnline{display:flex;justify-content:flex-end;align-items:center;margin:0 0 5px}
 .rzbtns .rzbtn{margin-left:0}
 
 .rzok{color:var(--up);font-weight:700}
@@ -426,8 +427,6 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 @media (max-width:640px){
 
   .rzhead{flex-wrap:wrap}
-
-  .rzbtns{margin-left:0}
 
   .topbar{flex-wrap:wrap}
 
@@ -7708,9 +7707,11 @@ function rzRender(){
 
     if(o.err){
 
-      head = '<div class="rzhead"><span class="rznm">' + esc(code) + '</span><span class="rzbadge bad" style="margin-left:auto">加载失败</span>' +
+      head = '<div class="rzhead"><span class="rznm">' + esc(code) + '</span></div>' +
 
-        '<button class="rzbtn" data-rz-re="' + code + '">重试</button><button class="rzbtn" data-rz-rm="' + code + '">移除</button></div>';
+        '<div class="rzstatline"><span class="rzbadge bad">加载失败</span></div>' +
+
+        '<div class="rzbtnline"><span class="rzbtns"><button class="rzbtn" data-rz-re="' + code + '">重试</button><button class="rzbtn" data-rz-rm="' + code + '">移除</button></span></div>';
 
       html += '<div class="rzcard">' + head + '<div class="rzrow" style="color:var(--down)">' + esc(o.err) + '</div></div>';
 
@@ -7720,9 +7721,11 @@ function rzRender(){
 
     if(!o.v){
 
-      head = '<div class="rzhead"><span class="rznm">' + esc(code) + '</span><span class="rzbadge" style="margin-left:auto">加载中…</span>' +
+      head = '<div class="rzhead"><span class="rznm">' + esc(code) + '</span></div>' +
 
-        '<button class="rzbtn" data-rz-rm="' + code + '">移除</button></div>';
+        '<div class="rzstatline"><span class="rzbadge">加载中…</span></div>' +
+
+        '<div class="rzbtnline"><span class="rzbtns"><button class="rzbtn" data-rz-rm="' + code + '">移除</button></span></div>';
 
       html += '<div class="rzcard">' + head + '<div class="rzrow"><span class="rk">拉取大盘/板块/标的实时数据…</span></div></div>';
 
@@ -7738,15 +7741,15 @@ function rzRender(){
 
     head = '<div class="rzhead"><span class="rznm">' + esc(qName) + ' <span class="rzsub">' + esc(code) + '</span></span>' +
 
-      '<span class="rzpx ' + (q ? cls(q.pct) : '') + '">' + qPx + '</span>' +
-
-      '<span class="rzbtns"><button class="rzbtn" data-rz-rm="' + code + '">移除</button><button class="rzbtn" data-rz-re="' + code + '">重算</button></span></div>' +
+      '<span class="rzpx ' + (q ? cls(q.pct) : '') + '">' + qPx + '</span></div>' +
 
       '<div class="rzstatline">' +
 
       ((v.weak && v.weak.length) ? '<span class="rzage warn">⚠弱信号·' + esc(v.weak.join('，')) + '</span>' : '') +
 
-      '<span class="rzbadge ' + v.cls + '">' + esc(v.txt) + '</span></div>';
+      '<span class="rzbadge ' + v.cls + '">' + esc(v.txt) + '</span></div>' +
+
+      '<div class="rzbtnline"><span class="rzbtns"><button class="rzbtn" data-rz-rm="' + code + '">移除</button><button class="rzbtn" data-rz-re="' + code + '">重算</button></span></div>';
 
     html += '<div class="rzcard">' + head +
 
