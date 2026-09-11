@@ -199,7 +199,11 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzn{flex:0 0 6.2em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
 .rzpct{flex:0 0 50px;text-align:right;font-weight:700;font-size:12px}
 
-.rzbadge{margin-left:auto;font-size:12.5px;padding:4px 12px;border-radius:11px;background:#eef1f4;color:#334155;font-weight:700;white-space:nowrap;line-height:1.3}
+.rzbadge{font-size:12.5px;padding:4px 12px;border-radius:11px;background:#eef1f4;color:#334155;font-weight:700;white-space:nowrap;line-height:1.3}
+/* 状态标签固定独占一行：个股名字下方，标签贴右对齐（不随文本长短漂移） */
+.rzstatline{display:flex;justify-content:flex-end;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden;margin:3px 0 4px}
+.rzstatline .rzage{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.rzstatline .rzbadge{flex:0 0 auto}
 
 .rzbadge.good{background:rgba(217,43,43,.10);color:var(--up)}
 
@@ -209,7 +213,7 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 
 .rzbtn{margin-left:4px;font-size:11px;padding:1px 8px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--txt2);cursor:pointer}
 .rzbtn.rzbtn-danger{border-color:#e5484d;color:#e5484d;background:#fff5f5;font-weight:700}
-.rzbtns{display:inline-flex;align-items:center;gap:4px}
+.rzbtns{display:inline-flex;align-items:center;gap:4px;margin-left:auto}
 .rzbtns .rzbtn{margin-left:0}
 
 .rzok{color:var(--up);font-weight:700}
@@ -422,6 +426,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 @media (max-width:640px){
 
   .rzhead{flex-wrap:wrap}
+
+  .rzbtns{margin-left:0}
 
   .topbar{flex-wrap:wrap}
 
@@ -7702,7 +7708,7 @@ function rzRender(){
 
     if(o.err){
 
-      head = '<div class="rzhead"><span class="rznm">' + esc(code) + '</span><span class="rzbadge bad">加载失败</span>' +
+      head = '<div class="rzhead"><span class="rznm">' + esc(code) + '</span><span class="rzbadge bad" style="margin-left:auto">加载失败</span>' +
 
         '<button class="rzbtn" data-rz-re="' + code + '">重试</button><button class="rzbtn" data-rz-rm="' + code + '">移除</button></div>';
 
@@ -7714,7 +7720,7 @@ function rzRender(){
 
     if(!o.v){
 
-      head = '<div class="rzhead"><span class="rznm">' + esc(code) + '</span><span class="rzbadge">加载中…</span>' +
+      head = '<div class="rzhead"><span class="rznm">' + esc(code) + '</span><span class="rzbadge" style="margin-left:auto">加载中…</span>' +
 
         '<button class="rzbtn" data-rz-rm="' + code + '">移除</button></div>';
 
@@ -7734,11 +7740,13 @@ function rzRender(){
 
       '<span class="rzpx ' + (q ? cls(q.pct) : '') + '">' + qPx + '</span>' +
 
-      '<span class="rzbadge ' + v.cls + '">' + esc(v.txt) + '</span>' +
+      '<span class="rzbtns"><button class="rzbtn" data-rz-rm="' + code + '">移除</button><button class="rzbtn" data-rz-re="' + code + '">重算</button></span></div>' +
+
+      '<div class="rzstatline">' +
 
       ((v.weak && v.weak.length) ? '<span class="rzage warn">⚠弱信号·' + esc(v.weak.join('，')) + '</span>' : '') +
 
-      '<span class="rzbtns"><button class="rzbtn" data-rz-rm="' + code + '">移除</button><button class="rzbtn" data-rz-re="' + code + '">重算</button></span></div>';
+      '<span class="rzbadge ' + v.cls + '">' + esc(v.txt) + '</span></div>';
 
     html += '<div class="rzcard">' + head +
 
