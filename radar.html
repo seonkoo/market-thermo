@@ -7098,7 +7098,7 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
 // 只画价格线（不含量柱）。资金轴右、价格轴左，双 y 轴；零轴/昨收各作基准虚线。
 
-function rzIndexComboSVG(tr, flowSer, a, priceLabel){
+function rzIndexComboSVG(tr, flowSer, a, priceLabel, showPct){
 
   if(!tr || !tr.today || !tr.today.length) return '<div class="rzna">分线数据不足</div>';
 
@@ -7288,6 +7288,10 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel){
     type:'index', W:W, H:H, ML:ML, MR:MR, MT:MT, MB:MB, pw:pw, ph:ph,
 
     START:START, END:END, SPAN:SPAN,
+
+    preClose: (isFinite(tr.preClose) && tr.preClose > 0) ? tr.preClose : null,
+
+    showPct: !!showPct,
 
     series:[
 
@@ -7802,7 +7806,7 @@ function rzRender(){
 
       // 个股自身：分线图（蓝）＋ 自身主力净流入（红涨/绿跌·亿）同框，复用上证置顶卡组合图器
 
-      (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert, '标的分线') + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（红涨/绿跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
+      (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert, '标的分线', true) + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（红涨/绿跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
 
       (o.stkSer && o.stkAlert ? flowSummary(o.stkAlert, o.stkSer) : '') +
 
@@ -8692,7 +8696,23 @@ rzStart();
 
       var v = ln.val, vs;
 
-      if(cfg.type==='index' && ln.axis==='L'){ vs = v.toFixed(2); }
+      if(cfg.type==='index' && ln.axis==='L'){
+
+        vs = v.toFixed(2);
+
+        if(cfg.showPct && cfg.preClose){
+
+          var pv = (v - cfg.preClose) / cfg.preClose * 100;
+
+          var pcol = pv > 0 ? 'var(--up)' : (pv < 0 ? 'var(--down)' : 'var(--txt2)');
+
+          var parr = pv > 0 ? '▲' : (pv < 0 ? '▼' : '');
+
+          vs += ' <b style="color:' + pcol + '">' + (pv > 0 ? '+' : '') + pv.toFixed(2) + '%' + parr + '</b>';
+
+        }
+
+      }
 
       else { vs = (v>=0?'+':'') + v.toFixed(2) + unit; }
 
