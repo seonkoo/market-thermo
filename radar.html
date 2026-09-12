@@ -6877,7 +6877,12 @@ function rzFlowSVG(ser, flowYi, a){
 
       g += '<line x1="' + fx.toFixed(1) + '" y1="' + MT + '" x2="' + fx.toFixed(1) + '" y2="' + (MT + ph) + '" stroke="#2bd67b" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
 
-      g += '<text x="' + (fx + 3).toFixed(1) + '" y="' + (MT + 10).toFixed(1) + '" font-size="9" fill="#2bd67b">翻空 ' + a.flipDown.t + '</text>';
+      // 翻空标记文字强调：放大加粗 + 白色描边光晕（近右缘改右对齐，防溢出）
+      var fxa = (fx > W * 0.72) ? 'end' : 'start';
+
+      var fxt = (fxa === 'end') ? (fx - 3) : (fx + 3);
+
+      g += '<text x="' + fxt.toFixed(1) + '" y="' + (MT + 11).toFixed(1) + '" font-size="11.5" font-weight="700" fill="#0f9d58" stroke="#fff" stroke-width="2.6" paint-order="stroke" stroke-linejoin="round" text-anchor="' + fxa + '">翻空 ' + a.flipDown.t + '</text>';
 
     }
 
@@ -7234,7 +7239,12 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel, showPct){
 
         g += '<line x1="' + fx2.toFixed(1) + '" y1="' + MT + '" x2="' + fx2.toFixed(1) + '" y2="' + (MT+ph) + '" stroke="#2bd67b" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>';
 
-        g += '<text x="' + (fx2+3).toFixed(1) + '" y="' + (MT+10).toFixed(1) + '" font-size="9" fill="#2bd67b">翻空' + a.flipDown.t + '</text>'; }
+        // 翻空标记文字强调：放大加粗 + 白色描边光晕（近右缘改右对齐，防溢出）
+        var fxa2 = (fx2 > W * 0.72) ? 'end' : 'start';
+
+        var fxt2 = (fxa2 === 'end') ? (fx2 - 3) : (fx2 + 3);
+
+        g += '<text x="' + fxt2.toFixed(1) + '" y="' + (MT+11).toFixed(1) + '" font-size="11.5" font-weight="700" fill="#0f9d58" stroke="#fff" stroke-width="2.6" paint-order="stroke" stroke-linejoin="round" text-anchor="' + fxa2 + '">翻空' + a.flipDown.t + '</text>'; }
 
     }
 
