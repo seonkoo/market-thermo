@@ -447,7 +447,94 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .gate button:active{background:#1d4ed8}
 .gate-err{color:#dc2626;font-size:13px;min-height:18px;margin-top:8px}
 
+/* ================= 日夜模式：切换按钮 ================= */
+.thm{margin-left:8px;font-size:11px;line-height:1.5;padding:2px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--txt2);cursor:pointer;white-space:nowrap}
+.thm:hover{background:var(--line2);color:var(--txt)}
+.thm:active{transform:scale(.97)}
+
+/* ================= 日夜模式：夜间（数据主题） ================= */
+html[data-theme="dark"]{
+  --bg:#0f141b; --card:#161d26; --line:#2a3441; --line2:#1e2630;
+  --txt:#e7ecf3; --txt2:#b7c1ce; --txt3:#7f8b9b;
+  --okbg:#122a1f; --warnbg:#2b2213; --badbg:#2d1719; --na:#1f2833;
+  --wht:#e7ecf3;
+  color-scheme:dark;
+}
+html[data-theme="dark"] body{background:var(--bg);color:var(--txt)}
+/* 卡片 / 面板 */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .wcard,
+html[data-theme="dark"] .rzcard,
+html[data-theme="dark"] .rzchart,
+html[data-theme="dark"] .gate-box{background:var(--card);border-color:var(--line)}
+html[data-theme="dark"] .topbar{background:rgba(22,29,38,.94);box-shadow:0 2px 10px rgba(0,0,0,.35)}
+html[data-theme="dark"] .rzcard-top{background:linear-gradient(180deg,#1a2433 0%,#161d26 60%)}
+html[data-theme="dark"] .pzt-chart{background:linear-gradient(180deg,#1a2433 0%,#141b24 100%)}
+/* 表单控件 / 按钮 / 标签 */
+html[data-theme="dark"] input[type=text],
+html[data-theme="dark"] input[type=password],
+html[data-theme="dark"] select,
+html[data-theme="dark"] button,
+html[data-theme="dark"] .chip,
+html[data-theme="dark"] .seg,
+html[data-theme="dark"] button.etfbtn,
+html[data-theme="dark"] .rzsort,
+html[data-theme="dark"] .rzbtn,
+html[data-theme="dark"] .pzt-chip,
+html[data-theme="dark"] .pzt-blockbar input,
+html[data-theme="dark"] .rzadd input{background:#1b2330;color:var(--txt);border-color:var(--line)}
+html[data-theme="dark"] button:hover,
+html[data-theme="dark"] button.etfbtn:hover{background:#232d3a}
+html[data-theme="dark"] .pill,
+html[data-theme="dark"] details,
+html[data-theme="dark"] .pzt-stat{background:#1a222c;border-color:var(--line)}
+html[data-theme="dark"] .bar,
+html[data-theme="dark"] .rzbar,
+html[data-theme="dark"] .rzbadge,
+html[data-theme="dark"] details .body code{background:#242e3a}
+html[data-theme="dark"] .rzbadge{color:#cbd5e1}
+html[data-theme="dark"] .rzbtn.rzbtn-danger{background:#2d1719;border-color:#e5484d;color:#ff8085}
+html[data-theme="dark"] .rzadd input{border-color:#3b6ea8}
+/* 图表浮层 / 圆点 */
+html[data-theme="dark"] .rzdot{border-color:var(--card)}
+html[data-theme="dark"] .rztip{background:rgba(22,29,38,.97);border-color:#3a4657;color:#e7ecf3}
+html[data-theme="dark"] .rztip .tt.pin{color:#7cb0ff}
+html[data-theme="dark"] .pzt-tip{background:rgba(22,29,38,.97);border-color:#3a4657;color:#e7ecf3}
+/* 密码门 */
+html[data-theme="dark"] .gate-box h2{color:#e7ecf3}
+html[data-theme="dark"] .gate label{color:#b7c1ce}
+html[data-theme="dark"] .gate input[type=password]{background:#1b2330;color:var(--txt);border-color:#3a4657}
+/* 图表 SVG：白底 / 浅网格 / 灰字 → 深色系（覆盖 SVG 呈现属性） */
+html[data-theme="dark"] svg rect[fill="#fff"],
+html[data-theme="dark"] svg rect[fill="#ffffff"]{fill:#141b24}
+html[data-theme="dark"] svg line[stroke="#f6f7f9"],
+html[data-theme="dark"] svg line[stroke="#f1f3f5"]{stroke:#1c242e}
+html[data-theme="dark"] svg line[stroke="#e6e9ef"],
+html[data-theme="dark"] svg line[stroke="#e4e7ec"],
+html[data-theme="dark"] svg line[stroke="#e5e7eb"]{stroke:#2b3542}
+html[data-theme="dark"] svg text[fill="#9ca3af"],
+html[data-theme="dark"] svg text[fill="#c9ced6"]{fill:#94a1b2}
+html[data-theme="dark"] svg text[fill="#c4cad3"],
+html[data-theme="dark"] svg text[fill="#cbd5e1"]{fill:#7e8b9d}
+html[data-theme="dark"] svg text[fill="#7e93b8"]{fill:#95a9c9}
+html[data-theme="dark"] svg text[fill="#8a94a6"]{fill:#8f9cab}
+html[data-theme="dark"] svg text[fill="#bcd0f0"]{fill:#93b4e0}
+html[data-theme="dark"] svg text[fill="#334155"],
+html[data-theme="dark"] svg text[fill="#1f2937"]{fill:#e7ecf3}
+html[data-theme="dark"] svg polyline[stroke="#1f2937"]{stroke:#dfe6ee}
+html[data-theme="dark"] svg circle[fill="#1f2937"]{fill:#dfe6ee}
+html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
+
 </style>
+
+<script>
+/* 日夜模式：尽早应用已保存主题，避免首屏白闪 */
+(function(){ try{
+  var t = localStorage.getItem('mt_theme');
+  if(t !== 'light' && t !== 'dark'){ t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+  if(t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+}catch(e){} })();
+</script>
 
 </head>
 
@@ -7898,7 +7985,9 @@ function rzOverview(){
 
     '<span class="tb-item" data-jump="rzRoot"><span class="tb-k">标的</span><span class="tb-v">' + itTxt + '</span></span>' +
 
-    '<span class="tb-meta" id="rzTopMeta">更新 ' + new Date().toLocaleTimeString('zh-CN', {hour12:false}) + '</span>';
+    '<span class="tb-meta" id="rzTopMeta">更新 ' + new Date().toLocaleTimeString('zh-CN', {hour12:false}) + '</span>' +
+
+    '<button class="thm" id="thmBtn" type="button" title="切换日夜模式">' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️ 日间' : '🌙 夜间') + '</button>';
 
 }
 
@@ -8810,6 +8899,20 @@ rzStart();
   }, {passive:true});
 
   document.addEventListener('pointercancel', rzHideTip, {passive:true});
+
+  // ===== 日夜模式切换（按钮在顶栏内，顶栏会重渲染，故用事件委托）=====
+  function rzThemeCur(){ return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+  function rzThemeApply(t){
+    if(t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+    else document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('mt_theme', t); }catch(e){}
+    var b = document.getElementById('thmBtn'); if(b) b.textContent = (t === 'dark' ? '☀️ 日间' : '🌙 夜间');
+  }
+  document.addEventListener('click', function(e){
+    var t = e.target && e.target.closest ? e.target.closest('#thmBtn') : null; if(!t) return;
+    e.preventDefault();
+    rzThemeApply(rzThemeCur() === 'dark' ? 'light' : 'dark');
+  });
 
 })();
 
