@@ -6997,9 +6997,13 @@ function clockMin(tm){ if(!isFinite(tm)) return 570; if(tm <= 120) return tm + 5
 
 // 几条线全挤在最左边相互缠绕，看不出升降方向，要等较久才铺开。
 
-// 新版：盘中按当前交易分钟把横轴分档展开（15 分钟一档向上吸附，留 3 分钟余量），
+// 新版：盘中按当前交易分钟把横轴连续展开（不自陷台阶），
 
-// 让已走出的行情尽量铺满宽度；收盘后/周末仍返回全天 240，与旧版表现一致。
+// 开盘前 15 分钟固定 15 分铺满整幅；之后按 1.5 倍速率平滑拉开，
+
+// 约 13:45（交易分钟 165）触及全天 240 并锁死，此后画面不再重排。
+
+// 收盘后/周末仍返回全天 240，与旧版表现一致。
 
 function axisSpanNow(){
 
@@ -7019,7 +7023,7 @@ function axisSpanNow(){
 
   if(tm >= TRADE_SPAN) return TRADE_SPAN;
 
-  var s = Math.ceil((tm + 3) / 15) * 15;                // 15 分钟一档
+  var s = 15 + Math.max(0, tm - 15) * 1.5;              // 连续展开：无 15 分钟台阶
 
   return Math.max(15, Math.min(TRADE_SPAN, s));
 
@@ -7049,7 +7053,9 @@ function markLabel(tm){
 
   if(tm === 120) return '11:30/13:00';
 
-  var c = clockMin(tm), h = Math.floor(c / 60), mi = c % 60;
+  var c = Math.round(clockMin(tm));                     // span 连续取值时会带小数，取整到分钟
+
+  var h = Math.floor(c / 60), mi = c % 60;
 
   return (h < 10 ? '0' : '') + h + ':' + (mi < 10 ? '0' : '') + mi;
 
