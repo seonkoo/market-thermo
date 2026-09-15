@@ -6997,13 +6997,15 @@ function clockMin(tm){ if(!isFinite(tm)) return 570; if(tm <= 120) return tm + 5
 
 // 几条线全挤在最左边相互缠绕，看不出升降方向，要等较久才铺开。
 
-// 新版：盘中按当前交易分钟把横轴连续展开（不自陷台阶），
+// beta 的唯一目的：解决开盘头 15 分钟「曲线挤在左下角、看不出方向」。
 
-// 开盘前 15 分钟固定 15 分铺满整幅；之后按 1.5 倍速率平滑拉开，
+// 因此只动这一段——开盘 15 分钟内横轴只看 15 分钟（把最初走势铺满整幅宽度），
 
-// 约 13:45（交易分钟 165）触及全天 240 并锁死，此后画面不再重排。
+// 交易分钟 15（09:45）之后立刻回到全天 240，**与稳定版完全一致**：
 
-// 收盘后/周末仍返回全天 240，与旧版表现一致。
+// 盘中、盘前、收盘后、周末一律 240，图形与稳定版逐像素相同。
+
+// 即「beta = 稳定版 + 开盘前 15 分钟放大」，其余时段不得有任何差异。
 
 function axisSpanNow(){
 
@@ -7011,27 +7013,33 @@ function axisSpanNow(){
 
   var wd = now.getDay();
 
-  if(wd === 0 || wd === 6) return TRADE_SPAN;          // 周末：全天
+  if(wd === 0 || wd === 6) return TRADE_SPAN;          // 周末：全天（同稳定版）
 
   var t = now.getHours() * 60 + now.getMinutes();
 
-  if(t >= 15 * 60) return TRADE_SPAN;                   // 收盘后：全天（与旧版一致）
+  if(t >= 15 * 60) return TRADE_SPAN;                   // 收盘后：全天（同稳定版）
 
-  if(t < 9 * 60 + 30) return 30;                        // 盘前/集合竞价：先给 30 分钟视野
+  if(t < 9 * 60 + 30) return TRADE_SPAN;                // 盘前/集合竞价：全天（同稳定版）
 
   var tm = tradeMin(t);
 
   if(tm >= TRADE_SPAN) return TRADE_SPAN;
 
-  var s = 15 + Math.max(0, tm - 15) * 1.5;              // 连续展开：无 15 分钟台阶
+  if(tm <= 15) return 15;                               // 开盘 15 分钟：只看 15 分钟，铺满宽度
 
-  return Math.max(15, Math.min(TRADE_SPAN, s));
+  return TRADE_SPAN;                                    // 09:46 起：全天固定，与稳定版一致
 
 }
 
 // 按横轴跨度生成时间刻度：控制 4~5 个，避免开盘初期刻度挤成一团
 
 function axisMarksFor(span){
+
+  // 全天跨度时直接沿用稳定版的固定刻度数组，确保该时段与稳定版逐像素一致
+
+  // （若交给下面的算法推导，span=240 会得到 14:00，而稳定版是 14:30）
+
+  if(span >= TRADE_SPAN) return [[570,'09:30'],[630,'10:30'],[690,'11:30/13:00'],[870,'14:30'],[900,'15:00']];
 
   var cand = [5, 10, 15, 30, 60], step = 60;
 
@@ -7053,9 +7061,7 @@ function markLabel(tm){
 
   if(tm === 120) return '11:30/13:00';
 
-  var c = Math.round(clockMin(tm));                     // span 连续取值时会带小数，取整到分钟
-
-  var h = Math.floor(c / 60), mi = c % 60;
+  var c = clockMin(tm), h = Math.floor(c / 60), mi = c % 60;
 
   return (h < 10 ? '0' : '') + h + ':' + (mi < 10 ? '0' : '') + mi;
 
