@@ -241,6 +241,12 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzadd .rzaddlbl{color:var(--info);font-size:15px;font-weight:800;line-height:1}
 .flow-up{color:#e5484d}
 .flow-down{color:#1f9d55}
+/* 资金阈值标志：开市后板块/个股当日累计主力净流入达到 ±N 亿时的醒目徽章 */
+.rzmark{display:inline-flex;align-items:center;margin-left:5px;padding:1px 6px;border-radius:6px;font-size:11px;font-weight:800;line-height:1.55;white-space:nowrap;font-variant-numeric:tabular-nums;vertical-align:middle}
+.rzmark.up{background:rgba(229,72,77,.13);color:#e5484d;border:1px solid rgba(229,72,77,.34)}
+.rzmark.dn{background:rgba(31,157,85,.13);color:#1f9d55;border:1px solid rgba(31,157,85,.34)}
+html[data-theme="dark"] .rzmark.up{background:rgba(229,72,77,.22);border-color:rgba(229,72,77,.5)}
+html[data-theme="dark"] .rzmark.dn{background:rgba(31,157,85,.22);border-color:rgba(31,157,85,.5)}
 
 /* 数据年龄徽标：鲜活性一眼可见。灰=即时，黄=偏旧，红=陈旧/取数失败 */
 
@@ -1178,6 +1184,21 @@ var CFG = {
     MIN_PEAK_YI: 1.0,       // 峰值门槛：今日峰值 >= 1.0 亿才算"真正流入过"，否则视为噪声不报警
 
     TL_MAX_NODES: 5         // 时间轴最多显示几个关键节点
+
+  },
+
+  // 资金阈值标志：开市后，板块/个股当日累计主力净流入达到 ±N 亿时，
+  // 在对应数值后挂一个醒目徽章（红=净流入，绿=净流出）。纯提示，不参与任何判定。
+
+  FLOW_MARK: {
+
+    ENABLED: true,
+
+    BOARD_YI: 1.0,          // 板块资金阈值（亿，取绝对值）
+
+    STOCK_YI: 1.0,          // 个股资金阈值（亿，取绝对值）
+
+    HYST: 0.9               // 滞回系数：亮起后回落到阈值×0.9 以下才熄灭，避免阈值附近反复闪
 
   }
 
@@ -7776,6 +7797,38 @@ function rzRowFlow(label, valYi, prevYi){
     '<b class="rzrv ' + (up ? 'flow-up' : 'flow-down') + '">' + (up ? '+' : '') + valYi.toFixed(2) + '亿</b>' + arrow + '</span>';
 }
 
+// —— 资金阈值标志：板块/自身当日累计主力净流入达到 ±N 亿时挂一个醒目徽章 ——
+// 只在开市期间生效（盘前/午休/收盘后一律不显示）；带滞回，避免数值在阈值附近抖动导致标志忽亮忽灭。
+// key 用「代码|bd」与「代码|stk」，两类各自独立记录点亮状态。
+
+var FLOW_MARK_ON = {};
+
+function flowMark(key, valYi, threshYi, label){
+
+  var M = CFG.FLOW_MARK, th = Math.abs(threshYi);
+
+  if(!M || !M.ENABLED || !marketPhase(new Date()).open || valYi === null || valYi === undefined || !isFinite(valYi)){
+
+    FLOW_MARK_ON[key] = false; return '';
+
+  }
+
+  var hi = Math.abs(valYi);
+
+  var on = FLOW_MARK_ON[key] ? (hi >= th * M.HYST) : (hi >= th);   // 滞回：已亮则要跌破 阈值×HYST 才熄
+
+  FLOW_MARK_ON[key] = on;
+
+  if(!on) return '';
+
+  var up = valYi >= 0;
+
+  return '<span class="rzmark ' + (up ? 'up' : 'dn') + '" title="' + esc(label) + '当日累计主力净流入 ' +
+    (up ? '+' : '') + valYi.toFixed(2) + '亿，已达 ±' + th + '亿阈值">' +
+    (up ? '▲' : '▼') + ' ' + esc(label) + ' ' + (up ? '+' : '') + valYi.toFixed(2) + '亿</span>';
+
+}
+
 // —— 数据鲜活性：每个维度都标出"这个数字是多久之前的" ——
 
 function rzAgo(ts){
@@ -7962,7 +8015,7 @@ function rzRender(){
 
         (RZ.blist.partial ? ' <span class="rzage bad" title="板块榜仅拉到 ' + RZ.blist.seen + '/' + RZ.blist.total + ' 个，个别板块可能匹配不到">⚠榜不全</span>' : '') +
 
-        (bd ? rzRowFlow('板块资金主力净流入', bd.flow / 1e8, o._bdPrev) : '') + '</div>' +
+        (bd ? rzRowFlow('板块资金主力净流入', bd.flow / 1e8, o._bdPrev) + flowMark(code + '|bd', bd.flow / 1e8, CFG.FLOW_MARK.BOARD_YI, '板块') : '') + '</div>' +
 
 
 
@@ -7981,7 +8034,7 @@ function rzRender(){
       (q ? rzAge(q.qt, false, 90) : '') +
 
       stkVolHtml(o.stkV, o.stkV5) +
-      (o.stkAlert ? rzRowFlow('个股资金主力净流入', o.stkAlert.last, o._stkPrev) : '') +
+      (o.stkAlert ? rzRowFlow('个股资金主力净流入', o.stkAlert.last, o._stkPrev) + flowMark(code + '|stk', o.stkAlert.last, CFG.FLOW_MARK.STOCK_YI, '个股') : '') +
 
       (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert, o.tr) + '<div class="rzchartcap">板块资金 · 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
 
