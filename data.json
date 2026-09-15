@@ -1,8 +1,8 @@
 {
- "generated_at": "2026-09-15 15:36:15 GMT+8",
+ "generated_at": "2026-09-15 15:58:20 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [
-  "K线失败率 28.4%，宽度指标可信度下降"
+  "K线失败率 22.6%，宽度指标可信度下降"
  ],
  "indices": [
   {
@@ -49,17 +49,17 @@
    "name": "恒生指数",
    "group": "亚太",
    "code": "HSI",
-   "price": 24685.38,
-   "pct": -0.93,
-   "change": -232.22
+   "price": 24659.98,
+   "pct": -1.03,
+   "change": -257.62
   },
   {
    "name": "国企指数",
    "group": "亚太",
    "code": "HSCEI",
-   "price": 8209.99,
-   "pct": -0.9,
-   "change": -74.59
+   "price": 8201.26,
+   "pct": -1.01,
+   "change": -83.32
   },
   {
    "name": "日经225",
@@ -117,128 +117,128 @@
   "grid": [
    {
     "g": 1,
-    "n": 28,
+    "n": 30,
     "pct_above": 100.0,
-    "avg_amt": 2.3
+    "avg_amt": 2.22
    },
    {
     "g": 2,
-    "n": 28,
-    "pct_above": 85.7,
-    "avg_amt": 3.73
+    "n": 30,
+    "pct_above": 86.7,
+    "avg_amt": 3.62
    },
    {
     "g": 3,
-    "n": 28,
-    "pct_above": 89.3,
-    "avg_amt": 5.02
+    "n": 30,
+    "pct_above": 86.7,
+    "avg_amt": 4.77
    },
    {
     "g": 4,
-    "n": 28,
-    "pct_above": 71.4,
-    "avg_amt": 6.31
+    "n": 30,
+    "pct_above": 70.0,
+    "avg_amt": 5.87
    },
    {
     "g": 5,
-    "n": 28,
-    "pct_above": 78.6,
-    "avg_amt": 7.61
+    "n": 30,
+    "pct_above": 63.3,
+    "avg_amt": 7.03
    },
    {
     "g": 6,
-    "n": 28,
-    "pct_above": 53.6,
-    "avg_amt": 8.87
+    "n": 30,
+    "pct_above": 63.3,
+    "avg_amt": 8.32
    },
    {
     "g": 7,
-    "n": 28,
-    "pct_above": 64.3,
-    "avg_amt": 9.87
+    "n": 30,
+    "pct_above": 53.3,
+    "avg_amt": 9.37
    },
    {
     "g": 8,
-    "n": 28,
-    "pct_above": 60.7,
-    "avg_amt": 10.92
+    "n": 30,
+    "pct_above": 63.3,
+    "avg_amt": 10.23
    },
    {
     "g": 9,
-    "n": 28,
-    "pct_above": 42.9,
-    "avg_amt": 12.35
+    "n": 30,
+    "pct_above": 53.3,
+    "avg_amt": 11.42
    },
    {
     "g": 10,
-    "n": 28,
-    "pct_above": 28.6,
-    "avg_amt": 13.66
+    "n": 30,
+    "pct_above": 30.0,
+    "avg_amt": 12.73
    },
    {
     "g": 11,
-    "n": 28,
-    "pct_above": 10.7,
-    "avg_amt": 15.15
+    "n": 30,
+    "pct_above": 30.0,
+    "avg_amt": 14.18
    },
    {
     "g": 12,
-    "n": 28,
-    "pct_above": 28.6,
-    "avg_amt": 17.16
+    "n": 30,
+    "pct_above": 6.7,
+    "avg_amt": 15.64
    },
    {
     "g": 13,
-    "n": 28,
-    "pct_above": 39.3,
-    "avg_amt": 19.5
+    "n": 30,
+    "pct_above": 33.3,
+    "avg_amt": 18.11
    },
    {
     "g": 14,
-    "n": 28,
-    "pct_above": 32.1,
-    "avg_amt": 22.65
+    "n": 30,
+    "pct_above": 33.3,
+    "avg_amt": 20.69
    },
    {
     "g": 15,
-    "n": 28,
-    "pct_above": 39.3,
-    "avg_amt": 26.25
+    "n": 30,
+    "pct_above": 30.0,
+    "avg_amt": 24.07
    },
    {
     "g": 16,
-    "n": 28,
-    "pct_above": 39.3,
-    "avg_amt": 31.61
+    "n": 30,
+    "pct_above": 50.0,
+    "avg_amt": 28.78
    },
    {
     "g": 17,
-    "n": 28,
-    "pct_above": 35.7,
-    "avg_amt": 38.88
+    "n": 30,
+    "pct_above": 36.7,
+    "avg_amt": 35.82
    },
    {
     "g": 18,
-    "n": 28,
-    "pct_above": 35.7,
-    "avg_amt": 51.88
+    "n": 30,
+    "pct_above": 40.0,
+    "avg_amt": 46.68
    },
    {
     "g": 19,
-    "n": 28,
-    "pct_above": 57.1,
-    "avg_amt": 258.26
+    "n": 30,
+    "pct_above": 43.3,
+    "avg_amt": 124.01
    },
    {
     "g": 20,
-    "n": 36,
-    "pct_above": 30.6,
-    "avg_amt": 1101.41
+    "n": 43,
+    "pct_above": 46.5,
+    "avg_amt": 912.39
    }
   ],
-  "sample": 568,
-  "head_pct": 41.1,
-  "tail_pct": 91.7,
+  "sample": 613,
+  "head_pct": 43.3,
+  "tail_pct": 91.1,
   "scope": "成交额Top800"
  },
  "liquidity": {
@@ -595,7 +595,7 @@
    "label": "小微盘/题材活跃（不追）",
    "advice": "题材热闹但持续性差，长线账户不追、只看核心。",
    "evidence": [
-    "尾部 92% 强于头部 41% → 微盘在冲，投机性高",
+    "尾部 91% 强于头部 43% → 微盘在冲，投机性高",
     "资金集中度 46% 偏高 → 抱团核心，宜跟随头部"
    ]
   },
@@ -750,5 +750,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 366.1
+ "elapsed": 306.8
 }
