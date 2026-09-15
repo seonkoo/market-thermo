@@ -1219,6 +1219,27 @@ var CFG = {
 
     HYST: 0.9               // 滞回系数：亮起后回落到阈值×0.9 以下才熄灭，避免阈值附近反复闪
 
+  },
+
+  // 近5分钟资金异动榜（个股，beta 试验）：对标「板块」页的「近5分钟异动」，
+  // 但个股金额不可比 —— 实测同一天 8 只票的 |Δ5分钟净流入| p90 从 670 万到 8018 万跨 12 倍，
+  // 且同一只票上午 p90 是下午的 4~7 倍，固定金额阈值必然"大票霸榜、小票永不亮"。
+  // 故门槛改用「占比」：Δ5净流入 ÷ 同期成交额。分母随成交量一起放大，天生把体量和时段差一起约掉。
+  // 实测（8 只票 × 240 分钟）该门槛 20% 时：平均每次显示 1.7 条，87% 的时间有内容，最多 4 条。
+  ANOM: {
+
+    ENABLED: true,
+
+    WIN: 5,             // 观察窗口（分钟）。1 分钟会被单笔大单带偏，且榜单每分钟重洗
+
+    RATIO_PCT: 20,      // 上榜门槛：|近 WIN 分钟主力净流入| ÷ 同期成交额 ≥ 20%
+
+    RATIO_HYST: 16,     // 滞回下限：已上榜的跌破 16% 才撤，避免在门槛附近忽亮忽灭
+
+    MIN_DELTA_YI: 0.03, // 绝对地板（亿）：滤掉成交清淡股的微量噪声（300 万）
+
+    TOPN: 3             // 每方向最多几条：流入 Top3 + 流出 Top3，合计封顶 6 条
+
   }
 
 };
@@ -8009,52 +8030,118 @@ function stkVolHtml(vc, v5){
 
 }
 
-// —— 今日资金穿0信号条 ——
-// 穿 0 = 当日累计主力净流入由正转负（翻空）/ 由负转正（翻多）。这个信号与金额大小无关，
-// 任何体量的标的都会出现，比「±N 亿」这种绝对阈值普适得多；列表按时间倒序，最新转换在最前。
-function rzSigBar(){
+// —— 近5分钟资金异动榜（个股）——
+// 取代原先的「今日资金转换」列表：那个把当天所有穿 0 事件无筛选全列出来（N 只票 × 板块/个股
+// × 翻多/翻空，最多 4N 条），噪到没法看。这里改成和板块页「近5分钟异动」同一套思路：
+// 只看最近 WIN 分钟 + 排名取 TopN，数量恒定不随自选数增长。
+// 差别在于门槛：个股金额不可比（见 CFG.ANOM 注释），所以用「自身历史分位」代替固定金额。
+var ANOM_ON = {};   // 滞回：记录各票当前是否已上榜
+
+// 计算单只标的的近 WIN 分钟异动强度：占比 = |Δ净流入| ÷ 同期成交额 × 100；无法计算返回 null
+function stkAnom(o){
+
+  var A = CFG.ANOM;
+
+  if(!A || !A.ENABLED) return null;
+
+  var ser = o.stkSer;
+
+  if(!ser || ser.length <= A.WIN) return null;
+
+  var n = ser.length;
+
+  var cur = ser[n - 1][1] - ser[n - 1 - A.WIN][1];             // 近 WIN 分钟净流入增量（亿）
+
+  var curAbs = Math.abs(cur);
+
+  if(curAbs < A.MIN_DELTA_YI) return null;                     // 绝对地板：滤掉微量噪声
+
+  // 同期成交额（亿）：与资金序列按分钟对齐（tr.today 每分钟一条，含 amt）
+  var byT = {}, i;
+
+  if(o.tr && o.tr.today && o.tr.today.length){
+
+    for(i = 0; i < o.tr.today.length; i++){
+
+      var e = o.tr.today[i];
+
+      if(e && e.t && isFinite(e.amt) && e.amt > 0) byT[e.t] = e.amt;
+
+    }
+
+  }
+
+  var amtYi = 0, hit = 0;
+
+  for(i = n - A.WIN; i < n; i++){
+
+    var a = byT[ser[i][0]];
+
+    if(a){ amtYi += a / 1e8; hit++; }
+
+  }
+
+  if(!(amtYi > 0) || hit < A.WIN - 1) return null;             // 成交额对不齐就不判定
+
+  return { d: cur, abs: curAbs, amtYi: amtYi, ratio: curAbs / amtYi * 100 };
+
+}
+
+function rzAnomBar(){
 
   var box = $('rzSig'); if(!box) return;
 
-  var evs = [];
+  var A = CFG.ANOM;
+
+  var hide = function(){ box.style.display = 'none'; box.innerHTML = ''; };
+
+  // 只在盘中：收盘后"近5分钟"没有意义；自选清空时一并隐藏
+  if(!A || !A.ENABLED || !RZ.list.length || !marketPhase(new Date()).open) return hide();
+
+  var up = [], dn = [];
 
   RZ.order.forEach(function(code){
 
     var o = RZ.state[code]; if(!o) return;
 
-    var nm = (o.quote && o.quote.name) ? o.quote.name : code;
+    var a = stkAnom(o); if(!a) return;
 
-    var pairs = [['板块', o.bdAlert], ['个股', o.stkAlert]];
+    var ok = ANOM_ON[code] ? (a.ratio >= A.RATIO_HYST) : (a.ratio >= A.RATIO_PCT);   // 滞回：已上榜的放宽下限
 
-    for(var i = 0; i < pairs.length; i++){
+    if(!ok){ delete ANOM_ON[code]; return; }
 
-      var a = pairs[i][1]; if(!a) continue;
+    ANOM_ON[code] = 1;
 
-      if(a.flipDown) evs.push({code:code, nm:nm, who:pairs[i][0], dir:'dn', t:a.flipDown.t, v:a.last});
-
-      if(a.flipUp)   evs.push({code:code, nm:nm, who:pairs[i][0], dir:'up', t:a.flipUp.t,   v:a.last});
-
-    }
+    (a.d >= 0 ? up : dn).push({ code: code, nm: (o.quote && o.quote.name) ? o.quote.name : code, a: a });
 
   });
 
-  if(!evs.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  // 跨票排序：同一把尺子（占比）比大小，占比相同再比金额
+  var rank = function(x, y){ return (y.a.ratio - x.a.ratio) || (y.a.abs - x.a.abs); };
 
-  evs.sort(function(a, b){ return a.t < b.t ? 1 : (a.t > b.t ? -1 : 0); });   // 按时刻倒序
+  up.sort(rank); dn.sort(rank);
 
-  var h = '<span class="rzsigt">今日资金转换</span>';
+  var all = up.slice(0, A.TOPN).concat(dn.slice(0, A.TOPN));
 
-  for(var k = 0; k < evs.length; k++){
+  if(!all.length) return hide();
 
-    var e = evs[k], up = (e.dir === 'up');
+  var h = '<span class="rzsigt">⚡ 近' + A.WIN + '分钟资金异动</span>';
 
-    h += '<span class="rzsigc ' + (up ? 'up' : 'dn') + '" data-sig="' + esc(e.code) + '" title="' +
+  for(var k = 0; k < all.length; k++){
 
-      esc(e.nm) + ' ' + e.who + '资金' + (up ? '由负转正（翻多）' : '由正转负（翻空）') + ' ' + e.t +
+    var e = all[k], isUp = (e.a.d >= 0);
 
-      '，现 ' + (e.v >= 0 ? '+' : '') + e.v.toFixed(2) + '亿">' +
+    h += '<span class="rzsigc ' + (isUp ? 'up' : 'dn') + '" data-sig="' + esc(e.code) + '" title="' +
 
-      (up ? '▲' : '▼') + ' ' + esc(e.nm) + '<i>' + e.who + (up ? '翻多' : '翻空') + ' ' + e.t + '</i></span>';
+      esc(e.nm) + ' 近' + A.WIN + '分钟主力净流入 ' + (isUp ? '+' : '') + e.a.d.toFixed(2) + '亿，' +
+
+      '同期成交 ' + e.a.amtYi.toFixed(2) + '亿，净流入占其 ' + e.a.ratio.toFixed(0) + '%（门槛 ' +
+
+      A.RATIO_PCT + '%）。点击跳到该卡片。">' +
+
+      (isUp ? '▲' : '▼') + ' ' + esc(e.nm) + '<i>' + (isUp ? '+' : '') + e.a.d.toFixed(2) + '亿 · 占成交额 ' +
+
+      e.a.ratio.toFixed(0) + '%</i></span>';
 
   }
 
@@ -8070,7 +8157,7 @@ function rzRender(){
 
   if(!body) return;
 
-  if(!RZ.list.length){ body.innerHTML = '<div class="hint" style="color:var(--txt3);padding:6px 0">暂无自选，输入代码点「添加」开始。</div>'; rzSigBar(); if(tag){ tag.textContent = '空'; tag.className = 'pill na'; } return; }
+  if(!RZ.list.length){ body.innerHTML = '<div class="hint" style="color:var(--txt3);padding:6px 0">暂无自选，输入代码点「添加」开始。</div>'; rzAnomBar(); if(tag){ tag.textContent = '空'; tag.className = 'pill na'; } return; }
 
   if(!RZ.order.length) RZ.order = RZ.list.map(function(x){ return x.c; });
 
@@ -8202,7 +8289,7 @@ function rzRender(){
 
   body.innerHTML = html;
 
-  rzSigBar();
+  rzAnomBar();
 
   if(tag){
 
