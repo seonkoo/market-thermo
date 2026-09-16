@@ -292,7 +292,7 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 
 .rzchartcap{font-size:10.5px;color:#aeb6c1;text-align:center;padding-top:2px}
 
-.rzover{position:absolute;left:0;right:0;top:0;bottom:0;cursor:crosshair;touch-action:none;z-index:3}
+.rzover{position:absolute;left:0;right:0;top:0;bottom:0;cursor:crosshair;touch-action:pan-y pinch-zoom;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;z-index:3}
 
 .rzcross{position:absolute;top:0;bottom:0;width:1px;background:rgba(70,80,95,.55);display:none;pointer-events:none;z-index:2}
 
@@ -9585,7 +9585,7 @@ rzStart();
 
   }
 
-  var RZ_PIN = null, RZ_PIN_T = null, RZ_DOWN_C = null, RZ_DOWN_T = 0, RZ_DOWN_X = 0, RZ_MOVED = false, RZ_LONG = false;
+  var RZ_PIN = null, RZ_PIN_T = null, RZ_DOWN_C = null, RZ_DOWN_T = 0, RZ_DOWN_X = 0, RZ_DOWN_Y = 0, RZ_MOVED = false, RZ_LONG = false, RZ_TOUCH = false, RZ_ACTIVE = false;
 
   function rzSetPin(on, chart){ if(chart && chart.classList) chart.classList.toggle('rz-pinned', on); }
 
@@ -9745,11 +9745,33 @@ rzStart();
 
     var c = rzChartFromPoint(e.target); if(!c) return;
 
-    RZ_DOWN_C = c; RZ_DOWN_T = Date.now(); RZ_DOWN_X = e.clientX; RZ_MOVED = false; RZ_LONG = false;
+    RZ_TOUCH = !!(e.pointerType && e.pointerType !== 'mouse');
 
-    rzUpdateTip(c, e);
+    RZ_DOWN_C = c; RZ_DOWN_T = Date.now(); RZ_DOWN_X = e.clientX; RZ_DOWN_Y = e.clientY; RZ_MOVED = false; RZ_LONG = false; RZ_ACTIVE = false;
 
     clearTimeout(RZ_PIN_T);
+
+    // 触摸端：按下先不弹，等判定（滑动→取消；轻点→抬手弹；按住 450ms→固定）
+    if(RZ_TOUCH){
+
+      RZ_PIN_T = setTimeout(function(){
+
+        if(RZ_MOVED) return;
+
+        RZ_LONG = true; RZ_ACTIVE = true;
+
+        rzUpdateTip(c, {clientX:RZ_DOWN_X, clientY:RZ_DOWN_Y});
+
+        if(RZ_PIN === c) rzUnpin(); else rzPin(c);
+
+      }, 450);
+
+      return;
+
+    }
+
+    // 桌面鼠标：保持原样（划到哪显示哪）
+    rzUpdateTip(c, e);
 
     RZ_PIN_T = setTimeout(function(){ RZ_LONG = true; if(RZ_MOVED) return; if(RZ_PIN === c) rzUnpin(); else rzPin(c); }, 450);
 
@@ -9757,17 +9779,43 @@ rzStart();
 
   document.addEventListener('pointermove', function(e){
 
+    if(RZ_DOWN_C){ var mdx = e.clientX - RZ_DOWN_X, mdy = e.clientY - RZ_DOWN_Y; if(Math.abs(mdx) > 8 || Math.abs(mdy) > 8) RZ_MOVED = true; }
+
     var c = rzChartFromPoint(e.target); if(!c) return;
 
-    if(Math.abs(e.clientX - RZ_DOWN_X) > 6) RZ_MOVED = true;
+    if(RZ_TOUCH && !RZ_ACTIVE){
+
+      if(RZ_MOVED) clearTimeout(RZ_PIN_T);   // 判定为滑动 → 取消长按，全程不弹
+
+      return;
+
+    }
 
     rzUpdateTip(c, e);
 
   }, {passive:true});
 
-  document.addEventListener('pointerup', function(){
+  document.addEventListener('pointerup', function(e){
 
     clearTimeout(RZ_PIN_T);
+
+    if(RZ_TOUCH){
+
+      var tc = RZ_DOWN_C;
+
+      if(tc && !RZ_ACTIVE && !RZ_MOVED){
+
+        if(RZ_PIN === tc){ rzUnpin(); rzHideTip(); }
+
+        else { rzUpdateTip(tc, {clientX:RZ_DOWN_X, clientY:RZ_DOWN_Y}); rzPin(tc); }
+
+      } else if(!RZ_ACTIVE && !RZ_PIN){ rzHideTip(); }
+
+      RZ_ACTIVE = false; RZ_DOWN_C = null;
+
+      return;
+
+    }
 
     if(RZ_DOWN_C === RZ_PIN && !RZ_MOVED && !RZ_LONG){ rzUnpin(); rzHideTip(); }
 
@@ -9777,7 +9825,10 @@ rzStart();
 
   }, {passive:true});
 
-  document.addEventListener('pointercancel', rzHideTip, {passive:true});
+  document.addEventListener('pointercancel', function(){ RZ_ACTIVE = false; RZ_DOWN_C = null; if(!RZ_PIN) rzHideTip(); }, {passive:true});
+
+  // 长按图形时屏蔽手机系统菜单（选择/复制/搜索），否则长按弹出的是系统菜单
+  document.addEventListener('contextmenu', function(e){ if(rzChartFromPoint(e.target)) e.preventDefault(); }, {passive:false});
 
   // ===== 日夜模式切换（按钮在顶栏内，顶栏会重渲染，故用事件委托）=====
   function rzThemeCur(){ return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
