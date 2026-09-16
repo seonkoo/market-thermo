@@ -306,14 +306,6 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 
 .rztip .tt.pin{color:#2563eb}
 
-/* 方案二：浮层去底色，数值标签各自锚定到对应数据点（跟点走）；白描边保证压在曲线上也读得清 */
-.rztip.tags{top:0;left:0;width:100%;height:100%;padding:0;background:transparent;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
-.rztag{position:absolute;white-space:nowrap;font-size:11.5px;line-height:1.25;font-weight:500;pointer-events:none;font-variant-numeric:tabular-nums;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 4px #fff,0 1px 3px #fff,0 -1px 3px #fff}
-.rztag .dt{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;vertical-align:middle;box-shadow:0 0 0 1px rgba(255,255,255,.9)}
-.rztip.tags .tt{position:absolute;top:0;font-weight:600;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 4px #fff,0 1px 3px #fff,0 -1px 3px #fff}
-html[data-theme="dark"] .rztag,html[data-theme="dark"] .rztip.tags .tt{text-shadow:0 0 3px #0d131c,0 0 3px #0d131c,0 0 4px #0d131c,0 1px 3px #0d131c,0 -1px 3px #0d131c}
-html[data-theme="dark"] .rztag .dt{box-shadow:0 0 0 1px rgba(13,19,28,.9)}
-
 .rzchart.rz-pinned{box-shadow:0 0 0 2px #2563eb inset;border-radius:10px}
 
 .rzchart.rz-pinned .rzcross{background:rgba(37,99,235,.5);width:2px}
@@ -631,8 +623,6 @@ html[data-theme="dark"] .rzadd input{border-color:#3b6ea8}
 /* 图表浮层 / 圆点 */
 html[data-theme="dark"] .rzdot{border-color:var(--card)}
 html[data-theme="dark"] .rztip{background:rgba(22,29,38,.86);border-color:#3a4657;color:#e7ecf3}
-/* 暗色下 .rztip 的特异性高于 .rztip.tags，会把整张图铺上一层深色底板；标签模式必须保持全透明 */
-html[data-theme="dark"] .rztip.tags{background:transparent;border:0;box-shadow:none}
 html[data-theme="dark"] .rztip .tt.pin{color:#7cb0ff}
 html[data-theme="dark"] .pzt-tip{background:rgba(22,29,38,.97);border-color:#3a4657;color:#e7ecf3}
 /* 密码门 */
@@ -9665,7 +9655,7 @@ rzStart();
 
     var pinMark = (chart === RZ_PIN) ? '📌 ' : '';
 
-    var rows = [];
+    var html = '<div class="tt' + (chart === RZ_PIN ? ' pin' : '') + '">'+pinMark+tstr+'</div>';
 
     for(var L=0;L<lines.length;L++){ var ln = lines[L];
 
@@ -9724,63 +9714,28 @@ rzStart();
 
       }
 
-      rows.push({ label: label, vs: vs, color: ln.color, y: yPctF(ln.ycfg) });
+      html += '<div><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+ln.color+';margin-right:5px;vertical-align:middle"></span>'+label+' '+vs+'</div>';
 
     }
 
-    // 方案二：图层铺满容器且无底色；时间标签贴竖线顶部，其余数值各自锚定到对应数据点（跟点走）。
-    tip.className = 'rztip tags';
-    tip.style.left = '0'; tip.style.top = '0';
-    tip.style.display = 'block';
-    tip.innerHTML = '';
-    var tEl = document.createElement('div');
-    tEl.className = 'tt' + (chart === RZ_PIN ? ' pin' : '');
-    tEl.textContent = pinMark + tstr;
-    tip.appendChild(tEl);
-    var tagEls = [];
-    for(var L2 = 0; L2 < rows.length; L2++){
-      var rw = rows[L2];
-      var el2 = document.createElement('div');
-      el2.className = 'rztag';
-      el2.innerHTML = '<span class="dt" style="background:' + rw.color + '"></span>' + rw.label + ' ' + rw.vs;
-      el2.style.top = rw.y + '%';
-      el2.style.transform = 'translateY(-50%)';
-      tip.appendChild(el2);
-      tagEls.push(el2);
-    }
-    // 每个标签按自身宽度决定放在点的右侧还是左侧（放不下就翻边）
-    var tgap = 4 / pbW * 100;
-    for(var L3 = 0; L3 <= tagEls.length; L3++){
-      var el3 = (L3 === 0) ? tEl : tagEls[L3 - 1];
-      var ew = el3.offsetWidth / pbW * 100;
-      var eLeft = (crossPct + tgap + ew <= 99) ? (crossPct + tgap) : (crossPct - tgap - ew);
-      el3.style.left = Math.max(1, Math.min(99 - ew, eLeft)).toFixed(2) + '%';
-    }
-    // 防重叠：同一时点多个数值的 y 常常很接近（同价位），按目标 y 排序后依次下压，避免叠成一团
-    var gapPx = 2;
-    var items = [];
-    for(var L4 = 0; L4 < tagEls.length; L4++){
-      var e4 = tagEls[L4];
-      items.push({ el: e4, y: parseFloat(e4.style.top) / 100 * pbH, h: e4.offsetHeight });
-    }
-    items.sort(function(a, b){ return a.y - b.y; });
-    var prevBottom = -1e9;
-    for(var L5 = 0; L5 < items.length; L5++){
-      var it = items[L5];
-      var tp = it.y - it.h / 2;
-      if(tp < prevBottom + gapPx) tp = prevBottom + gapPx;
-      it.top = tp; prevBottom = tp + it.h;
-    }
-    var overB = prevBottom - pbH;
-    if(overB > 0){
-      for(var L6 = 0; L6 < items.length; L6++) items[L6].top -= overB;
-      var up = items.length ? -items[0].top : 0;
-      if(up > 0){ for(var L7 = 0; L7 < items.length; L7++) items[L7].top += up; }
-    }
-    for(var L8 = 0; L8 < items.length; L8++){
-      items[L8].el.style.transform = 'none';
-      items[L8].el.style.top = Math.round(items[L8].top) + 'px';
-    }
+    tip.innerHTML = html; tip.style.display='block';
+
+    var tipW = tip.offsetWidth;
+
+    // 自动换边：按浮层「真实宽度」实时判断，不再用固定 55% 阈值（旧阈值不看文字多宽，
+    // 导致 41%~55% 区间右边缘溢出容器、又在 13:13 突然翻到左边压住十字线）。
+    // 四档优先级：① 跟手在右侧 → ② 右侧放不下但贴右边界仍不压线（首选，避免无谓换边）
+    //            → ③ 翻到左侧 → ④ 两侧都放不下则贴右边界夹住。
+    var tw = tipW / pbW * 100;                    // 浮层宽度占容器的百分比
+    var gp = 3 / pbW * 100;                       // 与十字线的安全间隙（3px，够视觉分离又不挤占空间）
+    var maxLeft = Math.max(2, 99 - tw);           // 右边缘不溢出时允许的最大 left%
+    var leftPct;
+    if(crossPct + gp + tw <= 99) leftPct = crossPct + gp;              // ① 跟手·右侧
+    else if(maxLeft >= crossPct - 2) leftPct = maxLeft;                 // ② 贴右边界（最多轻微压线 2%）
+    else if(crossPct - gp - tw >= 2) leftPct = crossPct - gp - tw;      // ③ 翻左侧
+    else leftPct = maxLeft;                                             // ④ 夹住
+
+    tip.style.left = Math.max(2, Math.min(maxLeft, leftPct)).toFixed(2) + '%';
 
     var di = 0; for(var M=0;M<lines.length;M++){ if(di < dots.length){ var d = dots[di++]; d.style.display='block'; d.style.left = crossPct + '%'; d.style.top = yPctF(lines[M].ycfg) + '%'; d.style.background = lines[M].color; } }
 
