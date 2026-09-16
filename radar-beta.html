@@ -268,6 +268,22 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 
 .rzage.bad{color:var(--down);font-weight:600}
 
+/* 资金历史参照（beta）：近3年强度尺 + 今日净占比/5日/10日。回答「这个净流出算大算小」 */
+.rzref{flex:0 0 100%;margin:1px 0 0;padding:4px 6px 3px;border:1px dashed var(--line2);border-radius:8px;font-variant-numeric:tabular-nums}
+.rzreftop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10px;color:var(--txt2);margin-bottom:3px}
+.rzrefl2{font-weight:700}
+.rzrefdim{color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rzreftrack{position:relative;height:11px;border-radius:6px;border:1px solid var(--line2);background:linear-gradient(90deg,rgba(31,157,85,.13),rgba(127,139,155,.07) 50%,rgba(229,72,77,.13))}
+.rzrefzero{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line2)}
+.rzrefavg{position:absolute;top:50%;width:9px;height:2px;margin:-1px 0 0 -4.5px;background:var(--txt3);border-radius:1px}
+.rzrefptr{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.2);z-index:1}
+.rzrefptr.up{background:#e5484d}
+.rzrefptr.dn{background:#1f9d55}
+.rzrefbot{font-size:10px;color:var(--txt2);margin-top:3px;line-height:1.5}
+.rzrefbot2{font-size:10px;color:var(--txt2);line-height:1.5;border-top:1px dotted var(--line2);margin-top:2px;padding-top:2px}
+.rzrefgrade{font-weight:700}
+.rzrefgrade.up{color:#e5484d}
+.rzrefgrade.dn{color:#1f9d55}
 .rzchart{position:relative;margin:4px 0 2px;border:1px solid var(--line2);border-radius:12px;background:#fff;padding:6px 8px 4px;overflow:visible}
 
 .rzchart svg{width:100%;height:auto;aspect-ratio:3/1;display:block}
@@ -1239,6 +1255,28 @@ var CFG = {
     MIN_DELTA_YI: 0.03, // 绝对地板（亿）：滤掉成交清淡股的微量噪声（300 万）
 
     TOPN: 3             // 每方向最多几条：流入 Top3 + 流出 Top3，合计封顶 6 条
+
+  },
+
+  // 横轴开盘放大窗口（beta）：前 N 分钟铺满宽度，之后立即恢复全天 240 分钟（与稳定版逐像素一致）。
+  // 实测 4 只票（巨石/美的/太极/华夏）：窗口越短 → 横向放大倍数越大 → 曲线越平。
+  // 15 分钟放大 16×（斜率 6%），10 分钟放大 24×（斜率 4%，反而更平），30 分钟放大 8×（斜率 13%）最接近全天观感。
+  AXIS: {
+
+    EARLY_MIN: 30       // 开盘放大窗口（分钟）：09:30–09:59 铺满宽度，10:00 起恢复全天
+
+  },
+
+  // 资金历史参照（beta）：回答「这个净流入数字到底算大算小」
+  // · 日线资金流分布走新浪（实测 750 个交易日 ≈ 3 年，股票/ETF 均可取），用 script 标签读全局变量
+  // · 今日净占比与 5日/10日累计走东财 ulist（与页面同源，一次请求覆盖全部自选，零额外成本）
+  REF: {
+
+    ENABLED: true,
+
+    SINA_DAYS: 750,     // 取多少个交易日（750 ≈ 3 年）
+
+    GAP_MS: 280         // 逐只串行请求间隔（毫秒）：新浪无 CORS，只能用 script 标签一只一只读
 
   }
 
@@ -6254,7 +6292,11 @@ var RZ = {
 
   timer: null, gen: 0,
 
-  sortDirty: false, initialSorted: false, sortMode: 'raw', rawDir: 1  // rawDir: 1=新→旧, -1=旧→新
+  sortDirty: false, initialSorted: false, sortMode: 'raw', rawDir: 1,  // rawDir: 1=新→旧, -1=旧→新
+
+  fund: {}, fundTs: 0,            // code -> 东财多周期资金（今日净占比 / 5日 / 10日），一次批量拉全部自选
+
+  hist: {}, histQ: [], histBusy: false   // code -> 近3年日线资金流统计（新浪），逐只串行拉
 
 };
 
@@ -7071,19 +7113,23 @@ function clockMin(tm){ if(!isFinite(tm)) return 570; if(tm <= 120) return tm + 5
 
 // ===== beta：横轴自适应（解决开盘初期曲线挤在左下角）=====
 
-// 旧版横轴固定全天 0→240，开盘头 15 分钟数据只占整幅宽度约 6%，
+// 旧版横轴固定全天 0→240，开盘头一段数据只占整幅宽度百分之几，
 
 // 几条线全挤在最左边相互缠绕，看不出升降方向，要等较久才铺开。
 
-// beta 的唯一目的：解决开盘头 15 分钟「曲线挤在左下角、看不出方向」。
+// beta 的唯一目的：解决开盘初期「曲线挤在左下角、看不出方向」。
 
-// 因此只动这一段——开盘 15 分钟内横轴只看 15 分钟（把最初走势铺满整幅宽度），
+// 因此只动这一段——开盘窗口内横轴只看这段（把最初走势铺满整幅宽度），
 
-// 交易分钟 15（09:45）之后立刻回到全天 240，**与稳定版完全一致**：
+// 窗口结束（默认交易分钟 30 ≈ 10:00）后立刻回到全天 240，**与稳定版完全一致**：
 
 // 盘中、盘前、收盘后、周末一律 240，图形与稳定版逐像素相同。
 
-// 即「beta = 稳定版 + 开盘前 15 分钟放大」，其余时段不得有任何差异。
+// 即「beta = 稳定版 + 开盘窗口放大」，其余时段不得有任何差异。
+
+// 窗口长度见 CFG.AXIS.EARLY_MIN。实测 4 只票：窗口越短 → 横向放大倍数越大 → 曲线越平，
+
+// 10 分钟放大 24×（斜率 4%）比 15 分钟放大 16×（斜率 6%）更差；30 分钟放大 8×（斜率 13%）最接近全天观感。
 
 function axisSpanNow(){
 
@@ -7101,11 +7147,13 @@ function axisSpanNow(){
 
   var tm = tradeMin(t);
 
+  var EARLY = (CFG.AXIS && CFG.AXIS.EARLY_MIN) || 30;   // 开盘放大窗口（分钟）
+
   if(tm >= TRADE_SPAN) return TRADE_SPAN;
 
-  if(tm <= 15) return 15;                               // 开盘 15 分钟：只看 15 分钟，铺满宽度
+  if(tm <= EARLY) return EARLY;                          // 开盘窗口内：只看前 EARLY 分钟，铺满宽度
 
-  return TRADE_SPAN;                                    // 09:46 起：全天固定，与稳定版一致
+  return TRADE_SPAN;                                    // 开盘窗口结束后：全天固定，与稳定版一致
 
 }
 
@@ -7938,6 +7986,271 @@ function flowMark(key, valYi, threshYi, label, ratioPct){
 
 }
 
+/* ============ 资金历史参照（beta 试验） ============
+
+   解决「看到一个净流出数字，不知道算大算小，看到绿就慌」：
+
+     · 东财 ulist：一次请求拿全部自选的「今日净占比 + 5日 + 10日累计」——与页面同源，零额外依赖
+
+     · 新浪日线资金流：750 个交易日（≈3 年）分布，算今日强度分位；新浪无 CORS，只能用 script 标签逐只读
+
+   原则与页面一致：取不到就不渲染，绝不拿估算值充数。 */
+
+var SINA_HIST_BASE = 'https://vip.stock.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/var%20rzHistVar=/MoneyFlow.ssl_qsfx_zjlrqs';
+
+var REF_CACHE_PREFIX = 'rz_refv1';
+
+function rzNumOrNull(v){ return (v === null || v === undefined || v === '' || v === '-' || !isFinite(+v)) ? null : +v; }
+
+function rzTodayKey(){ var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+
+// —— 东财：今日净占比 / 5日 / 10日（fltt=2 下百分比已是百分数，金额仍是元）——
+
+function rzFetchFundRef(){
+
+  var R = CFG.REF; if(!R || !R.ENABLED) return Promise.resolve();
+
+  var codes = RZ.list.map(function(x){ return x.c; }).filter(Boolean);
+
+  if(!codes.length) return Promise.resolve();
+
+  var secids = codes.map(secidOf).filter(Boolean).join(',');
+
+  if(!secids) return Promise.resolve();
+
+  return jsonpCb(EM_ULIST + '?fltt=2&secids=' + secids + '&fields=f12,f62,f184,f164,f165,f174,f175').then(function(j){
+
+    var diff = (((j||{}).data)||{}).diff || [];
+
+    (Array.isArray(diff) ? diff : Object.values(diff)).forEach(function(d){
+
+      if(!d || !d.f12) return;
+
+      var yi = function(v){ var x = rzNumOrNull(v); return x === null ? null : x / 1e8; };
+
+      RZ.fund[d.f12] = { m: yi(d.f62), mPct: rzNumOrNull(d.f184), d5: yi(d.f164), d5Pct: rzNumOrNull(d.f165), d10: yi(d.f174), d10Pct: rzNumOrNull(d.f175) };
+
+    });
+
+    RZ.fundTs = Date.now();
+
+  }).catch(function(e){ RZ.fundErr = String((e && e.message) || e); });
+
+}
+
+// —— 新浪：一只票一个 script 标签，读完全局变量 rzHistVar 后立刻清掉 ——
+
+function rzHistFetchOne(code){
+
+  var R = CFG.REF;
+
+  return new Promise(function(resolve){
+
+    var tx = txOf(code);                       // sh600176 / sz000333，正好是新浪的 daima 格式
+
+    if(!tx){ resolve(null); return; }
+
+    var s = document.createElement('script'), done = false;
+
+    var timer = setTimeout(function(){ finish(null); }, 12000);
+
+    try{ window.rzHistVar = null; }catch(e){}
+
+    function finish(v){ if(done) return; done = true; clearTimeout(timer); try{ s.remove(); }catch(e){} resolve(v); }
+
+    s.onload = function(){
+
+      if(done) return;
+
+      var arr = window.rzHistVar; try{ window.rzHistVar = null; }catch(e){}
+
+      if(!Array.isArray(arr) || arr.length < 60){ finish(null); return; }
+
+      var na = [];
+
+      for(var i = 0; i < arr.length; i++){ var v = parseFloat(arr[i] && arr[i].netamount); if(isFinite(v)) na.push(+(v / 1e8).toFixed(3)); }
+
+      finish(na.length >= 60 ? na : null);
+
+    };
+
+    s.onerror = function(){ finish(null); };
+
+    s.src = SINA_HIST_BASE + '?page=1&num=' + ((R && R.SINA_DAYS) || 750) + '&sort=opendate&asc=0&daima=' + encodeURIComponent(tx);
+
+    document.head.appendChild(s);
+
+  });
+
+}
+
+// 队列：串行 + 间隔，避免一次朝新浪打出 N 个 200KB 请求
+
+function rzHistEnqueue(codes){
+
+  var R = CFG.REF; if(!R || !R.ENABLED) return;
+
+  codes.forEach(function(c){ if(RZ.hist[c] === undefined && RZ.histQ.indexOf(c) < 0) RZ.histQ.push(c); });
+
+  if(RZ.histBusy || !RZ.histQ.length) return;
+
+  RZ.histBusy = true;
+
+  var day = rzTodayKey();
+
+  (function next(){
+
+    var c = RZ.histQ.shift();
+
+    if(!c){ RZ.histBusy = false; rzRefPaint(); return; }
+
+    var hit = null;
+
+    try{ hit = JSON.parse(localStorage.getItem(REF_CACHE_PREFIX + '_' + c) || 'null'); }catch(e){ hit = null; }
+
+    if(hit && hit.d === day && Array.isArray(hit.na)){ RZ.hist[c] = hit.na; setTimeout(next, 0); return; }
+
+    rzHistFetchOne(c).then(function(na){
+
+      RZ.hist[c] = na;
+
+      if(na){ try{ localStorage.setItem(REF_CACHE_PREFIX + '_' + c, JSON.stringify({ d: day, na: na })); }catch(e){} }
+
+      setTimeout(next, (R && R.GAP_MS) || 280);
+
+    }).catch(function(){ RZ.hist[c] = null; setTimeout(next, 200); });
+
+  })();
+
+}
+
+// 统计：极值 / 日均 / 今日强度分位（= 超过多少比例的交易日）
+
+function rzHistStat(na, todayYi){
+
+  if(!na || na.length < 60) return null;
+
+  var n = na.length, sum = 0, mn = Infinity, mx = -Infinity, stronger = 0;
+
+  var has = (todayYi !== null && isFinite(todayYi));
+
+  for(var i = 0; i < n; i++){
+
+    var v = na[i]; sum += v;
+
+    if(v < mn) mn = v;
+
+    if(v > mx) mx = v;
+
+    // 「比今天更猛」的天数 —— 流入比谁更大、流出比谁更小，方向相反，不能共用一个比较符
+    if(has && (todayYi >= 0 ? v > todayYi : v < todayYi)) stronger++;
+
+  }
+
+  return { n: n, avg: sum / n, mn: mn, mx: mx, above: has ? (1 - stronger / n) * 100 : null };
+
+}
+
+// 强度条位置：左右半轴各自开方压缩 —— 极值动辄 ±20~38 亿，线性映射会把日常值全挤在正中间一格
+
+function rzRefPos(v, mn, mx){
+
+  var up = mx > 0 ? mx : 0, dn = mn < 0 ? -mn : 0;
+
+  if(v >= 0) return up > 0 ? 50 + 50 * Math.sqrt(Math.min(1, v / up)) : 100;
+
+  return dn > 0 ? 50 - 50 * Math.sqrt(Math.min(1, -v / dn)) : 0;
+
+}
+
+function rzRefGrade(above, up){
+
+  var t = above >= 97 ? '极端' : above >= 90 ? '激烈' : above >= 75 ? '偏强' : above >= 40 ? '常态' : above >= 20 ? '偏温和' : '温和';
+
+  return t + (up ? '流入' : '流出');
+
+}
+
+function rzRefYi(v){ return (v >= 0 ? '+' : '') + v.toFixed(2) + '亿'; }
+
+// —— 卡片内渲染：挂在「个股资金主力净流入」行下方，占满整行 ——
+
+function rzRefBar(code, o){
+
+  var R = CFG.REF; if(!R || !R.ENABLED) return '';
+
+  var todayYi = (o && o.stkAlert && isFinite(o.stkAlert.last)) ? o.stkAlert.last : null;
+
+  if(todayYi === null) return '';              // 实时资金还没到，整块先不出现
+
+  var f = RZ.fund[code] || null, na = RZ.hist[code];
+
+  var st = Array.isArray(na) ? rzHistStat(na, todayYi) : null;
+
+  var up = todayYi >= 0, out = '';
+
+  if(st){
+
+    var p = rzRefPos(todayYi, st.mn, st.mx), pa = rzRefPos(st.avg, st.mn, st.mx);
+
+    out += '<div class="rzreftop"><span class="rzrefl2">近3年强度尺</span>' +
+
+      '<span class="rzrefdim">最大流出 ' + st.mn.toFixed(1) + '亿 ｜ 最大流入 +' + st.mx.toFixed(1) + '亿</span></div>' +
+
+      '<div class="rzreftrack"><i class="rzrefzero"></i>' +
+
+      '<i class="rzrefavg" style="left:' + pa.toFixed(1) + '%" title="近3年日均 ' + rzRefYi(st.avg) + '"></i>' +
+
+      '<b class="rzrefptr ' + (up ? 'up' : 'dn') + '" style="left:' + p.toFixed(1) + '%"></b></div>' +
+
+      '<div class="rzrefbot">今日 <b class="' + (up ? 'flow-up' : 'flow-down') + '">' + rzRefYi(todayYi) + '</b> · ' +
+
+      '<b class="rzrefgrade ' + (up ? 'up' : 'dn') + '">' + rzRefGrade(st.above, up) + '</b> · 超过近3年 ' + st.above.toFixed(0) + '% 交易日 · 日均 ' + rzRefYi(st.avg) + '</div>';
+
+  } else if(na === undefined){
+
+    out += '<div class="rzreftop"><span class="rzrefl2">近3年强度尺</span><span class="rzrefdim">加载中…</span></div>';
+
+  }
+
+  if(f){
+
+    var seg = [];
+
+    if(f.mPct !== null) seg.push('今日净占比 <b class="' + (f.mPct >= 0 ? 'flow-up' : 'flow-down') + '">' + (f.mPct >= 0 ? '+' : '') + f.mPct.toFixed(2) + '%</b>');
+
+    if(f.d5 !== null) seg.push('5日 <b class="' + (f.d5 >= 0 ? 'flow-up' : 'flow-down') + '">' + rzRefYi(f.d5) + '</b>');
+
+    if(f.d10 !== null) seg.push('10日 <b class="' + (f.d10 >= 0 ? 'flow-up' : 'flow-down') + '">' + rzRefYi(f.d10) + '</b>');
+
+    if(seg.length) out += '<div class="rzrefbot2">' + seg.join(' ｜ ') + '</div>';
+
+  }
+
+  return out;
+
+}
+
+// 历史数据陆续到达时只更新这一小块，不重排整张卡片（避免内容跳动）
+
+function rzRefPaint(){
+
+  var els = document.querySelectorAll('[data-rzref]');
+
+  for(var i = 0; i < els.length; i++){
+
+    var c = els[i].getAttribute('data-rzref');
+
+    var html = rzRefBar(c, RZ.state[c] || {});
+
+    if(html){ els[i].innerHTML = html; els[i].style.display = ''; }
+
+    else { els[i].innerHTML = ''; els[i].style.display = 'none'; }
+
+  }
+
+}
+
 // —— 数据鲜活性：每个维度都标出"这个数字是多久之前的" ——
 
 function rzAgo(ts){
@@ -8271,6 +8584,10 @@ function rzRender(){
       stkVolHtml(o.stkV, o.stkV5) +
       (o.stkAlert ? rzRowFlow('个股资金主力净流入', o.stkAlert.last, o._stkPrev) + flowMark(code + '|stk', o.stkAlert.last, CFG.FLOW_MARK.STOCK_YI, '个股', stkRatio) : '') +
 
+      // 资金历史参照：让「流出 2 亿」有个历史坐标（近3年强度尺 + 今日净占比 + 5日/10日）
+
+      '<div class="rzref" data-rzref="' + code + '" style="flex:0 0 100%">' + rzRefBar(code, o) + '</div>' +
+
       (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert, o.tr) + '<div class="rzchartcap">板块资金 · 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
 
       (bd && o.bdSer && o.bdAlert ? flowSummary(o.bdAlert, o.bdSer) : '') +
@@ -8524,6 +8841,10 @@ function rzRefresh(force){
   rzIndexTop(force);
 
   if(!RZ.list.length) return;
+
+  if(!RZ.fundTs || Date.now() - RZ.fundTs > 60000) rzFetchFundRef().then(rzRefPaint);   // 净占比/5日/10日：一次覆盖全部自选
+
+  rzHistEnqueue(RZ.list.map(function(x){ return x.c; }));                              // 近3年历史：逐只串行 + 按日缓存
 
   RZ.list.forEach(function(item){ rzOne(item.c, force); });
 
