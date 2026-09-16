@@ -298,7 +298,9 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 
 .rzdot{position:absolute;width:7px;height:7px;border-radius:50%;border:1.5px solid #fff;display:none;pointer-events:none;transform:translate(-50%,-50%);z-index:4;box-shadow:0 1px 2px rgba(0,0,0,.25)}
 
-.rztip{position:absolute;top:5px;display:none;background:rgba(255,255,255,.98);border:0.5px solid #6b7280;border-radius:8px;padding:6px 8px;font-size:12px;line-height:1.55;color:#1f2328;pointer-events:none;white-space:nowrap;z-index:20;box-shadow:0 3px 10px rgba(0,0,0,.18)}
+/* 浮动文字：半透明 + 毛玻璃。alpha 保持 .86 保证数字清晰，backdrop-filter 让被遮住的曲线透出轮廓。
+   旧 webview 不支持 backdrop-filter 时退化为纯半透明底，仍可读，不塌陷。 */
+.rztip{position:absolute;top:5px;display:none;background:rgba(255,255,255,.86);border:0.5px solid rgba(107,114,128,.8);border-radius:8px;padding:6px 8px;font-size:12px;line-height:1.55;color:#1f2328;pointer-events:none;white-space:nowrap;z-index:20;box-shadow:0 3px 10px rgba(0,0,0,.14);backdrop-filter:blur(3px) saturate(1.3);-webkit-backdrop-filter:blur(3px) saturate(1.3)}
 
 .rztip .tt{font-weight:500;margin-bottom:2px}
 
@@ -620,7 +622,7 @@ html[data-theme="dark"] .rzbtn.rzbtn-danger{background:#2d1719;border-color:#e54
 html[data-theme="dark"] .rzadd input{border-color:#3b6ea8}
 /* 图表浮层 / 圆点 */
 html[data-theme="dark"] .rzdot{border-color:var(--card)}
-html[data-theme="dark"] .rztip{background:rgba(22,29,38,.97);border-color:#3a4657;color:#e7ecf3}
+html[data-theme="dark"] .rztip{background:rgba(22,29,38,.86);border-color:#3a4657;color:#e7ecf3}
 html[data-theme="dark"] .rztip .tt.pin{color:#7cb0ff}
 html[data-theme="dark"] .pzt-tip{background:rgba(22,29,38,.97);border-color:#3a4657;color:#e7ecf3}
 /* 密码门 */
@@ -9659,7 +9661,8 @@ rzStart();
 
       var label, unit;
 
-      if(cfg.type==='flow'){ if(ln.axis==='L'){ label='板块资金净流入'; unit='亿'; } else if(ln.axis==='R'){ label='个股资金净流入'; unit='亿'; } else if(ln.axis==='P'){ label='个股涨跌幅'; unit='%'; } else { label='个股'; unit='亿'; } }
+      // 标签与图左上角图例同名（■板块 / ┄个股 / —涨跌幅%），文字更短 → 浮层更窄、遮挡更少
+      if(cfg.type==='flow'){ if(ln.axis==='L'){ label='板块'; unit='亿'; } else if(ln.axis==='R'){ label='个股'; unit='亿'; } else if(ln.axis==='P'){ label='涨跌'; unit='%'; } else { label='个股'; unit='亿'; } }
 
       else { label = (ln.axis==='L'?'价格':'资金'); unit = (ln.axis==='L' ? '' : '亿'); }
 
@@ -9675,7 +9678,7 @@ rzStart();
         // 个股涨跌幅：红涨绿跌带箭头，并附个股股价（由昨收反算）
         vs = '<b style="color:' + tcol + '">' + tsign + v.toFixed(2) + '%' + tarr + '</b>';
 
-        if(cfg.preClose) vs += ' <span style="color:var(--txt3);font-size:11px">价格 ' + (cfg.preClose * (1 + v / 100)).toFixed(2) + '</span>';
+        if(cfg.preClose) vs += ' <span style="color:var(--txt3);font-size:11px">' + (cfg.preClose * (1 + v / 100)).toFixed(2) + '</span>';
 
       }
 
@@ -9719,9 +9722,20 @@ rzStart();
 
     var tipW = tip.offsetWidth;
 
-    var leftPct = (crossPct > 55) ? crossPct - (tipW/pbW*100) - 2 : crossPct + 2;
+    // 自动换边：按浮层「真实宽度」实时判断，不再用固定 55% 阈值（旧阈值不看文字多宽，
+    // 导致 41%~55% 区间右边缘溢出容器、又在 13:13 突然翻到左边压住十字线）。
+    // 四档优先级：① 跟手在右侧 → ② 右侧放不下但贴右边界仍不压线（首选，避免无谓换边）
+    //            → ③ 翻到左侧 → ④ 两侧都放不下则贴右边界夹住。
+    var tw = tipW / pbW * 100;                    // 浮层宽度占容器的百分比
+    var gp = 3 / pbW * 100;                       // 与十字线的安全间隙（3px，够视觉分离又不挤占空间）
+    var maxLeft = Math.max(2, 99 - tw);           // 右边缘不溢出时允许的最大 left%
+    var leftPct;
+    if(crossPct + gp + tw <= 99) leftPct = crossPct + gp;              // ① 跟手·右侧
+    else if(maxLeft >= crossPct - 2) leftPct = maxLeft;                 // ② 贴右边界（最多轻微压线 2%）
+    else if(crossPct - gp - tw >= 2) leftPct = crossPct - gp - tw;      // ③ 翻左侧
+    else leftPct = maxLeft;                                             // ④ 夹住
 
-    tip.style.left = Math.max(2, Math.min(96, leftPct)) + '%';
+    tip.style.left = Math.max(2, Math.min(maxLeft, leftPct)).toFixed(2) + '%';
 
     var di = 0; for(var M=0;M<lines.length;M++){ if(di < dots.length){ var d = dots[di++]; d.style.display='block'; d.style.left = crossPct + '%'; d.style.top = yPctF(lines[M].ycfg) + '%'; d.style.background = lines[M].color; } }
 
