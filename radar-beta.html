@@ -9737,6 +9737,15 @@ rzStart();
 
     tip.style.left = Math.max(2, Math.min(maxLeft, leftPct)).toFixed(2) + '%';
 
+    // 纵向：把浮层移到「图形之外」，彻底不压曲线与十字线。
+    //   板块图(flow)  → 浮层底边贴容器顶边之上 3px（即竖线最顶部之上）
+    //   个股分线(index) → 浮层顶边贴容器底边之下 3px（即竖线最底部之下）
+    // 用像素定位（不用 transform/calc 单位运算，兼容旧 webview）；.rzchart 为 overflow:visible，
+    // 浮层落在容器外不会被裁切。offsetHeight 在 innerHTML 填充 + display:block 之后已可量取。
+    tip.style.top = (cfg.type === 'flow')
+      ? (-(tip.offsetHeight) - 3) + 'px'
+      : (chart.clientHeight + 3) + 'px';
+
     var di = 0; for(var M=0;M<lines.length;M++){ if(di < dots.length){ var d = dots[di++]; d.style.display='block'; d.style.left = crossPct + '%'; d.style.top = yPctF(lines[M].ycfg) + '%'; d.style.background = lines[M].color; } }
 
   }
