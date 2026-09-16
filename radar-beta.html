@@ -268,11 +268,13 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 
 .rzage.bad{color:var(--down);font-weight:600}
 
-/* 资金历史参照（beta）：近3年强度尺 + 今日净占比/5日/10日。回答「这个净流出算大算小」 */
+/* 资金历史参照（beta）：资金强度尺 + 今日净占比/5日/10日。回答「这个净流出算大算小」 */
 .rzref{flex:0 0 100%;margin:1px 0 0;padding:4px 6px 3px;border:1px dashed var(--line2);border-radius:8px;font-variant-numeric:tabular-nums}
-.rzreftop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10px;color:var(--txt2);margin-bottom:3px}
+.rzreftop{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px;font-size:10px;color:var(--txt2);margin-bottom:3px}
 .rzrefl2{font-weight:700}
-.rzrefdim{color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rzrefdim{margin-left:auto;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rzrefn{margin-left:5px;font-weight:400;font-style:normal;font-size:9px;color:var(--txt3)}
+.rzrefpend{display:inline-block;margin-left:4px;padding:0 4px;border-radius:4px;font-size:9px;font-weight:700;color:#8a6d1f;background:rgba(214,158,46,.16);border:1px solid rgba(214,158,46,.42);white-space:nowrap}
 .rzreftrack{position:relative;height:11px;border-radius:6px;border:1px solid var(--line2);background:linear-gradient(90deg,rgba(31,157,85,.13),rgba(127,139,155,.07) 50%,rgba(229,72,77,.13))}
 .rzrefzero{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line2)}
 .rzrefavg{position:absolute;top:50%;width:9px;height:2px;margin:-1px 0 0 -4.5px;background:var(--txt3);border-radius:1px}
@@ -8173,6 +8175,32 @@ function rzRefGrade(above, up){
 
 function rzRefYi(v){ return (v >= 0 ? '+' : '') + v.toFixed(2) + '亿'; }
 
+// 盘中进度：今日资金是「到此刻为止」的累计值，拿去跟别人一整天的历史比会偏高或偏低，
+// 所以盘中必须显式标注「未定」。已收盘 / 周末 / 盘前返回 null（此时数值已定，不再加角标）。
+// 注意午休不返回 null —— 11:30 只是上午收盘，全天还没走完，仍属未定。
+
+function rzRefProgress(){
+
+  var now = new Date(), wd = now.getDay();
+
+  if(wd === 0 || wd === 6) return null;
+
+  var t = now.getHours() * 60 + now.getMinutes();
+
+  if(t < 9 * 60 + 30 || t > 15 * 60) return null;       // 盘前 / 15:00 后：已定
+
+  var tm = tradeMin(t);
+
+  if(!isFinite(tm)) return null;
+
+  tm = Math.max(0, Math.min(TRADE_SPAN, tm));
+
+  if(tm >= TRADE_SPAN) return null;                     // 整天走完，数值已定
+
+  return { tm: tm, span: TRADE_SPAN };
+
+}
+
 // —— 卡片内渲染：挂在「个股资金主力净流入」行下方，占满整行 ——
 
 function rzRefBar(code, o){
@@ -8193,23 +8221,33 @@ function rzRefBar(code, o){
 
     var p = rzRefPos(todayYi, st.mn, st.mx), pa = rzRefPos(st.avg, st.mn, st.mx);
 
-    out += '<div class="rzreftop"><span class="rzrefl2">近3年强度尺</span>' +
+    // 样本天数用真实值（ETF 往往只有一年多），不能写死「近3年」
+
+    var pg = rzRefProgress();
+
+    out += '<div class="rzreftop"><span class="rzrefl2">资金强度尺<i class="rzrefn">样本 ' + st.n + ' 个交易日</i></span>' +
 
       '<span class="rzrefdim">最大流出 ' + st.mn.toFixed(1) + '亿 ｜ 最大流入 +' + st.mx.toFixed(1) + '亿</span></div>' +
 
       '<div class="rzreftrack"><i class="rzrefzero"></i>' +
 
-      '<i class="rzrefavg" style="left:' + pa.toFixed(1) + '%" title="近3年日均 ' + rzRefYi(st.avg) + '"></i>' +
+      '<i class="rzrefavg" style="left:' + pa.toFixed(1) + '%" title="日均 ' + rzRefYi(st.avg) + '"></i>' +
 
       '<b class="rzrefptr ' + (up ? 'up' : 'dn') + '" style="left:' + p.toFixed(1) + '%"></b></div>' +
 
+      // 「超过 95% 交易日」在流入/流出下含义相反，必须写明是哪一侧更强
+
       '<div class="rzrefbot">今日 <b class="' + (up ? 'flow-up' : 'flow-down') + '">' + rzRefYi(todayYi) + '</b> · ' +
 
-      '<b class="rzrefgrade ' + (up ? 'up' : 'dn') + '">' + rzRefGrade(st.above, up) + '</b> · 超过近3年 ' + st.above.toFixed(0) + '% 交易日 · 日均 ' + rzRefYi(st.avg) + '</div>';
+      '<b class="rzrefgrade ' + (up ? 'up' : 'dn') + '">' + rzRefGrade(st.above, up) + '</b>' +
+
+      (pg ? '<span class="rzrefpend" title="今日资金仍在累积，此刻数值与整日历史对比仅供参考">盘中未定 ' + pg.tm + '/' + pg.span + '</span>' : '') +
+
+      ' · ' + (up ? '流入' : '流出') + '强度超过 ' + st.above.toFixed(0) + '% 交易日 · 日均 ' + rzRefYi(st.avg) + '</div>';
 
   } else if(na === undefined){
 
-    out += '<div class="rzreftop"><span class="rzrefl2">近3年强度尺</span><span class="rzrefdim">加载中…</span></div>';
+    out += '<div class="rzreftop"><span class="rzrefl2">资金强度尺<i class="rzrefn">加载中…</i></span><span class="rzrefdim">—</span></div>';
 
   }
 
@@ -8584,7 +8622,7 @@ function rzRender(){
       stkVolHtml(o.stkV, o.stkV5) +
       (o.stkAlert ? rzRowFlow('个股资金主力净流入', o.stkAlert.last, o._stkPrev) + flowMark(code + '|stk', o.stkAlert.last, CFG.FLOW_MARK.STOCK_YI, '个股', stkRatio) : '') +
 
-      // 资金历史参照：让「流出 2 亿」有个历史坐标（近3年强度尺 + 今日净占比 + 5日/10日）
+      // 资金历史参照：让「流出 2 亿」有个历史坐标（资金强度尺 + 今日净占比 + 5日/10日）
 
       '<div class="rzref" data-rzref="' + code + '" style="flex:0 0 100%">' + rzRefBar(code, o) + '</div>' +
 
