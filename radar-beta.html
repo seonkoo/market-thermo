@@ -483,11 +483,15 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 .gate button:active{background:#1d4ed8}
 .gate-err{color:#dc2626;font-size:13px;min-height:18px;margin-top:8px}
 
-/* ================= 自选卡：手机端紧凑排版 =================
-   目标：让一张个股卡（含两张图）在 390px 宽手机上尽量一屏看全。
-   硬约束：图形尺寸严格不变 —— .rzchart 左右 padding(8px)、.rzcard 左右 padding(9px)、
-   body 左右 padding(9px) 全部保持原值，因此 .rzchart svg 的宽度与 3:1 高度逐像素不变；
-   只压缩字号 / 行高 / 上下留白 / 卡片内 gap。桌面端（>640px）零影响。 */
+/* ================= 自选卡：手机端紧凑排版 + 图形加高 =================
+   目标：一张个股卡（含两张图）在 390px 宽手机上尽量一屏看全，同时把两张 combo 图
+   从 3:1 加高到 2:1，曲线在纵向更舒展、更容易看。
+   硬约束：图形宽度严格不变 —— .rzchart 左右 padding(8px)、.rzcard 左右 padding(9px)、
+   body 左右 padding(9px) 全部保持原值 → svg 宽度逐像素不变；等比缩放的倍数由宽度决定，
+   因此**字号也完全不变**，只有曲线被纵向拉开。其余只压缩字号 / 行高 / 上下留白 / 卡片 gap。
+   ⚠️ aspect-ratio 必须与 JS comboH() 返回值(300)同步；只改一处会让
+   preserveAspectRatio="xMidYMid meet" 按宽度缩放 → 图不会变高、反而左右留白变窄。
+   桌面端（>640px）保持 3:1，零影响。 */
 
 @media (max-width:640px){
 
@@ -556,6 +560,9 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
   .rzrefbot2{font-size:9.5px;margin-top:1px;padding-top:1px;line-height:1.35}
 
   .rzchart{margin:3px 0 1px;padding:4px 8px 2px;border-radius:10px}
+
+  /* 图形加高：3:1 → 2:1（必须与 JS comboH() 的 300 同步，否则图会变窄而非变高） */
+  .rzchart svg{aspect-ratio:2/1}
 
   .rzchartcap{font-size:9.5px;padding-top:1px}
 
@@ -7213,6 +7220,34 @@ function clockMin(tm){ if(!isFinite(tm)) return 570; if(tm <= 120) return tm + 5
 
 // 10 分钟放大 24×（斜率 4%）比 15 分钟放大 16×（斜率 6%）更差；30 分钟放大 8×（斜率 13%）最接近全天观感。
 
+// ============ 图形高度分档：手机端加高（beta 专属）============
+
+// 窄屏（≤640px，与 CSS 媒体查询同一判据）把两张 combo 图从 3:1 加高到 2:1：svg 宽度固定
+
+// 294px，等比缩放因子由宽度决定 → 宽度和字号都不变，只有曲线纵向被拉开（98 → 147px，+50%）。
+
+// ⚠️ 必须与 CSS 里 @media(max-width:640px) 的 .rzchart svg{aspect-ratio:2/1} 同步。
+
+var MQ_NARROW = (window.matchMedia ? window.matchMedia('(max-width:640px)') : null);
+
+function isNarrowLayout(){ return MQ_NARROW ? MQ_NARROW.matches : (window.innerWidth <= 640); }
+
+function comboH(){ return isNarrowLayout() ? 300 : 200; }
+
+// 跨断点（手机转屏等）时重渲染一次，保证 viewBox 比例与 CSS aspect-ratio 始终一致
+
+(function(){
+
+  function flip(){ try{ if(typeof rzRender === 'function') rzRender(); }catch(e){} }
+
+  if(!MQ_NARROW) return;
+
+  if(MQ_NARROW.addEventListener) MQ_NARROW.addEventListener('change', flip);
+
+  else if(MQ_NARROW.addListener) MQ_NARROW.addListener(flip);
+
+})();
+
 function axisSpanNow(){
 
   var now = new Date();
@@ -7283,7 +7318,7 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
   if(!bdSer || bdSer.length < 2) return '';
 
-  var W = 600, H = 200, ML = 16, MR = 16, MT = 16, MB = 16;
+  var W = 600, H = comboH(), ML = 16, MR = 16, MT = 16, MB = 16;
 
   var pw = W - ML - MR, ph = H - MT - MB;
 
@@ -7484,7 +7519,7 @@ function rzIndexComboSVG(tr, flowSer, a, priceLabel, showPct){
 
   if(!tr || !tr.today || !tr.today.length) return '<div class="rzna">分线数据不足</div>';
 
-  var W = 600, H = 200, ML = 16, MR = 16, MT = 16, MB = 16;
+  var W = 600, H = comboH(), ML = 16, MR = 16, MT = 16, MB = 16;
 
   var pw = W - ML - MR, ph = H - MT - MB;
 
