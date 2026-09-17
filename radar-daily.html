@@ -107,7 +107,7 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
     日K级两条曲线：<b style="color:var(--pl)">个股收盘价</b>（前复权·元）、
     <b style="color:var(--stk)">个股资金强度</b>（净流入占当日成交额比·%）<br>
     默认「<b>趋势交叉</b>」+「<b>蓝线分离</b>」：两线以窗口左端为同一起点、各自满幅归一到 &#177;100% 后共轴，
-    蓝线（价格）整体上移一档，共振上行时不再与资金线重叠 —— 价格相对资金走弱超过这一档时才标出
+    蓝线（价格）整体上移一档（<b>+10%</b> / <b>+25%</b> 两档可切，另有「贴合」归零），共振上行时不再与资金线重叠 —— 价格相对资金走弱超过这一档时才标出
     <span style="color:#7c3aed">紫点</span>交点（交点随窗口与分离档位重算）<br>
     资金口径：新浪 MoneyFlow 的「净流入占成交额比」 · 价格源：腾讯前复权日K · 纯前端直连 · 试验页面，与稳定版／beta 互不影响
   </div>
@@ -158,7 +158,8 @@ var CFG = {
   SPANS: [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 250],
   SPAN_M: 120,       // 手机默认可视天数
   SPAN_D: 120,       // 桌面默认可视天数
-  GAP: 0.25,         // 蓝线（价格）整体上移档位（满幅比例）—— 只用于把两线分开
+  GAPS: [0, 0.10, 0.25],  // 蓝线（价格）上移档位（满幅比例）：0=贴合 0.10=轻分离 0.25=默认分离
+  GAP_DEF: 0.25,     // 默认档位（= GAPS 里的 0.25）
   XGAP: 5,           // 交点去抖：两次交点至少间隔的交易日数（防贴线反复穿）
   XMAX: 12,          // 交叉点清单最多列出的条数
   QUICK: [
@@ -179,7 +180,7 @@ var S = {
   mode: 'cum',     // day=每日净额 | cum=区间累计（默认，更能看清资金累积方向）
   norm: false,     // 形态对比（各线各自缩放）
   cross: true,     // 趋势交叉（两线共轴·同一起点·自动标注交点）默认开
-  sep: true,       // 蓝线分离（价格整体上移一档，共振上行时不与资金线重叠）
+  gap: 0.25,       // 蓝线分离档位（满幅比例，0=贴合）；数值来自 CFG.GAPS
   crossHold: false,// 因切「每日净额」被动关掉交叉 → 切回「区间累计」时自动恢复
   qOk: 0,          // ratioamount（占比字段）可用行数
   noPrice: false,
@@ -387,14 +388,21 @@ function paintUI(){
     '<span class="chip' + (S.norm ? ' on' : '') + '" data-n="1">形态对比（各自缩放）</span>' +
     '<span class="chip' + (S.cross ? ' on' : '') + '" data-x="1">趋势交叉（共轴·标交点）</span>' +
     '<span class="lbl" style="margin-top:7px">两线间距（仅趋势交叉）</span>' +
-    '<span class="chip' + (S.sep ? ' on' : '') + '" data-s="1">蓝线分离 +' + Math.round(CFG.GAP * 100) + '%</span>' +
-    '<span class="chip' + (!S.sep ? ' on' : '') + '" data-s="0">贴合（真实交点）</span>';
+    (function(){
+      var o = '';
+      for(var gi = 0; gi < CFG.GAPS.length; gi++){
+        var gv = CFG.GAPS[gi];
+        o += '<span class="chip' + (Math.abs((S.gap || 0) - gv) < 1e-9 ? ' on' : '') + '" data-g="' + gv + '">' +
+             (gv === 0 ? '贴合（真实交点）' : '分离 +' + Math.round(gv * 100) + '%') + '</span>';
+      }
+      return o;
+    })();
 
   var cum = (S.mode === 'cum');
   $('lgStk').innerHTML = '<i style="background:var(--stk)"></i>个股资金强度' + (cum ? '累计' : '') + '（占成交额 %）';
   $('lgX').style.display = S.cross ? '' : 'none';
   $('lgX').innerHTML = '<i style="background:#7c3aed;border-radius:50%;width:8px;height:8px"></i>交点（价格 × 个股资金）' +
-    (S.sep ? ' · 蓝线已上移 ' + Math.round(CFG.GAP * 100) + '%' : ' · 未分离');
+    ((S.gap || 0) > 0 ? ' · 蓝线已上移 ' + Math.round(S.gap * 100) + '%' : ' · 贴合（未分离）');
 }
 
 /* ══════════════ 窗口导航（逐日平移 + 缩放） ══════════════ */
@@ -563,7 +571,7 @@ function render(){
 
   /* ── 三种纵向尺度：raw 真实 % 轴 | norm 各自缩放 | cross 共轴（趋势交叉） ── */
   var vm = S.cross ? 'cross' : (S.norm ? 'norm' : 'raw');
-  var GAP = (vm === 'cross' && S.sep) ? CFG.GAP : 0;   /* 蓝线分离档位（满幅比例） */
+  var GAP = (vm === 'cross') ? (S.gap || 0) : 0;   /* 蓝线分离档位（满幅比例，0=贴合） */
 
   function mkSc(a){
     if(!a.length) return {lo:0, hi:1};
@@ -1017,7 +1025,7 @@ document.addEventListener('click', function(e){
   var m = t.getAttribute('data-m');
   var nn = t.getAttribute('data-n');
   var xx = t.getAttribute('data-x');
-  var ss = t.getAttribute('data-s');
+  var sg = t.getAttribute('data-g');
   if(c){ load(c, (t.textContent || '').replace(c, '').trim()); return; }
   S.pin = false; clearIdle(); hideTip();
   if(m){
@@ -1031,10 +1039,11 @@ document.addEventListener('click', function(e){
   else if(xx !== null){
     if(!S.cross){ S.cross = true; S.crossHold = false; S.norm = false; S.mode = 'cum'; paintUI(); render(); }
   }
-  else if(ss !== null){
-    var sv = (ss === '1');
-    if(!S.cross || sv !== S.sep){
-      S.cross = true; S.crossHold = false; S.norm = false; S.mode = 'cum'; S.sep = sv;
+  else if(sg !== null){
+    var sv = parseFloat(sg);
+    if(!isFinite(sv)) sv = 0;
+    if(!S.cross || Math.abs(sv - (S.gap || 0)) > 1e-9){
+      S.cross = true; S.crossHold = false; S.norm = false; S.mode = 'cum'; S.gap = sv;
       paintUI(); render();
     }
   }
