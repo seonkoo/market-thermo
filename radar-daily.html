@@ -98,6 +98,7 @@ h1{font-size:19px;margin:0 0 4px;display:flex;align-items:center;gap:8px;flex-wr
 .rbg.no {color:#b42318;border-color:#fecaca;background:rgba(254,242,242,.95)}
 .cap .hot{color:var(--warn)} .cap .bad{color:var(--up)}
 .na{color:var(--txt3);font-size:13px;padding:28px 0;text-align:center}
+.ldg{font-size:12px;color:var(--txt3);margin-top:6px;letter-spacing:2px}
 .xempty{font-size:11.5px;color:var(--txt3);line-height:1.6;margin-top:6px}
 .xempty b{color:var(--txt2);font-weight:600}
 
@@ -176,7 +177,9 @@ var CFG = {
   TX:   'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get',
   EM:   'https://push2delay.eastmoney.com/api/qt/ulist.np/get',
   META_MS: 7000,     // 名称 / 行业（东财）超时，失败不影响主图
-  N: 600,
+  NET_MS: 15000,     // 价格 / 资金 通道超时（没有 AbortController 的设备也照样生效）
+  LOAD_MS: 20000,    // 兜底看门狗：无论如何 20 秒内必须出图或给出明确错误，不允许无限「加载中…」
+  N: 320,            // 拉取条数（最长可看 250 日 → 320 已足够；比原来的 600 少一半，手机首屏明显更快）
   SPANS: [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 250],
   SPAN_M: 120,       // 手机默认可视天数
   SPAN_D: 120,       // 桌面默认可视天数
@@ -248,7 +251,7 @@ function fetchFund(mktCode, num, ok, fail){
   }
   window[name] = function(arr){ if(done) return; done = true; clean(); ok(arr || []); };
   sc.onerror = function(){ if(done) return; done = true; clean(); fail('新浪资金加载失败'); };
-  timer = setTimeout(function(){ if(done) return; done = true; clean(); fail('新浪资金请求超时'); }, 15000);
+  timer = setTimeout(function(){ if(done) return; done = true; clean(); fail('新浪资金请求超时'); }, CFG.NET_MS);
   sc.src = CFG.SINA + name + '/MoneyFlow.ssl_qsfx_zjlrqs?page=1&num=' + num +
            '&sort=opendate&asc=0&daima=' + encodeURIComponent(mktCode);
   document.head.appendChild(sc);
@@ -303,35 +306,36 @@ function parseFund(arr){
 /* ══════════════ 通道 2：腾讯前复权价格（fetch，CORS *） ══════════════ */
 function fetchPrice(mktCode, num, ok, fail){
   var url = CFG.TX + '?param=' + mktCode + ',day,,,' + num + ',qfq';
-  var ctl = null;
-  var to = null;
+  var fin = false, to = null, ctl = null;
+  function good(map){ if(fin) return; fin = true; if(to) clearTimeout(to); ok(map); }
+  function bad(msg){ if(fin) return; fin = true; if(to) clearTimeout(to); fail(msg); }
+  /* ⚠️ 超时不能只依赖 AbortController（部分手机浏览器没有）——外面再套一层纯计时器兜底 */
+  to = setTimeout(function(){ bad('腾讯价格超时'); }, CFG.NET_MS);
   try{
-    if(window.AbortController){ ctl = new AbortController(); to = setTimeout(function(){ ctl.abort(); }, 15000); }
+    if(window.AbortController){ ctl = new AbortController(); }
     fetch(url, ctl ? {signal: ctl.signal} : undefined)
       .then(function(r){ return r.json(); })
       .then(function(j){
-        if(to) clearTimeout(to);
         var d = j && j.data && j.data[mktCode];
         var k = d && (d.qfqday || d.day);
-        if(!k || !k.length){ fail('腾讯无该标的价格'); return; }
+        if(!k || !k.length){ bad('腾讯无该标的价格'); return; }
         var map = {}, order = [];
         for(var i = 0; i < k.length; i++){
           var dt = String(k[i][0]), c = parseFloat(k[i][2]);
           if(!/^\d{4}-\d{2}-\d{2}$/.test(dt) || !isFinite(c)) continue;
           map[dt] = c; order.push(dt);
         }
-        ok(map, order);
+        good(map, order);
       })
       .catch(function(e){
-        if(to) clearTimeout(to);
-        fail((e && e.name === 'AbortError') ? '腾讯价格超时' : '腾讯价格不可用');
+        bad((e && e.name === 'AbortError') ? '腾讯价格超时' : '腾讯价格不可用');
       });
-  }catch(e){ fail('腾讯价格不可用'); }
+  }catch(e){ bad('腾讯价格不可用'); }
 }
 
 /* ══════════════ 载入（双通道并行 + 合并） ══════════════ */
 function load(code, label){
-  if(S.busy) return;
+  if(S.busy){ setCap('正在加载中…请稍候'); return; }
   code = String(code || '').replace(/[^0-9]/g, '');
   if(code.length !== 6){ setCap('<span class="bad">请输入 6 位股票代码</span>'); return; }
   S.busy = true;
@@ -341,7 +345,6 @@ function load(code, label){
   S.metaState = 'loading';
   paintWho();
   $('goBtn').disabled = true;
-  $('cw').innerHTML = '<div class="na">加载中…</div>';
   setCap('正在并行拉取：腾讯前复权价格 + 新浪资金 + 东财名称／行业…');
   hideTip();
 
@@ -349,21 +352,38 @@ function load(code, label){
   var fundRows = null, priceMap = {}, priceOk = false;
   var errs = [];
   var pending = 2;
+  var st = {p:0, f:0};      /* 通道状态：0=等待 1=成功 2=失败（用于加载中的实时进度显示） */
+  var finished = false;
+  paintLoad(st);
+
+  /* ⚠️ 兜底看门狗：任何通道卡住，都不允许一直停在「加载中…」 */
+  var hard = setTimeout(function(){
+    if(finished || S.code !== code) return;
+    var wait = [];
+    if(st.p === 0) wait.push('价格');
+    if(st.f === 0) wait.push('资金');
+    errs.push('加载超时' + (wait.length ? '（' + wait.join('／') + ' 通道未返回）' : ''));
+    finish();
+  }, CFG.LOAD_MS);
 
   fetchFund(mkt, CFG.N, function(arr){
+    st.f = 1; paintLoad(st);
     fundRows = parseFund(arr);
     if(!fundRows.length) errs.push('新浪未返回资金数据');
     if(--pending === 0) finish();
   }, function(msg){
+    st.f = 2; paintLoad(st);
     fundRows = [];
     errs.push(msg);
     if(--pending === 0) finish();
   });
 
   fetchPrice(mkt, CFG.N, function(map){
+    st.p = 1; paintLoad(st);
     priceOk = true; priceMap = map || {};
     if(--pending === 0) finish();
   }, function(msg){
+    st.p = 2; paintLoad(st);
     priceOk = false; priceMap = {};
     errs.push(msg);
     if(--pending === 0) finish();
@@ -378,6 +398,9 @@ function load(code, label){
   });
 
   function finish(){
+    if(finished) return;
+    finished = true;
+    clearTimeout(hard);
     S.busy = false;
     $('goBtn').disabled = false;
 
@@ -424,14 +447,31 @@ function load(code, label){
     if(S.span > rows.length) S.span = Math.max(1, rows.length);
     S.end = rows.length - 1;
     S.pin = false;
-    paintUI();
-    render();
+    try{
+      paintUI();
+      render();
+    }catch(e){
+      /* 渲染异常也必须让用户看到原因，不能停在「加载中…」 */
+      $('cw').innerHTML = '<div class="na">渲染出错，请刷新重试</div>';
+      setCap('<span class="bad">渲染出错：' + esc(String((e && e.message) || e)) + '</span> · 代码 ' + esc(code));
+    }
     void missing;
   }
 }
 
 /* ══════════════ 界面小件 ══════════════ */
 function setCap(html){ $('cap').innerHTML = html; }
+
+/* 加载中：把两条通道的实时状态显示出来（… 等待 / ✓ 成功 / ✕ 失败）
+   —— 手机端网络慢时能看出「正在跑」而不是「卡死」。
+   S.busy 为 false 时直接跳过，避免出图后被加载文案覆盖。 */
+function paintLoad(st){
+  if(!S.busy) return;
+  var el = $('cw');
+  if(!el) return;
+  var m = function(s){ return s === 1 ? '✓' : (s === 2 ? '✕' : '…'); };
+  el.innerHTML = '<div class="na">加载中…<div class="ldg">价格 ' + m(st.p) + '　资金 ' + m(st.f) + '</div></div>';
+}
 
 /* 标的信息行：名称（东财 f14）+ 行业（东财 f100 行业分类）
    ⚠️ 拿不到就如实留白／标注，不猜、不编 */
