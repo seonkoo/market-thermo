@@ -89,6 +89,13 @@ h1{font-size:19px;margin:0 0 4px;display:flex;align-items:center;gap:8px;flex-wr
 .tip .rxx{margin-top:3px;padding-top:3px;border-top:1px solid var(--line2);color:#7c3aed;font-weight:600}
 .pos{color:var(--up)} .neg{color:var(--down)} .zero{color:var(--txt3)}
 .cap{font-size:11px;color:var(--txt3);margin-top:7px;line-height:1.6}
+/* 资金口径可信度角标：贴在图右上角，不拦鼠标 */
+.rbg{position:absolute;top:4px;right:5px;z-index:3;pointer-events:none;white-space:nowrap;
+  font-size:10.5px;line-height:1.6;border-radius:7px;padding:1px 7px;border:1px solid;
+  font-variant-numeric:tabular-nums;backdrop-filter:blur(3px)}
+.rbg.ok {color:#4338ca;border-color:#c7d2fe;background:rgba(238,242,255,.93)}
+.rbg.mid{color:#b45309;border-color:#fed7aa;background:rgba(255,247,237,.93)}
+.rbg.no {color:#b42318;border-color:#fecaca;background:rgba(254,242,242,.95)}
 .cap .hot{color:var(--warn)} .cap .bad{color:var(--up)}
 .na{color:var(--txt3);font-size:13px;padding:28px 0;text-align:center}
 .xempty{font-size:11.5px;color:var(--txt3);line-height:1.6;margin-top:6px}
@@ -119,7 +126,9 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
     默认「<b>独立双轴 · 各铺满</b>」（对齐量能做T beta 版分时图的 Y 轴策略）：价格轴按窗口收盘价、资金轴按窗口资金强度各自铺满整高，
     资金轴强制把 0 纳入范围 —— 看形态共振／背离最直观<br>
     需要按同一标尺看<b>交点</b>时可切「<b>趋势交叉</b>」：两线共轴归一，蓝线（价格）可整体上移一档（<b>+10%</b>／<b>+25%</b>，另有「贴合」归零）<br>
-    资金口径：新浪 MoneyFlow 的「净流入占成交额比」 · 价格源：腾讯前复权日K · 名称／行业：东财（行业用东财分类口径） · 纯前端直连 · 试验页面，与稳定版／beta 互不影响
+    资金单位可切：<b>占成交额 %</b>（按当天成交额标准化，可跨标的比较）／ <b>净流入 亿元</b>（绝对金额；配「每日」会画成<b>红流入绿流出柱</b>，单日 1 亿 / 10 亿的分量一眼可辨）<br>
+    图右上角是<b>口径可信度 r</b> = 窗口内「当日涨跌幅% × 当日资金」的相关系数：个股通常 0.5~0.85（方向可解释），ETF 可能接近 0（该标的的资金线与价格无关，<b>别当方向信号</b>）<br>
+    资金口径：新浪 MoneyFlow（净流入占成交额比／净流入金额） · 价格源：腾讯前复权日K · 名称／行业：东财（行业用东财分类口径） · 纯前端直连 · 试验页面，与稳定版／beta 互不影响
   </div>
 
   <div class="card">
@@ -191,6 +200,7 @@ var S = {
   end: null,       // 窗口右端在 S.rows 中的下标（null = 最新一天）
   pin: false,      // 浮层是否已固定（触摸端轻点/长按后）
   mode: 'cum',     // day=每日净额 | cum=区间累计（默认，更能看清资金累积方向）
+  unit: 'pct',     // 'pct'=净流入占成交额比（%）| 'amt'=净流入金额（亿元）；与 mode 正交
   norm: true,      // 独立双轴·各铺满（beta 分时图策略）—— 默认，看形态共振/背离
   cross: false,    // 趋势交叉（两线共轴·同一起点·自动标注交点）—— 需要看交点时再切
   gap: 0.25,       // 蓝线分离档位（满幅比例，0=贴合）；数值来自 CFG.GAPS
@@ -454,11 +464,15 @@ function paintUI(){
   paintNav();
 
   $('modes').innerHTML = '<span class="lbl">数值口径</span>' +
-    '<span class="chip' + (S.mode === 'day' ? ' on' : '') + '" data-m="day">每日强度</span>' +
+    '<span class="chip' + (S.mode === 'day' ? ' on' : '') + '" data-m="day">每日</span>' +
     '<span class="chip' + (S.mode === 'cum' ? ' on' : '') + '" data-m="cum">区间累计</span>' +
+    '<span class="lbl" style="margin-top:7px">资金单位</span>' +
+    '<span class="chip' + (S.unit !== 'amt' ? ' on' : '') + '" data-u="pct">占成交额 %</span>' +
+    '<span class="chip' + (S.unit === 'amt' ? ' on' : '') + '" data-u="amt">净流入 亿元' +
+      (S.unit === 'amt' && S.mode === 'day' ? '（当前：柱状）' : '') + '</span>' +
     '<span class="lbl" style="margin-top:7px">纵向尺度</span>' +
     '<span class="chip' + (S.norm ? ' on' : '') + '" data-n="1">独立双轴·各铺满（beta 策略）</span>' +
-    '<span class="chip' + (!S.norm && !S.cross ? ' on' : '') + '" data-n="0">原值（真实 % 轴）</span>' +
+    '<span class="chip' + (!S.norm && !S.cross ? ' on' : '') + '" data-n="0">原值（真实 ' + (S.unit === 'amt' ? '亿元' : '%') + ' 轴）</span>' +
     '<span class="chip' + (S.cross ? ' on' : '') + '" data-x="1">趋势交叉（共轴·标交点）</span>' +
     '<span class="lbl" style="margin-top:7px">两线间距（仅趋势交叉）</span>' +
     (function(){
@@ -472,7 +486,12 @@ function paintUI(){
     })();
 
   var cum = (S.mode === 'cum');
-  $('lgStk').innerHTML = '<i style="background:var(--stk)"></i>个股资金强度' + (cum ? '累计' : '') + '（占成交额 %）';
+  var amtU = (S.unit === 'amt');
+  var barU = (amtU && !cum && !S.cross);
+  $('lgStk').innerHTML = amtU
+    ? ('<i style="background:var(--stk)' + (barU ? ';width:9px;height:9px;border-radius:2px;vertical-align:baseline' : '') + '"></i>'
+       + '个股资金' + (cum ? '累计净额' : '每日净额') + '（亿元' + (barU ? ' · 柱' : '') + '）')
+    : ('<i style="background:var(--stk)"></i>个股资金强度' + (cum ? '累计' : '') + '（占成交额 %）');
   if(S.cross){
     $('lgX').style.display = '';
     $('lgX').innerHTML = '<i style="background:#7c3aed;border-radius:50%;width:8px;height:8px"></i>交点（价格 × 个股资金）' +
@@ -580,19 +599,61 @@ function sliceRows(){
   if(end < span - 1) end = span - 1;
   var st = Math.max(0, end - span + 1);
   var base = S.rows.slice(st, end + 1);
-  /* v = 资金强度（%，画线用）；a = 资金净额（亿，浮层/统计用）
-     每日口径 → 取当日值；区间累计 → 自窗口左端逐日累加（% 为简单累加，非复利） */
+  /* 显示字段（随「资金单位」变）：v = 画线/画柱用；v0 = 当日显示值（浮层用）
+     恒定字段（不随单位变）：vr = 当日强度(%)；a0 = 当日净额(亿) —— 统计与相关度都用这两个口径
+     unit='pct' → 占成交额比 %；unit='amt' → 净流入金额 亿元 */
+  var amt = (S.unit === 'amt');
   if(S.mode !== 'cum'){
-    return base.map(function(x){ return {d:x.d, p:x.p, v:x.v, a:x.s, v0:x.v, a0:x.s}; });
+    return base.map(function(x){
+      var dv = amt ? x.s : x.v;
+      return {d:x.d, p:x.p, v:dv, a:x.s, v0:dv, vr:x.v, a0:x.s};
+    });
   }
   var cv = 0, ca = 0, out = [];
   for(var i = 0; i < base.length; i++){
     if(base[i].v != null && isFinite(base[i].v)) cv += base[i].v;
     ca += base[i].s;
-    out.push({d:base[i].d, p:base[i].p, v:cv, a:ca, v0:base[i].v, a0:base[i].s});
+    out.push({d:base[i].d, p:base[i].p,
+              v: amt ? ca : cv,                    /* 累计净额(亿) 或 累计强度(百分点) */
+              a: ca,
+              v0: amt ? base[i].s : base[i].v,     /* 当日值 */
+              vr: base[i].v,                       /* 当日强度 % —— 恒定口径 */
+              a0: base[i].s});                     /* 当日净额 亿 —— 恒定口径 */
   }
   return out;
 }
+
+/* ══════════════ 口径可信度 ══════════════
+   窗口内「当日涨跌幅% × 当日资金指标」的皮尔逊相关 r。
+   ⚠️ 必须用「不累计」的日度口径 —— 累计序列自带单调趋势，算出来的 r 会虚高，不能用来判断口径好坏。
+   unit='amt' → 资金指标取当日净额(亿元)；否则 → 取当日占成交额比(%)。
+   实测参考（2026-09-17）：个股稳定 +0.58~+0.84；ETF 从 −0.57 到 +0.60 乱跳（588170 ≈ 0）。 */
+function calcR(rows, unit){
+  var xs = [], ys = [], k;
+  for(var i = 1; i < rows.length; i++){
+    var pa = rows[i - 1].p, pb = rows[i].p;
+    if(pa == null || pb == null || !isFinite(pa) || !isFinite(pb) || pa <= 0) continue;
+    var y = (unit === 'amt') ? rows[i].a0 : rows[i].vr;
+    if(y == null || !isFinite(y)) continue;
+    xs.push((pb - pa) / pa * 100); ys.push(y);
+  }
+  var n = xs.length;
+  if(n < 8) return null;
+  var mx = 0, my = 0;
+  for(k = 0; k < n; k++){ mx += xs[k]; my += ys[k]; }
+  mx /= n; my /= n;
+  var sxy = 0, sxx = 0, syy = 0;
+  for(k = 0; k < n; k++){
+    var dx = xs[k] - mx, dy = ys[k] - my;
+    sxy += dx * dy; sxx += dx * dx; syy += dy * dy;
+  }
+  if(sxx <= 1e-12 || syy <= 1e-12) return null;
+  return {r: sxy / Math.sqrt(sxx * syy), n: n};
+}
+/* 分级：|r| >= 0.5 方向可解释 ｜ 0.2 ~ 0.5 偏弱 ｜ < 0.2 与价格基本无关 */
+function rLevel(r){ var a = Math.abs(r); return a >= 0.5 ? 'ok' : (a >= 0.2 ? 'mid' : 'no'); }
+function rWord(r){ var a = Math.abs(r); return a >= 0.5 ? '有效' : (a >= 0.2 ? '偏弱' : '无关'); }
+function rUnitName(unit){ return (unit === 'amt') ? '净额亿元' : '占成交额%'; }
 
 /* ══════════════ 绘制 ══════════════ */
 function render(){
@@ -652,6 +713,8 @@ function render(){
   /* ── 三种纵向尺度：raw 真实 % 轴 | norm 各自缩放 | cross 共轴（趋势交叉） ── */
   var vm = S.cross ? 'cross' : (S.norm ? 'norm' : 'raw');
   var GAP = (vm === 'cross') ? (S.gap || 0) : 0;   /* 蓝线分离档位（满幅比例，0=贴合） */
+  /* 资金线形态：只有「净额（亿元）+ 每日口径 + 非共轴」才画柱 —— 每日净额有正有负，柱状最直观 */
+  var asBar = (S.unit === 'amt' && S.mode !== 'cum' && vm !== 'cross');
 
   /* 纵向尺度：对齐「量能做T beta 版」分时组合图的做法 ——
      价格轴/资金轴各自独立满幅；资金轴额外强制把 0 纳入范围（正负一眼分明）；
@@ -797,17 +860,46 @@ function render(){
   var svg = [];
   svg.push('<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;display:block">');
   svg.push(g.join(''));
-  if(haveV) svg.push('<path d="' + pathOf('v', yS) + '" fill="none" stroke="#d92b2b" stroke-width="1.5" stroke-linejoin="round"/>');
+  if(haveV && asBar){
+    /* 每日净额柱：红=净流入 绿=净流出；基线取资金轴的 0 位 */
+    var yZero = yS(0);
+    var bw = Math.max(pw / n * 0.66, 1.2);
+    var bars = [];
+    for(var bb = 0; bb < n; bb++){
+      var bv = rows[bb].v;
+      if(bv == null || !isFinite(bv)) continue;
+      var yb = yS(bv, bb);
+      if(yb == null || !isFinite(yb)) continue;
+      var yt = Math.min(yb, yZero);
+      var bh = Math.max(Math.abs(yb - yZero), 0.9);
+      bars.push('<rect x="' + (X(bb) - bw / 2).toFixed(1) + '" y="' + yt.toFixed(1) +
+                '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) +
+                '" fill="' + (bv >= 0 ? '#d92b2b' : '#0f9d58') + '" opacity="0.78"/>');
+    }
+    svg.push(bars.join(''));
+    svg.push('<line x1="' + L + '" y1="' + yZero.toFixed(1) + '" x2="' + (L + pw) + '" y2="' + yZero.toFixed(1) +
+             '" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3"/>');
+    svg.push('<text x="' + (L - 5) + '" y="' + (yZero + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">0</text>');
+  } else if(haveV){
+    svg.push('<path d="' + pathOf('v', yS) + '" fill="none" stroke="#d92b2b" stroke-width="1.5" stroke-linejoin="round"/>');
+  }
   if(haveP) svg.push('<path d="' + pathOf('p', yP) + '" fill="none" stroke="#2563eb" stroke-width="1.9" stroke-linejoin="round"/>');
   svg.push(gm.join(''));
   svg.push('</svg>');
   svg.push('<div class="cross" id="cross"></div>');
   svg.push('<div class="tip" id="tip"></div>');
+  /* 口径可信度角标：窗口内 r(涨跌幅%, 资金指标)，贴右上角 */
+  var rr = haveP ? calcR(rows, S.unit) : null;
+  if(rr){
+    svg.push('<div class="rbg ' + rLevel(rr.r) + '">' + (mob ? '' : '资金口径 ') +
+             'r=' + sgn(rr.r, 2) + ' ' + rWord(rr.r) + '</div>');
+  }
 
   cw.innerHTML = svg.join('');
-  S.view = {W:W, H:H, L:L, T:T, pw:pw, n:n, rows:rows, pDigits:pDigits, xg:xg, vm:vm, gap:GAP, scS:scS, scP:scP};
+  S.view = {W:W, H:H, L:L, T:T, pw:pw, n:n, rows:rows, pDigits:pDigits, xg:xg, vm:vm, gap:GAP, scS:scS, scP:scP,
+            unit:S.unit, asBar:asBar};
 
-  capAndStat(rows, haveP);
+  capAndStat(rows, haveP, rr);
 
   /* 布局稳定后若容器宽度变了（例如出现滚动条），重绘一次以精确匹配宽度 */
   if(!S._fixW && Math.abs((Math.round(cw.clientWidth) || 0) - W) > 2){
@@ -816,14 +908,16 @@ function render(){
   }
 }
 
-function capAndStat(rows, haveP){
+function capAndStat(rows, haveP, rr){
   var first = rows[0], last = rows[rows.length - 1];
   var n = rows.length;
   var cumA = 0, sumV = 0, vCnt = 0, inS = 0, outS = 0, vMax = null, vMin = null;
   for(var i = 0; i < n; i++){
     cumA += rows[i].a0;
     if(rows[i].a0 > 0) inS++; else if(rows[i].a0 < 0) outS++;
-    var dv = rows[i].v0;
+    /* ⚠️ 统计恒用 vr（当日强度%）与 a0（当日净额亿）两个固定口径，
+       不受「资金单位」切换影响 —— 否则 sumV 会在亿元与百分点之间来回变 */
+    var dv = rows[i].vr;
     if(dv != null && isFinite(dv)){
       sumV += dv; vCnt++;
       if(vMax == null || dv > vMax) vMax = dv;
@@ -840,11 +934,36 @@ function capAndStat(rows, haveP){
   if(haveP && chg != null){
     cap += ' · 收盘价 ' + px2(pLast, digits) + ' 元（区间 <span class="' + cls(chg) + '">' + sgn(chg, 2) + '%</span>）';
   }
-  cap += '<br>资金线口径 = <b>净流入占当日成交额比（%）</b>';
-  cap += (S.mode === 'cum')
-    ? '，当前为 <b>区间累计</b>：自 ' + first.d + ' 起逐日累加（百分点的简单累加，非复利），平移窗口会重新起算（浮层显示的仍是当日值）'
-    : '，当前为 <b>每日</b>：只画当日强度，纵向幅度才如实反映单日大小';
+  var amtU = (S.unit === 'amt');
+  var asBar = !!(S.view && S.view.asBar);
+  cap += '<br>资金线口径 = <b>' + (amtU ? '净流入金额（亿元）' : '净流入占当日成交额比（%）') + '</b>';
+  if(S.mode === 'cum'){
+    cap += '，当前为 <b>区间累计</b>：自 ' + first.d + ' 起逐日累加'
+         + (amtU ? '（单位：亿元）' : '（百分点的简单累加，非复利）')
+         + '，平移窗口会重新起算（浮层显示的仍是当日值）';
+  } else if(asBar){
+    cap += '，当前为 <b>每日 · 柱状</b>：每根柱就是当天的净流入金额（<b style="color:var(--up)">红=流入</b>／'
+         + '<b style="color:var(--down)">绿=流出</b>），纵向幅度 <b>如实反映单日大小</b>。'
+         + '<span class="hot">区间累计会把逐日高低磨平（588170 实测：累计极差 158 亿 → 单日 1 亿只占图高 0.6%），要看「1 亿 / 10 亿到底多大」只能用这个模式</span>';
+  } else {
+    cap += '，当前为 <b>每日</b>：只画当日值，纵向幅度才如实反映单日大小';
+  }
   cap += '<br>资金为 <b>日终值</b>，较价格滞后一档（新浪盘后更新）；价格已前复权';
+
+  /* ── 口径可信度（r 角标的完整解释）── */
+  if(rr){
+    var rl = rLevel(rr.r);
+    cap += '<br>口径可信度（窗口内 n=' + rr.n + ' 天）：<b class="' + (rl === 'no' ? 'bad' : (rl === 'mid' ? 'hot' : '')) + '">r = '
+         + sgn(rr.r, 2) + '</b> · 当日涨跌幅% × 当日' + rUnitName(S.unit) + ' → ';
+    if(rl === 'ok')       cap += '<b>方向可解释</b>：这条资金线与价格同向，可作参考。';
+    else if(rl === 'mid') cap += '<b>偏弱</b>：只能当弱参考，别单独拿它判方向。';
+    else                  cap += '<b>与价格基本无关</b>：在该标的上这条线 <b>不含价格方向信息</b>，'
+                               + '别据此判断「主力在不在」。ETF 常见此现象（申赎 + 做市双边报价把大单的方向性稀释掉了）。';
+    cap += '<br><span class="' + (rl === 'no' ? 'bad' : (rl === 'mid' ? 'hot' : '')) + '">判据：|r| ≥ 0.5 有效 ／ 0.2 ~ 0.5 偏弱 ／ &lt; 0.2 无解释力。'
+         + '用<b>不累计</b>的日度口径算（累计序列自带趋势，算出来会虚高，不能用）。</span>';
+  } else if(haveP){
+    cap += '<br>口径可信度：窗口内可配对交易日不足 8 天，样本太少，本次不显示 r。';
+  }
   if(S.norm){
     cap += '<br>当前为 <b>独立双轴</b>（beta 分时图同款 Y 轴策略）：<b style="color:var(--pl)">价格轴</b>按窗口收盘价、'
          + '<b style="color:var(--stk)">资金轴</b>按窗口资金强度各自铺满整高，资金轴强制把 0 纳入范围（正负一眼分明），上下各留 10% 余量。'
@@ -965,12 +1084,18 @@ function showAt(clientX){
   var ch = (ap && ap.p) ? (r.p - ap.p) / ap.p * 100 : 0;
   var dg = v.pDigits || 2;
   var dv = (r.v0 == null ? r.v : r.v0), da = (r.a0 == null ? r.a : r.a0);
+  var amtU = (v.unit === 'amt');
 
   var tip = $('tip');
   var html = ['<div class="dt">' + r.d + '</div>'];
   if(r.p != null) html.push('<div class="rw"><s style="background:#2563eb"></s><em>收盘</em><b>' + px2(r.p, dg) + ' <span class="' + cls(ch) + '">' + sgn(ch, 2) + '%</span></b></div>');
-  html.push('<div class="rw"><s style="background:#d92b2b"></s><em>资金强度</em><b class="' + cls(dv) + '">' + (dv == null ? '—' : sgn(dv, 2) + '%') + '</b></div>');
-  html.push('<div class="rw"><s style="background:#c9ced6"></s><em>资金净额</em><b class="' + cls(da) + '">' + sgn(da, 2) + ' 亿</b></div>');
+  if(amtU){
+    html.push('<div class="rw"><s style="background:#d92b2b"></s><em>' + (S.mode === 'cum' ? '当日净额' : '净流入') + '</em><b class="' + cls(dv) + '">' + sgn(dv, 2) + ' 亿</b></div>');
+    html.push('<div class="rw"><s style="background:#c9ced6"></s><em>占成交额</em><b class="' + cls(r.vr) + '">' + (r.vr == null ? '—' : sgn(r.vr, 2) + '%') + '</b></div>');
+  } else {
+    html.push('<div class="rw"><s style="background:#d92b2b"></s><em>资金强度</em><b class="' + cls(dv) + '">' + (dv == null ? '—' : sgn(dv, 2) + '%') + '</b></div>');
+    html.push('<div class="rw"><s style="background:#c9ced6"></s><em>资金净额</em><b class="' + cls(da) + '">' + sgn(da, 2) + ' 亿</b></div>');
+  }
   if(v.xg && v.xg.length){
     var hits = [];
     for(var hx = 0; hx < v.xg.length; hx++){
@@ -1111,6 +1236,7 @@ document.addEventListener('click', function(e){
   var nn = t.getAttribute('data-n');
   var xx = t.getAttribute('data-x');
   var sg = t.getAttribute('data-g');
+  var un = t.getAttribute('data-u');
   if(c){ load(c, (t.textContent || '').replace(c, '').trim()); return; }
   S.pin = false; clearIdle(); hideTip();
   if(m){
@@ -1118,6 +1244,12 @@ document.addEventListener('click', function(e){
       S.mode = m;
       if(S.mode === 'day' && S.cross){ S.cross = false; S.crossHold = true; }        /* 交叉只在「区间累计」下成立，先记一笔 */
       else if(S.mode === 'cum' && S.crossHold){ S.cross = true; S.crossHold = false; }/* 切回累计 → 交点自动回来 */
+      paintUI(); render();
+    }
+  }
+  else if(un !== null){
+    if(un !== S.unit){
+      S.unit = (un === 'amt') ? 'amt' : 'pct';
       paintUI(); render();
     }
   }
