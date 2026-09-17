@@ -239,6 +239,32 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzadd input{flex:1;min-width:0;padding:8px 10px;border:1px solid #93c5fd;border-radius:8px;font-size:16px;background:#fff}
 .rzadd input:focus{outline:none;border-color:var(--info);box-shadow:0 0 0 3px rgba(37,99,235,.16)}
 .rzadd .rzaddlbl{color:var(--info);font-size:15px;font-weight:800;line-height:1}
+/* 自选下拉列表（输入框下方）：查看已添加的个股 / 点击置顶 / 逐项删除（二次确认） */
+.rzsel{margin:0 0 6px}
+.rzselbtn{display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--txt2);font-size:12.5px;font-weight:700;cursor:pointer;text-align:left}
+.rzselbtn:active{filter:brightness(.97)}
+.rzselbtn .rzselar{margin-left:auto;font-style:normal;font-size:11px;color:var(--txt3)}
+.rzselbtn b{color:var(--info);font-weight:800;font-variant-numeric:tabular-nums}
+.rzselpop{margin-top:5px;border:1px solid var(--line);border-radius:10px;background:var(--card);max-height:262px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.rzselrow{display:flex;align-items:center;gap:5px;padding:7px 7px 7px 10px;border-bottom:1px solid var(--line2);font-size:12.5px;cursor:pointer}
+.rzselrow:last-child{border-bottom:0}
+.rzselrow:active{background:var(--line2)}
+.rzselrow.cf{background:#fff5f5}
+html[data-theme="dark"] .rzselrow.cf{background:#2d1719}
+.rzselnm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:var(--txt)}
+.rzselnm i{font-style:normal;font-weight:500;font-size:11px;color:var(--txt3);margin-left:4px;font-variant-numeric:tabular-nums}
+.rzselrow.cf .rzselnm{color:#e5484d}
+.rzselpin{font-size:11px;line-height:1;flex:0 0 auto}
+.rzselcf{color:#e5484d;font-size:11px;font-weight:800;white-space:nowrap;flex:0 0 auto}
+.rzselpx{font-size:12px;font-weight:700;white-space:nowrap;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.rzselpx.up{color:var(--up)}
+.rzselpx.down{color:var(--down)}
+.rzselpx.flat{color:var(--txt3)}
+.rzselx{flex:0 0 auto;min-width:30px;height:26px;padding:0 6px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--txt3);font-size:14px;line-height:1;cursor:pointer}
+.rzselx.cf{border-color:#e5484d;background:#e5484d;color:#fff;font-size:11px;font-weight:800}
+html[data-theme="dark"] .rzselx{background:#1b2330}
+html[data-theme="dark"] .rzselx.cf{background:#e5484d;color:#fff}
+.rzselempty{padding:9px 10px;color:var(--txt3);font-size:12px}
 .flow-up{color:#e5484d}
 .flow-down{color:#1f9d55}
 /* 资金阈值标志：开市后板块/个股当日累计主力净流入达到 ±N 亿时的醒目徽章 */
@@ -754,6 +780,14 @@ html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
       <input id="rzInp" placeholder="输入 6 位代码，如 600667 / 588170" maxlength="6" inputmode="numeric" autocomplete="off">
 
       <button class="primary" id="rzAdd" type="button">添加</button>
+
+    </div>
+
+    <div class="rzsel">
+
+      <button class="rzselbtn" id="rzSelBtn" type="button">自选（空）<i class="rzselar">▾</i></button>
+
+      <div class="rzselpop" id="rzSelPop" style="display:none"></div>
 
     </div>
 
@@ -6349,7 +6383,7 @@ function rzSave(){ try{ localStorage.setItem('rz_watch', JSON.stringify(RZ.list)
 function rzSortOrder(){
 
   if(RZ.sortMode === 'raw'){
-    RZ.order = RZ.list.slice().sort(function(a, b){ return (b._at - a._at) * RZ.rawDir; }).map(function(x){ return x.c; });
+    RZ.order = RZ.list.slice().sort(function(a, b){ var p = (b._pin ? 1 : 0) - (a._pin ? 1 : 0); if(p) return p; return (b._at - a._at) * RZ.rawDir; }).map(function(x){ return x.c; });
     return;
   }  // 按添加时间排序，rawDir 控制方向
 
@@ -6362,6 +6396,10 @@ function rzSortOrder(){
     var ca = (oa && oa.v && oa.v.cls) || 'na';
 
     var cb = (ob && ob.v && ob.v.cls) || 'na';
+
+    var pa = a._pin ? 1 : 0, pb = b._pin ? 1 : 0;
+
+    if(pa !== pb) return pb - pa;      // 置顶的永远排在最前
 
     var ra = rank.hasOwnProperty(ca) ? rank[ca] : 2, rb = rank.hasOwnProperty(cb) ? rank[cb] : 2;
 
@@ -8728,7 +8766,7 @@ function rzRender(){
 
   if(!body) return;
 
-  if(!RZ.list.length){ body.innerHTML = '<div class="hint" style="color:var(--txt3);padding:6px 0">暂无自选，输入代码点「添加」开始。</div>'; rzAnomBar(); if(tag){ tag.textContent = '空'; tag.className = 'pill na'; } return; }
+  if(!RZ.list.length){ body.innerHTML = '<div class="hint" style="color:var(--txt3);padding:6px 0">暂无自选，输入代码点「添加」开始。</div>'; RZ._selCf = null; RZ._selOpen = false; rzSelRender(true); rzAnomBar(); if(tag){ tag.textContent = '空'; tag.className = 'pill na'; } return; }
 
   if(!RZ.order.length) RZ.order = RZ.list.map(function(x){ return x.c; });
 
@@ -8739,6 +8777,8 @@ function rzRender(){
   if(RZ.sortMode === 'res' && (RZ.sortDirty || (!RZ.initialSorted && allReady))){ rzSortOrder(); RZ.sortDirty = false; RZ.initialSorted = true; }
 
   else if(RZ.sortMode === 'raw' && RZ.sortDirty){ rzSortOrder(); RZ.sortDirty = false; RZ.initialSorted = true; }
+
+  rzSelRender();      // 自选下拉与卡片同源：增删/置顶后立即反映
 
   var html = '', ok = 0;
 
@@ -9136,6 +9176,210 @@ function rzAdd(codeRaw){
 
 }
 
+// ── 自选下拉列表（输入框下方）：查看已添加个股、点击置顶、逐项删除（二次确认） ──
+
+function rzItem(code){
+
+  var hit = null;
+
+  RZ.list.forEach(function(x){ if(x.c === code) hit = x; });
+
+  return hit;
+
+}
+
+function rzSelToggle(forceOpen){
+
+  var box = $("rzSelPop"), btn = $("rzSelBtn");
+
+  if(!box || !btn) return;
+
+  if(!RZ.list.length && !RZ._selOpen){
+
+    var h = $("rzHint"); if(h) h.textContent = "还没有自选：先在上面输入 6 位代码，点「添加」。";
+
+    return;
+
+  }
+
+  RZ._selOpen = (forceOpen === true) ? true : !RZ._selOpen;
+
+  if(!RZ._selOpen && RZ._selCf) rzSelCfClear();
+
+  RZ._selSig = "";
+
+  rzSelRender(true);
+
+}
+
+function rzSelRender(force){
+
+  var box = $("rzSelPop"), btn = $("rzSelBtn");
+
+  if(!box || !btn) return;
+
+  var open = !!RZ._selOpen;
+
+  box.style.display = open ? "block" : "none";
+
+  btn.innerHTML = (RZ.list.length ? ("自选 <b>" + RZ.list.length + "</b> 只") : "自选（空）") + '<i class="rzselar">' + (open ? "▴" : "▾") + "</i>";
+
+  if(!open && !force) return;
+
+  var codes = RZ.order.filter(function(c){ return RZ.list.some(function(x){ return x.c === c; }); });      // 顺序与下面卡片一致，并剔除已删除的残留
+
+  RZ.list.forEach(function(x){ if(codes.indexOf(x.c) < 0) codes.push(x.c); });
+
+  var cf = (RZ._selCf && RZ.list.some(function(x){ return x.c === RZ._selCf.code; })) ? RZ._selCf.code : "";
+
+  var sig = codes.join(",") + "|" + codes.map(function(c){ var it = rzItem(c); return (it && it._pin) ? 1 : 0; }).join("") + "|" + cf + "|" + codes.map(function(c){ var o = RZ.state[c]; return (o && o.quote) ? (o.quote.name + ":" + o.quote.pct) : ""; }).join(",");
+
+  if(!force && sig === RZ._selSig) return;
+
+  RZ._selSig = sig;
+
+  if(!codes.length){ box.innerHTML = '<div class="rzselempty">还没有自选，输入 6 位代码点「添加」</div>'; return; }
+
+  var h = "";
+
+  codes.forEach(function(c){
+
+    var o = RZ.state[c] || {}, q = o.quote;
+
+    var nm = (q && q.name) ? q.name : c;
+
+    var it = rzItem(c), isCf = (cf === c);
+
+    var pct = (q && isFinite(q.pct)) ? q.pct : null;
+
+    h += '<div class="rzselrow' + (isCf ? " cf" : "") + '" data-pick="' + c + '"' + (isCf ? ' data-cf="1"' : "") + ">" +
+
+      ((it && it._pin) ? '<span class="rzselpin" title="已置顶">📌</span>' : "") +
+
+      '<span class="rzselnm">' + esc(nm) + "<i>" + esc(c) + "</i></span>" +
+
+      (isCf ? '<span class="rzselcf">确认删除？</span>' : "") +
+
+      ((pct === null) ? "" : '<span class="rzselpx ' + cls(pct) + '">' + pctS(pct) + "</span>") +
+
+      '<button class="rzselx' + (isCf ? " cf" : "") + '" type="button" data-del="' + c + '" title="删除">' + (isCf ? "删除" : "×") + "</button>" +
+
+    "</div>";
+
+  });
+
+  box.innerHTML = h;
+
+}
+
+function rzSelCfClear(){
+
+  if(RZ._selCf && RZ._selCf.t) clearTimeout(RZ._selCf.t);
+
+  RZ._selCf = null;
+
+  rzSelRender(true);
+
+}
+
+function rzSelDel(code){
+
+  var hh = $("rzHint");
+
+  if(RZ._selCf && RZ._selCf.code === code){        // 第二次点 → 真删
+
+    if(RZ._selCf.t) clearTimeout(RZ._selCf.t);
+
+    RZ._selCf = null;
+
+    var nm0 = (RZ.state[code] && RZ.state[code].quote && RZ.state[code].quote.name) || code;
+
+    rzRemove(code);
+
+    rzSelRender(true);
+
+    if(hh) hh.textContent = "已删除 " + nm0 + " " + code + "（想加回来：在上面输入代码即可）";
+
+    return;
+
+  }
+
+  RZ._selCf = { code: code, t: setTimeout(function(){ RZ._selCf = null; rzSelRender(true); }, 3000) };
+
+  rzSelRender(true);
+
+  if(hh) hh.textContent = "再点一次「删除」确认删除 " + code + "（3 秒内有效）";
+
+}
+
+function rzTop(code){
+
+  var it = rzItem(code); if(!it) return;
+
+  var on = !it._pin;
+
+  RZ.list.forEach(function(x){ delete x._pin; });    // 单一置顶：换一只即取消上一只
+
+  if(on) it._pin = 1;
+
+  rzSave();
+
+  RZ.sortDirty = true; RZ.initialSorted = true;
+
+  rzRender();
+
+  rzSelRender(true);
+
+  var nm = (RZ.state[code] && RZ.state[code].quote && RZ.state[code].quote.name) || code;
+
+  var h = $("rzHint");
+
+  if(h) h.textContent = on ? ("已置顶 " + nm + " " + code + "（再点一次取消置顶）") : ("已取消置顶 " + nm + " " + code);
+
+  var card = document.querySelector('.rzcard[data-rzc="' + code + '"]');
+
+  if(card){
+
+    try{ card.scrollIntoView({behavior:"smooth", block:"nearest"}); }catch(e){ try{ card.scrollIntoView(); }catch(e2){} }
+
+    card.classList.add("rzflash");
+
+    setTimeout(function(){ card.classList.remove("rzflash"); }, 1200);
+
+  }
+
+}
+
+function rzSelClick(e){
+
+  var t = e.target; if(!t) return;
+
+  var row = (t.closest ? t.closest(".rzselrow") : null);
+
+  if(!row){
+
+    var p = t;
+
+    while(p && p.getAttribute){ if(String(p.className || "").indexOf("rzselrow") >= 0){ row = p; break; } p = p.parentNode; }
+
+  }
+
+  if(!row) return;
+
+  var code = row.getAttribute("data-pick"); if(!code) return;
+
+  var x = (t.closest ? t.closest(".rzselx") : null);
+
+  if(x){ rzSelDel(code); return; }
+
+  if(row.getAttribute("data-cf") === "1"){ rzSelCfClear(); return; }   // 确认态点行内其他位置 = 取消
+
+  if(RZ._selCf) rzSelCfClear();
+
+  rzTop(code);
+
+}
+
 function rzRemove(code){
 
   RZ.list = RZ.list.filter(function(x){ return x.c !== code; });
@@ -9173,6 +9417,26 @@ function rzStart(){
       Array.prototype.forEach.call(document.querySelectorAll('.rzsort'), function(b){ b.classList.toggle('on', b === btn); });
 
     });
+
+  });
+
+  var selBtn = $('rzSelBtn'), selPop = $('rzSelPop');
+
+  if(selBtn) selBtn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); rzSelToggle(); });
+
+  if(selPop) selPop.addEventListener('click', function(e){ e.stopPropagation(); rzSelClick(e); });
+
+  // 点面板外 → 收起（同时取消未完成的删除确认）
+
+  document.addEventListener('click', function(e){
+
+    if(!RZ._selOpen) return;
+
+    var t = e.target, inPop = selPop && (t === selPop || (selPop.contains && selPop.contains(t)));
+
+    var inBtn = selBtn && (t === selBtn || (selBtn.contains && selBtn.contains(t)));
+
+    if(!inPop && !inBtn) rzSelToggle();
 
   });
 
