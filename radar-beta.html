@@ -291,6 +291,8 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 .rzchart svg{width:100%;height:auto;aspect-ratio:3/1;display:block}
 
 .rzchartcap{font-size:10.5px;color:#aeb6c1;text-align:center;padding-top:2px}
+.rzchartcap .rzlago{color:#d97706}
+.rzchartcap .rzlagr{color:#dc2626;font-weight:600}
 
 .rzover{position:absolute;left:0;right:0;top:0;bottom:0;cursor:crosshair;touch-action:pan-y pinch-zoom;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;z-index:3}
 
@@ -1275,6 +1277,18 @@ var CFG = {
   TIP: {
 
     IDLE_MS: 5000       // 点击固定（📌）后，图上无操作多久自动收起（毫秒）；改大留更久、改小收更快
+
+  },
+
+  // 组合图末端对齐（beta A+C）：三条曲线各来自不同接口、各自到达即重绘 → 末端会差 1 分钟。
+
+  // A = 各线裁到「最早的截止时刻」，末端永远齐平；C = caption 标出各线数据截止时刻。
+
+  SYNC: {
+
+    ENABLED: true,       // false = 关闭末端对齐，恢复原样
+
+    MAX_GAP_MIN: 2       // 相差超过 N 个交易分钟就不硬裁（硬截会丢太多最新信息），改为标红提醒
 
   },
 
@@ -7123,6 +7137,128 @@ function tradeMin(m){ if(!isFinite(m)) return 0; if(m < 690) return Math.max(0, 
 
 function clockMin(tm){ if(!isFinite(tm)) return 570; if(tm <= 120) return tm + 570; return Math.min(900, tm + 660); }
 
+// —— 组合图末端对齐（beta A+C）。三条曲线由三个独立请求驱动，谁先到就先画谁，
+
+//    先到的那条已走到最新分钟、未到的仍是上一轮 → 末端错开 1 分钟。以下为纯显示层修正。
+
+function rzElClock(el){                        // 取一条数据的时间（时钟分钟），兼容 ['09:31',v] 与 {t:'09:31'}
+
+  if(el == null) return NaN;
+
+  var t = (typeof el === 'object') ? ((el.t !== undefined) ? el.t : el[0]) : el;
+
+  var p = String(t == null ? '' : t).split(':');
+
+  if(p.length < 2) return NaN;
+
+  var m = parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+
+  return isFinite(m) ? m : NaN;
+
+}
+
+function rzHMtm(tm){                           // 交易分钟 → HH:MM
+
+  if(!isFinite(tm)) return '--:--';
+
+  var m = Math.round(clockMin(tm));
+
+  return ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2);
+
+}
+
+function rzSerLastTm(ser){                     // 序列最后一个有效点的交易分钟
+
+  if(!ser || !ser.length) return NaN;
+
+  for(var i = ser.length - 1; i >= 0; i--){ var m = rzElClock(ser[i]); if(isFinite(m)) return tradeMin(m); }
+
+  return NaN;
+
+}
+
+function rzSerCut(ser, tEndTm){                // 裁掉晚于 tEndTm 的点（午休用交易分钟比较：11:30 与 13:00 同为 120）
+
+  if(!ser || !ser.length || !isFinite(tEndTm)) return ser;
+
+  var out = [];
+
+  for(var i = 0; i < ser.length; i++){ var m = rzElClock(ser[i]); if(!isFinite(m) || tradeMin(m) <= tEndTm) out.push(ser[i]); }
+
+  if(out.length < 2) return ser;               // 裁完不足以成线就放弃裁剪，避免画不出
+
+  return out;
+
+}
+
+function rzSyncInfo(items){                    // items: [{ser, label}] → 各线截止时刻 / 最早截止 / 是否超阈值
+
+  var tEnd = Infinity, maxEnd = -Infinity, list = [];
+
+  var cfg = (typeof CFG === 'object' && CFG.SYNC) ? CFG.SYNC : { ENABLED: true, MAX_GAP_MIN: 2 };
+
+  for(var i = 0; i < items.length; i++){
+
+    var tm = rzSerLastTm(items[i].ser);
+
+    list.push({ label: items[i].label, tm: tm });
+
+    if(isFinite(tm)){ if(tm < tEnd) tEnd = tm; if(tm > maxEnd) maxEnd = tm; }
+
+  }
+
+  var gap = (isFinite(tEnd) && isFinite(maxEnd)) ? (maxEnd - tEnd) : 0;
+
+  return { tEnd: isFinite(tEnd) ? tEnd : NaN, maxEnd: isFinite(maxEnd) ? maxEnd : NaN, gap: gap, list: list,
+
+           on: cfg.ENABLED !== false, hard: gap > ((cfg.MAX_GAP_MIN === undefined) ? 2 : cfg.MAX_GAP_MIN) };
+
+}
+
+function rzSyncApply(items){                   // 返回 { info, sers:[…裁剪后…] }
+
+  var info = rzSyncInfo(items);
+
+  var cut = info.on && !info.hard && info.gap > 0 && isFinite(info.tEnd);
+
+  var sers = [];
+
+  for(var i = 0; i < items.length; i++) sers.push(cut ? rzSerCut(items[i].ser, info.tEnd) : items[i].ser);
+
+  return { info: info, sers: sers };
+
+}
+
+function rzSyncCap(info){                      // C：caption 里的「数据至 / 落后」文字段
+
+  if(!info || !info.list.length || !info.on) return '';
+
+  var ok = [];
+
+  for(var i = 0; i < info.list.length; i++) if(isFinite(info.list[i].tm)) ok.push(info.list[i]);
+
+  if(!ok.length) return '';
+
+  if(info.gap === 0) return ' · 数据至 ' + rzHMtm(info.tEnd);
+
+  if(info.hard){                               // 差距过大：不裁，逐条列出并标红
+
+    var arr = [];
+
+    for(var j = 0; j < ok.length; j++) arr.push(ok[j].label + ' ' + rzHMtm(ok[j].tm));
+
+    return ' · <span class="rzlagr">⚠ 未对齐：' + arr.join(' / ') + '</span>';
+
+  }
+
+  var lag = [];                                // 已裁齐：说明谁更新得更晚（被截掉的那 1 分钟）
+
+  for(var k = 0; k < ok.length; k++) if(ok[k].tm > info.tEnd) lag.push(ok[k].label + ' ' + rzHMtm(ok[k].tm));
+
+  return ' · 数据至 ' + rzHMtm(info.tEnd) + (lag.length ? ' <span class="rzlago">（' + lag.join('、') + ' 更晚）</span>' : '');
+
+}
+
 // ===== beta：横轴自适应（解决开盘初期曲线挤在左下角）=====
 
 // 旧版横轴固定全天 0→240，开盘头一段数据只占整幅宽度百分之几，
@@ -7241,6 +7377,30 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
   if(!bdSer || bdSer.length < 2) return '';
 
+  // 末端对齐（A）：板块资金 / 个股资金 / 个股分线 / 上证%（灰虚线）裁到最早的截止时刻。
+
+  // 上证% 不能漏：它来自页面公共数据，若不参与，裁剪后它会独自凸在最右边、反而新造一处不齐。
+
+  var _idxToday = (STATE.idx && STATE.idx.trends && STATE.idx.trends.today) ? STATE.idx.trends.today : null;
+
+  var _sy = rzSyncApply([
+
+    { ser: bdSer, label: '板块' },
+
+    { ser: stkSer, label: '个股' },
+
+    { ser: (stkTr && stkTr.today) ? stkTr.today : null, label: '分线' },
+
+    { ser: _idxToday, label: '上证' }
+
+  ]);
+
+  bdSer = _sy.sers[0]; stkSer = _sy.sers[1];
+
+  if(stkTr && stkTr.today) stkTr = { today: _sy.sers[2], yest: stkTr.yest, preClose: stkTr.preClose };
+
+  var _mToday = _sy.sers[3];        // 已裁的上证分时（仅用于画灰虚线，不写回全局）
+
   var W = 600, H = comboH(), ML = 16, MR = 16, MT = 16, MB = 16;
 
   var pw = W - ML - MR, ph = H - MT - MB;
@@ -7306,11 +7466,11 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
   var mpts = [], hasMkt = false;
 
-  if(STATE.idx && STATE.idx.trends && STATE.idx.trends.today && STATE.idx.trends.today.length && isFinite(STATE.idx.trends.preClose) && STATE.idx.trends.preClose > 0){
+  if(_mToday && _mToday.length && STATE.idx && STATE.idx.trends && isFinite(STATE.idx.trends.preClose) && STATE.idx.trends.preClose > 0){
 
     var mpc = STATE.idx.trends.preClose;
 
-    for(var mii = 0; mii < STATE.idx.trends.today.length; mii++){ var moo = STATE.idx.trends.today[mii]; var mm = parseMin(moo.t); if(!isFinite(mm)) continue;
+    for(var mii = 0; mii < _mToday.length; mii++){ var moo = _mToday[mii]; var mm = parseMin(moo.t); if(!isFinite(mm)) continue;
 
       var mcl = (moo.close > 0 ? moo.close : (moo.open > 0 ? moo.open : NaN)); if(!isFinite(mcl)) continue;
 
@@ -7438,9 +7598,31 @@ function rzFlowComboSVG(bdSer, stkSer, bdA, stkA, stkTr){
 
 // 只画价格线（不含量柱）。资金轴右、价格轴左，双 y 轴；零轴/昨收各作基准虚线。
 
-function rzIndexComboSVG(tr, flowSer, a, priceLabel, showPct){
+function rzIndexComboSVG(tr, flowSer, a, priceLabel, showPct, sync){
 
   if(!tr || !tr.today || !tr.today.length) return '<div class="rzna">分线数据不足</div>';
+
+  // 末端对齐（A）：价格线 / 资金线 裁到最早的截止时刻。
+
+  // 仅自选卡的个股图传 sync=true 启用；置顶卡（上证）不传，保持原样不受影响。
+
+  // 标注用的 a.peak.i / a.flipDown.i 基于原 flowSer，只裁尾不裁头，索引仍然对齐。
+
+  if(sync){
+
+    var _sy = rzSyncApply([
+
+      { ser: tr.today, label: priceLabel || '分线' },
+
+      { ser: flowSer, label: '资金' }
+
+    ]);
+
+    tr = { today: _sy.sers[0], yest: tr.yest, preClose: tr.preClose };
+
+    flowSer = _sy.sers[1];
+
+  }
 
   var W = 600, H = comboH(), ML = 16, MR = 16, MT = 16, MB = 16;
 
@@ -8664,13 +8846,13 @@ function rzRender(){
 
       '<div class="rzref" data-rzref="' + code + '" style="flex:0 0 100%">' + rzRefBar(code, o) + '</div>' +
 
-      (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert, o.tr) + '<div class="rzchartcap">板块资金 · 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + '</div></div>' : '') +
+      (bd && o.bdSer ? '<div class="rzchart">' + rzFlowComboSVG(o.bdSer, o.stkSer, o.bdAlert, o.stkAlert, o.tr) + '<div class="rzchartcap">板块资金 · 双轴' + (o.bdTs ? ' · ' + rzAgo(o.bdTs) : '') + (o.stkSer ? '' : ' · 个股资金加载中') + rzSyncCap(rzSyncInfo([{ser:o.bdSer,label:'板块'},{ser:o.stkSer,label:'个股'},{ser:(o.tr && o.tr.today) ? o.tr.today : null,label:'分线'}])) + '</div></div>' : '') +
 
       (bd && o.bdSer && o.bdAlert ? flowSummary(o.bdAlert, o.bdSer) : '') +
 
       // 个股自身：分线图（蓝）＋ 自身主力净流入（红涨/绿跌·亿）同框，复用上证置顶卡组合图器
 
-      (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert, '标的分线', true) + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（红涨/绿跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + '</div></div>' : '') +
+      (o.tr && o.tr.today && o.tr.today.length ? '<div class="rzchart">' + rzIndexComboSVG(o.tr, o.stkSer, o.stkAlert, '标的分线', true, true) + '<div class="rzchartcap">个股分线（蓝）＋自身主力净流入（红涨/绿跌·亿）· 同框' + (o.stkTs ? ' · ' + rzAgo(o.stkTs) : '') + (o.stkSer ? '' : '（资金加载中）') + rzSyncCap(rzSyncInfo([{ser:(o.tr && o.tr.today) ? o.tr.today : null,label:'分线'},{ser:o.stkSer,label:'个股资金'}])) + '</div></div>' : '') +
 
       (o.stkSer && o.stkAlert ? flowSummary(o.stkAlert, o.stkSer) : '') +
 
