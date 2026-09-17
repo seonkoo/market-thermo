@@ -123,15 +123,15 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
       <button class="nbtn sm" id="lsBtn" type="button">最新</button>
     </div>
     <div class="navinfo" id="navInfo">&mdash;</div>
-    <div class="navhint">&#9664;&#9654; 平移（按住连续）｜&#65291;&#65293; 缩放｜轻点或长按看当天数值</div>
+    <div class="navhint">&#9664;&#9654; 平移（按住连续）｜&#65291;&#65293; 缩放｜图上左右划动看每日数值（轻点/长按亦可）</div>
     <div class="sep"></div>
     <div class="chips" id="modes" style="margin-top:6px"></div>
   </div>
 
   <div class="card">
     <div class="legend">
-      <span><i style="background:var(--pl)"></i>个股收盘价</span>
-      <span><i style="background:var(--stk)"></i>个股资金净额</span>
+      <span id="lgPl"><i style="background:var(--pl)"></i>个股收盘价</span>
+      <span id="lgStk"><i style="background:var(--stk)"></i>个股资金净额</span>
       <span id="lgBd"><i style="background:var(--bd)"></i>板块资金净额</span>
     </div>
     <div class="cw" id="cw"><div class="na">加载中…</div></div>
@@ -169,7 +169,7 @@ var S = {
   span: 0,         // 可视窗口天数（0 = 未初始化，按屏幕宽度取默认）
   end: null,       // 窗口右端在 S.rows 中的下标（null = 最新一天）
   pin: false,      // 浮层是否已固定（触摸端轻点/长按后）
-  mode: 'day',     // day | cum
+  mode: 'cum',     // day=每日净额 | cum=区间累计（默认，更能看清资金累积方向）
   norm: false,     // 形态对比（各线各自缩放）
   hasBd: false,
   busy: false,
@@ -370,6 +370,9 @@ function paintUI(){
     '<span class="chip' + (!S.norm ? ' on' : '') + '" data-n="0">原值（真实量级）</span>' +
     '<span class="chip' + (S.norm ? ' on' : '') + '" data-n="1">形态对比（各自缩放）</span>';
 
+  var cum = (S.mode === 'cum');
+  $('lgStk').innerHTML = '<i style="background:var(--stk)"></i>个股资金' + (cum ? '累计' : '净额');
+  $('lgBd').innerHTML  = '<i style="background:var(--bd)"></i>板块资金' + (cum ? '累计' : '净额');
   $('lgBd').style.display = S.hasBd ? '' : 'none';
 }
 
@@ -627,6 +630,9 @@ function capAndStat(rows, haveP){
     cap += ' · 收盘价 ' + px2(pLast, digits) + ' 元（区间 <span class="' + cls(chg) + '">' + sgn(chg, 2) + '%</span>）';
   }
   cap += '<br>资金为 <b>日终值</b>，较价格滞后一档（新浪盘后更新）；价格已前复权';
+  if(S.mode === 'cum'){
+    cap += '<br>资金线为 <b>区间累计</b>：自本窗口左端 ' + first.d + ' 起逐日累加，平移窗口会重新起算（浮层显示的仍是当日净额）';
+  }
   if(S.norm){
     cap += '<br><span class="hot">当前为「形态对比」：三条线各自按本区间高低缩放，纵向位置不代表真实量级，数值见浮层</span>';
   }
@@ -737,18 +743,24 @@ function pinAt(clientX){
 
 (function bindPointer(){
   var cw = $('cw');
-  var down = false, moved = false, lp = false, dismissed = false, x0 = 0, y0 = 0, lpTimer = null;
+  var down = false, moved = false, lp = false, dismissed = false, wasPin = false;
+  var x0 = 0, y0 = 0, lpTimer = null;
+  var axis = null;      // null=未定性 ｜ 'h'=横向划动看数值 ｜ 'v'=纵向（交给页面滚动）
+  var scrub = false;    // 是否正在「划动跟手」
 
   function stopLp(){ if(lpTimer){ clearTimeout(lpTimer); lpTimer = null; } }
+  function reset(){ axis = null; scrub = false; }
 
   cw.addEventListener('pointerdown', function(e){
     if(e.pointerType === 'mouse') return;
-    if(S.pin){ S.pin = false; clearIdle(); hideTip(); dismissed = true; return; }   // 已固定 → 轻点收起
+    wasPin = S.pin;                       // 已有浮层：轻点=收起，横划=继续跟手
     dismissed = false;
     down = true; moved = false; lp = false;
+    reset();
     x0 = e.clientX; y0 = e.clientY;
     stopLp();
-    lpTimer = setTimeout(function(){                               // 按住 450ms = 长按
+    if(wasPin) return;                    // 已有浮层时不再起长按计时
+    lpTimer = setTimeout(function(){      // 按住 450ms = 长按
       lpTimer = null;
       if(!down || moved) return;
       lp = true;
@@ -757,11 +769,21 @@ function pinAt(clientX){
   }, {passive:true});
 
   cw.addEventListener('pointermove', function(e){
-    if(e.pointerType === 'mouse'){ showAt(e.clientX); return; }
+    if(e.pointerType === 'mouse'){ showAt(e.clientX); return; }   // 桌面 hover 即跟手
     if(!down) return;
-    if(Math.abs(e.clientX - x0) > 8 || Math.abs(e.clientY - y0) > 8){   // 二维位移 = 滑动页面
-      moved = true; stopLp();
-      if(!lp) hideTip();                                                // 长按已弹出则不打断
+    var dx = e.clientX - x0, dy = e.clientY - y0;
+    if(axis === null){
+      if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return;            // 未超过阈值，继续等
+      axis = (Math.abs(dx) > Math.abs(dy)) ? 'h' : 'v';           // 按主方向定性
+      stopLp();
+      if(axis === 'v'){ moved = true; return; }                   // 纵向 = 翻页滚动，浮层保持不动
+    }
+    if(axis === 'h'){                                             // 横向 = 划动跟手，逐日出数值
+      if(!scrub){ scrub = true; clearIdle(); }
+      moved = true;
+      S.pin = true;
+      clearIdle();
+      showAt(e.clientX);
     }
   }, {passive:true});
 
@@ -769,12 +791,20 @@ function pinAt(clientX){
     if(e.pointerType === 'mouse') return;
     stopLp();
     down = false;
-    if(dismissed){ dismissed = false; lp = false; return; }   // 刚才那一下是「收起」，不再弹
-    if(!moved && !lp) pinAt(e.clientX);                       // 轻点
-    lp = false;
+    if(dismissed){ dismissed = false; lp = false; reset(); return; }   // 这一下是「收起」，不再弹
+    if(scrub){ armIdle(); lp = false; reset(); return; }               // 划动结束 → 停在该日并保留浮层
+    if(!moved && !lp){
+      if(wasPin){ S.pin = false; clearIdle(); hideTip(); }             // 轻点已有浮层 → 收起
+      else pinAt(e.clientX);                                           // 轻点空白 → 弹出并固定
+    }
+    lp = false; reset();
   }, {passive:true});
 
-  cw.addEventListener('pointercancel', function(){ stopLp(); down = false; lp = false; }, {passive:true});
+  cw.addEventListener('pointercancel', function(){
+    stopLp(); down = false; lp = false;
+    if(scrub){ armIdle(); }                                            // 跟手中被浏览器打断 → 停住保留
+    reset();
+  }, {passive:true});
   cw.addEventListener('pointerleave', function(e){
     if(e.pointerType === 'mouse'){ clearIdle(); hideTip(); }
   }, {passive:true});
