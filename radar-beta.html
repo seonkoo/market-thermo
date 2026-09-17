@@ -9641,17 +9641,15 @@ rzStart();
 
     // 自动换边：按浮层「真实宽度」实时判断，不再用固定 55% 阈值（旧阈值不看文字多宽，
     // 导致 41%~55% 区间右边缘溢出容器、又在 13:13 突然翻到左边压住十字线）。
-    // 四档优先级：① 跟手在右侧 → ② 右侧放不下但贴右边界仍不压线（首选，避免无谓换边）
-    //            → ③ 翻到左侧 → ④ 两侧都放不下则贴右边界夹住。
+    // 三档优先级：① 跟手在右侧（离竖线 10px）→ ② 翻到左侧（同样离竖线 10px，不再贴着竖线）
+    //            → ③ 两侧都放不下则贴右边界夹住。
     var tw = tipW / pbW * 100;                    // 浮层宽度占容器的百分比
-    var gp = 3 / pbW * 100;                       // 左侧（浮层翻到竖线左边时）与竖线的间隙
-    var gpR = 10 / pbW * 100;                     // 右侧间隙放宽带 10px：不贴着竖线，让竖线附近的曲线露出来
+    var gp = 10 / pbW * 100;                      // 浮层与竖线的间隙：左右两侧统一 10px（不贴线，竖线附近的曲线露得出来）
     var maxLeft = Math.max(2, 99 - tw);           // 右边缘不溢出时允许的最大 left%
     var leftPct;
-    if(crossPct + gpR + tw <= 99) leftPct = crossPct + gpR;            // ① 跟手·右侧（离竖线 10px）
-    else if(maxLeft >= crossPct - 2) leftPct = maxLeft;                 // ② 贴右边界（最多轻微压线 2%）
-    else if(crossPct - gp - tw >= 2) leftPct = crossPct - gp - tw;      // ③ 翻左侧
-    else leftPct = maxLeft;                                             // ④ 夹住
+    if(crossPct + gp + tw <= 99) leftPct = crossPct + gp;             // ① 跟手·右侧（离竖线 10px）
+    else if(crossPct - gp - tw >= 2) leftPct = crossPct - gp - tw;     // ② 翻左侧（同样离竖线 10px，不压线）
+    else leftPct = maxLeft;                                             // ③ 两侧都放不下 → 贴右边界夹住
 
     tip.style.left = Math.max(2, Math.min(maxLeft, leftPct)).toFixed(2) + '%';
 
