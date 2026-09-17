@@ -22,8 +22,7 @@
   --txt:#1f2937; --txt2:#4b5563; --txt3:#9ca3af;
   --up:#d92b2b; --down:#0f9d58; --warn:#e08700; --info:#2563eb;
   --pl:#2563eb;    /* 个股收盘价（前复权） */
-  --stk:#d92b2b;   /* 个股资金净额 */
-  --bd:#e08700;    /* 板块资金净额 */
+  --stk:#d92b2b;   /* 个股资金强度（%） */
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--txt);
@@ -105,14 +104,12 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
 
   <h1>资金日线雷达<span class="tag">试验版</span></h1>
   <div class="sub">
-    日K级三条曲线：<b style="color:var(--pl)">个股收盘价</b>（前复权·元）、
-    <b style="color:var(--stk)">个股资金累计净额</b>、
-    <b style="color:var(--bd)">所属板块资金累计净额</b>（亿元）<br>
-    默认「<b>趋势交叉</b>」：三线以窗口左端为同一起点、各自满幅归一到 &#177;100% 后共轴，自动标出交点 ——
-    <span style="color:#7c3aed">紫点</span>=价格×个股资金、
-    <span style="color:#0891b2">青点</span>=个股×板块资金、
-    <span style="color:#db2777">玫红点</span>=价格×板块资金（交点随窗口重算）<br>
-    价格源：腾讯前复权日K · 资金源：新浪财经 · 纯前端直连 · 试验页面，与稳定版／beta 互不影响
+    日K级两条曲线：<b style="color:var(--pl)">个股收盘价</b>（前复权·元）、
+    <b style="color:var(--stk)">个股资金强度</b>（净流入占当日成交额比·%）<br>
+    默认「<b>趋势交叉</b>」+「<b>蓝线分离</b>」：两线以窗口左端为同一起点、各自满幅归一到 &#177;100% 后共轴，
+    蓝线（价格）整体上移一档，共振上行时不再与资金线重叠 —— 价格相对资金走弱超过这一档时才标出
+    <span style="color:#7c3aed">紫点</span>交点（交点随窗口与分离档位重算）<br>
+    资金口径：新浪 MoneyFlow 的「净流入占成交额比」 · 价格源：腾讯前复权日K · 纯前端直连 · 试验页面，与稳定版／beta 互不影响
   </div>
 
   <div class="card">
@@ -138,8 +135,7 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
   <div class="card">
     <div class="legend">
       <span id="lgPl"><i style="background:var(--pl)"></i>个股收盘价</span>
-      <span id="lgStk"><i style="background:var(--stk)"></i>个股资金净额</span>
-      <span id="lgBd"><i style="background:var(--bd)"></i>板块资金净额</span>
+      <span id="lgStk"><i style="background:var(--stk)"></i>个股资金强度</span>
       <span id="lgX" style="display:none"></span>
     </div>
     <div class="cw" id="cw"><div class="na">加载中…</div></div>
@@ -160,8 +156,9 @@ var CFG = {
   TX:   'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get',
   N: 600,
   SPANS: [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 250],
-  SPAN_M: 20,        // 手机默认可视天数
-  SPAN_D: 60,        // 桌面默认可视天数
+  SPAN_M: 120,       // 手机默认可视天数
+  SPAN_D: 120,       // 桌面默认可视天数
+  GAP: 0.25,         // 蓝线（价格）整体上移档位（满幅比例）—— 只用于把两线分开
   XGAP: 5,           // 交点去抖：两次交点至少间隔的交易日数（防贴线反复穿）
   XMAX: 12,          // 交叉点清单最多列出的条数
   QUICK: [
@@ -175,15 +172,17 @@ var CFG = {
 /* ══════════════ 状态 ══════════════ */
 var S = {
   code: '', name: '',
-  rows: [],        // 升序 [{d,p,s,b}]
+  rows: [],        // 升序 [{d,p,v,a}]  v=资金强度(%)  a=资金净额(亿)
   span: 0,         // 可视窗口天数（0 = 未初始化，按屏幕宽度取默认）
   end: null,       // 窗口右端在 S.rows 中的下标（null = 最新一天）
   pin: false,      // 浮层是否已固定（触摸端轻点/长按后）
   mode: 'cum',     // day=每日净额 | cum=区间累计（默认，更能看清资金累积方向）
   norm: false,     // 形态对比（各线各自缩放）
-  cross: true,     // 趋势交叉（三线共轴·同一起点·自动标注交点）默认开
+  cross: true,     // 趋势交叉（两线共轴·同一起点·自动标注交点）默认开
+  sep: true,       // 蓝线分离（价格整体上移一档，共振上行时不与资金线重叠）
   crossHold: false,// 因切「每日净额」被动关掉交叉 → 切回「区间累计」时自动恢复
-  hasBd: false,
+  qOk: 0,          // ratioamount（占比字段）可用行数
+  noPrice: false,
   busy: false,
   view: null
 };
@@ -227,16 +226,20 @@ function fetchFund(mktCode, num, ok, fail){
   document.head.appendChild(sc);
 }
 
+/* 新浪 MoneyFlow 字段：
+   netamount  净流入（元）          → s 亿元
+   ratioamount 净流入占当日成交额比（小数）→ v 百分比
+   注：ratioamount 是新浪自带口径（= netamount ÷ 当日成交额），不是我们换算出来的 */
 function parseFund(arr){
   var out = [];
   for(var i = 0; i < arr.length; i++){
     var r = arr[i];
     if(!r || !r.opendate) continue;
-    var s = parseFloat(r.netamount), b = parseFloat(r.cate_na);
+    var s = parseFloat(r.netamount), q = parseFloat(r.ratioamount);
     out.push({
       d: String(r.opendate),
       s: isFinite(s) ? s / 1e8 : 0,
-      b: isFinite(b) ? b / 1e8 : 0
+      v: isFinite(q) ? q * 100 : null
     });
   }
   return out;
@@ -328,7 +331,7 @@ function load(code, label){
       var r = fund[i];
       var p = pok ? pmap[r.d] : null;
       if(p == null || !isFinite(p)){ missing++; continue; }
-      rows.push({d:r.d, p:p, s:r.s, b:r.b});
+      rows.push({d:r.d, p:p, s:r.s, v:r.v});
     }
     /* 新浪返回最新在前 → 统一按日期升序，后续 slice(-win) 才是取最近 */
     rows.sort(function(a, b){ return a.d < b.d ? -1 : (a.d > b.d ? 1 : 0); });
@@ -337,16 +340,17 @@ function load(code, label){
     if(!rows.length){
       noPrice = true;
       for(var j = 0; j < fund.length; j++){
-        rows.push({d:fund[j].d, p:null, s:fund[j].s, b:fund[j].b});
+        rows.push({d:fund[j].d, p:null, s:fund[j].s, v:fund[j].v});
       }
       rows.sort(function(a, b){ return a.d < b.d ? -1 : (a.d > b.d ? 1 : 0); });
     }
 
     S.rows = rows;
     S.noPrice = noPrice;
-    S.hasBd = (function(){
-      for(var q = 0; q < rows.length; q++){ if(Math.abs(rows[q].b) > 1e-9) return true; }
-      return false;
+    S.qOk = (function(){
+      var c = 0;
+      for(var q2 = 0; q2 < rows.length; q2++){ if(rows[q2].v != null && isFinite(rows[q2].v)) c++; }
+      return c;
     })();
     if(!S.span){
       S.span = (window.innerWidth < 620) ? CFG.SPAN_M : CFG.SPAN_D;
@@ -376,20 +380,21 @@ function paintUI(){
   paintNav();
 
   $('modes').innerHTML = '<span class="lbl">数值口径</span>' +
-    '<span class="chip' + (S.mode === 'day' ? ' on' : '') + '" data-m="day">每日净额</span>' +
+    '<span class="chip' + (S.mode === 'day' ? ' on' : '') + '" data-m="day">每日强度</span>' +
     '<span class="chip' + (S.mode === 'cum' ? ' on' : '') + '" data-m="cum">区间累计</span>' +
     '<span class="lbl" style="margin-top:7px">纵向缩放</span>' +
-    '<span class="chip' + (!S.norm && !S.cross ? ' on' : '') + '" data-n="0">原值（真实量级）</span>' +
+    '<span class="chip' + (!S.norm && !S.cross ? ' on' : '') + '" data-n="0">原值（真实 % 轴）</span>' +
     '<span class="chip' + (S.norm ? ' on' : '') + '" data-n="1">形态对比（各自缩放）</span>' +
-    '<span class="chip' + (S.cross ? ' on' : '') + '" data-x="1">趋势交叉（共轴·标交点）</span>';
+    '<span class="chip' + (S.cross ? ' on' : '') + '" data-x="1">趋势交叉（共轴·标交点）</span>' +
+    '<span class="lbl" style="margin-top:7px">两线间距（仅趋势交叉）</span>' +
+    '<span class="chip' + (S.sep ? ' on' : '') + '" data-s="1">蓝线分离 +' + Math.round(CFG.GAP * 100) + '%</span>' +
+    '<span class="chip' + (!S.sep ? ' on' : '') + '" data-s="0">贴合（真实交点）</span>';
 
   var cum = (S.mode === 'cum');
-  $('lgStk').innerHTML = '<i style="background:var(--stk)"></i>个股资金' + (cum ? '累计' : '净额');
-  $('lgBd').innerHTML  = '<i style="background:var(--bd)"></i>板块资金' + (cum ? '累计' : '净额');
-  $('lgBd').style.display = S.hasBd ? '' : 'none';
+  $('lgStk').innerHTML = '<i style="background:var(--stk)"></i>个股资金强度' + (cum ? '累计' : '') + '（占成交额 %）';
   $('lgX').style.display = S.cross ? '' : 'none';
-  $('lgX').innerHTML = '<i style="background:#7c3aed;border-radius:50%;width:8px;height:8px"></i>交点（' +
-    (S.hasBd ? '价格×个股资金、个股×板块资金、价格×板块资金' : '价格×个股资金') + '）';
+  $('lgX').innerHTML = '<i style="background:#7c3aed;border-radius:50%;width:8px;height:8px"></i>交点（价格 × 个股资金）' +
+    (S.sep ? ' · 蓝线已上移 ' + Math.round(CFG.GAP * 100) + '%' : ' · 未分离');
 }
 
 /* ══════════════ 窗口导航（逐日平移 + 缩放） ══════════════ */
@@ -487,13 +492,16 @@ function sliceRows(){
   if(end < span - 1) end = span - 1;
   var st = Math.max(0, end - span + 1);
   var base = S.rows.slice(st, end + 1);
+  /* v = 资金强度（%，画线用）；a = 资金净额（亿，浮层/统计用）
+     每日口径 → 取当日值；区间累计 → 自窗口左端逐日累加（% 为简单累加，非复利） */
   if(S.mode !== 'cum'){
-    return base.map(function(x){ return {d:x.d, p:x.p, s:x.s, b:x.b, s0:x.s, b0:x.b}; });
+    return base.map(function(x){ return {d:x.d, p:x.p, v:x.v, a:x.s, v0:x.v, a0:x.s}; });
   }
-  var cs = 0, cb = 0, out = [];
+  var cv = 0, ca = 0, out = [];
   for(var i = 0; i < base.length; i++){
-    cs += base[i].s; cb += base[i].b;
-    out.push({d:base[i].d, p:base[i].p, s:cs, b:cb, s0:base[i].s, b0:base[i].b});
+    if(base[i].v != null && isFinite(base[i].v)) cv += base[i].v;
+    ca += base[i].s;
+    out.push({d:base[i].d, p:base[i].p, v:cv, a:ca, v0:base[i].v, a0:base[i].s});
   }
   return out;
 }
@@ -510,13 +518,15 @@ function render(){
   var L = 40, R = 48, T = 12, B = 22;
   var pw = W - L - R, ph = H - T - B;
   var n = rows.length;
-  var haveBd = S.hasBd;
   var haveP = !S.noPrice;
+  var haveV = false;
+  for(var i0 = 0; i0 < n; i0++){ if(rows[i0].v != null && isFinite(rows[i0].v)){ haveV = true; break; } }
 
   var fLo = 0, fHi = 0;
   for(var i = 0; i < n; i++){
-    fLo = Math.min(fLo, rows[i].s); fHi = Math.max(fHi, rows[i].s);
-    if(haveBd){ fLo = Math.min(fLo, rows[i].b); fHi = Math.max(fHi, rows[i].b); }
+    var fv = rows[i].v;
+    if(fv == null || !isFinite(fv)) continue;
+    fLo = Math.min(fLo, fv); fHi = Math.max(fHi, fv);
   }
   if(fHi - fLo < 1e-9){ fHi = 1; fLo = -1; }
   var fPad = (fHi - fLo) * 0.08; fLo -= fPad; fHi += fPad;
@@ -551,8 +561,9 @@ function render(){
     return d;
   }
 
-  /* ── 三种纵向尺度：raw 真实量级 | norm 各自缩放 | cross 共轴（趋势交叉） ── */
+  /* ── 三种纵向尺度：raw 真实 % 轴 | norm 各自缩放 | cross 共轴（趋势交叉） ── */
   var vm = S.cross ? 'cross' : (S.norm ? 'norm' : 'raw');
+  var GAP = (vm === 'cross' && S.sep) ? CFG.GAP : 0;   /* 蓝线分离档位（满幅比例） */
 
   function mkSc(a){
     if(!a.length) return {lo:0, hi:1};
@@ -561,17 +572,18 @@ function render(){
     var pd = (hi - lo) * 0.06;
     return {lo: lo - pd, hi: hi + pd};
   }
-  var sArr = [], bArr = [], pArr = [];
+  var vArr = [], pArr = [];
   for(var q = 0; q < n; q++){
-    sArr.push(rows[q].s); bArr.push(rows[q].b);
+    if(rows[q].v != null && isFinite(rows[q].v)) vArr.push(rows[q].v);
     if(rows[q].p != null && isFinite(rows[q].p)) pArr.push(rows[q].p);
   }
-  var scS = mkSc(sArr), scB = mkSc(bArr), scP = mkSc(pArr);
+  var scS = mkSc(vArr), scP = mkSc(pArr);
   function YN(v, sc){ return T + (1 - (v - sc.lo) / (sc.hi - sc.lo)) * ph; }
 
-  /* ── 共轴：三线各自以窗口左端为 0 基准，再除以自身最大偏离归一到 ±1
-        → 同一起点、同一标尺，交点由数据唯一决定，与放大缩小无关 ── */
-  var uP = null, uS = null, uB = null, xg = [];
+  /* ── 共轴：两线各自以窗口左端为 0 基准，再除以自身最大偏离归一到 ±1
+        → 同一起点、同一标尺。分离档位 GAP>0 时把价格线整体上移 GAP，
+        交点按「上移后」的位置计算 —— 等价于给「价格相对资金走弱」设一个阈值 ── */
+  var uP = null, uS = null, xg = [];
   function unitize(a){
     var mx = 0;
     for(var i2 = 0; i2 < a.length; i2++){
@@ -602,44 +614,46 @@ function render(){
   if(vm === 'cross'){
     var p0 = null;
     for(var i0 = 0; i0 < n; i0++){ if(rows[i0].p != null && isFinite(rows[i0].p)){ p0 = rows[i0].p; break; } }
-    var dP = [], dS = [], dB = [];
+    var dP = [], dS = [];
     for(var i1 = 0; i1 < n; i1++){
       var r1 = rows[i1];
       dP.push((p0 != null && r1.p != null && isFinite(r1.p)) ? (r1.p - p0) : null);
-      dS.push(r1.s);
-      dB.push(haveBd ? r1.b : null);
+      dS.push(r1.v);
     }
-    uP = unitize(dP); uS = unitize(dS); uB = unitize(dB);
-    xg = [];
-    if(haveP) xg = xg.concat(findCross(uP, uS, 'ps'));            /* 价格 × 个股资金 */
-    if(haveBd) xg = xg.concat(findCross(uS, uB, 'sb'));           /* 个股资金 × 板块资金 */
-    if(haveP && haveBd) xg = xg.concat(findCross(uP, uB, 'pb'));  /* 价格 × 板块资金 */
-    xg.sort(function(a2, b2){ return a2.i - b2.i; });
+    uP = unitize(dP); uS = unitize(dS);
+    if(GAP > 0){
+      for(var g1 = 0; g1 < n; g1++){ if(uP[g1] != null && isFinite(uP[g1])) uP[g1] = uP[g1] + GAP; }
+    }
+    xg = haveP ? findCross(uP, uS, 'ps') : [];
   }
 
-  function YU(u){ return T + (1 - (u + 1) / 2) * ph; }      /* u ∈ [-1,1] */
+  function YU(u){ return T + (1 - (u + 1) / (2 + GAP)) * ph; }   /* u ∈ [-1, 1+GAP] */
   function yOf(key){
     if(vm === 'raw') return (key === 'p') ? YP : YF;
     if(vm === 'norm'){
-      var sc = (key === 'p') ? scP : (key === 'b' ? scB : scS);
+      var sc = (key === 'p') ? scP : scS;
       return function(v){ return YN(v, sc); };
     }
-    var uu = (key === 'p') ? uP : (key === 'b' ? uB : uS);
+    var uu = (key === 'p') ? uP : uS;
     return function(v, i){ return (uu[i] == null) ? NaN : YU(uu[i]); };
   }
-  var yB = yOf('b'), yS = yOf('s'), yP = yOf('p');
+  var yS = yOf('v'), yP = yOf('p');
 
-  var fDigits = (Math.abs(fHi) >= 100 || Math.abs(fLo) >= 100) ? 0 : 1;
   var g = [];
+  if(vm === 'cross' && GAP > 0){
+    var ybTop = YU(1);
+    g.push('<rect x="' + L + '" y="' + T + '" width="' + pw + '" height="' + (ybTop - T).toFixed(1) + '" fill="#f5f8ff"/>');
+  }
   for(var k = 0; k <= 4; k++){
     var v = fLo + (fHi - fLo) * k / 4;
-    var y = (vm === 'raw') ? YF(v) : (T + ph * k / 4);
+    var uc = 1 - k * 0.5;
+    var y = (vm === 'raw') ? YF(v) : (vm === 'cross' ? YU(uc) : (T + ph * k / 4));
     g.push('<line x1="' + L + '" y1="' + y.toFixed(1) + '" x2="' + (L + pw) + '" y2="' + y.toFixed(1) + '" stroke="#f1f3f5" stroke-width="1"/>');
     if(vm === 'raw'){
-      g.push('<text x="' + (L - 5) + '" y="' + (y + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + v.toFixed(fDigits) + '</text>');
+      g.push('<text x="' + (L - 5) + '" y="' + (y + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + v.toFixed(1) + '%</text>');
     } else if(vm === 'cross'){
-      var uv = 100 - k * 50;
-      g.push('<text x="' + (L - 5) + '" y="' + (y + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + (uv > 0 ? '+' + uv : '' + uv) + '</text>');
+      var luv = Math.round(uc * 100);
+      g.push('<text x="' + (L - 5) + '" y="' + (y + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + (luv > 0 ? '+' + luv : '' + luv) + '%</text>');
     }
   }
   if(vm === 'raw' && haveP){
@@ -658,7 +672,9 @@ function render(){
   if(vm === 'norm'){
     g.push('<text x="' + L + '" y="' + (T + 9) + '" font-size="8.5" fill="#c3c8d0">形态对比 · 各线按自身区间缩放（数值见下方浮层）</text>');
   } else if(vm === 'cross'){
-    g.push('<text x="' + L + '" y="' + (T + 9) + '" font-size="8.5" fill="#c3c8d0">趋势交叉 · 三线同起点共轴（各自满幅 = &#177;100）</text>');
+    var yHint = (GAP > 0) ? (YU(1) + 11) : (T + 9);
+    g.push('<text x="' + L + '" y="' + yHint.toFixed(1) + '" font-size="8.5" fill="#c3c8d0">趋势交叉 · 两线同起点共轴（各自满幅 = &#177;100）' +
+      (GAP > 0 ? ' · 蓝线已上移 ' + Math.round(GAP * 100) + '%' : '') + '</text>');
     for(var xa = 0; xa < xg.length; xa++){
       var xvx = X(xg[xa].i);
       g.push('<line x1="' + xvx.toFixed(1) + '" y1="' + T + '" x2="' + xvx.toFixed(1) + '" y2="' + (T + ph).toFixed(1) + '" stroke="#ede9fe" stroke-width="1" stroke-dasharray="2,3"/>');
@@ -681,19 +697,17 @@ function render(){
   for(var xb = 0; xb < xg.length; xb++){
     var pc = xg[xb];
     var cxm = X(pc.i);
-    var uval = (String(pc.tag).charAt(0) === 'p') ? uP[pc.i] : uS[pc.i];
+    var uval = uP[pc.i];
     if(uval == null || !isFinite(uval)) continue;
     var cym = YU(uval);
     if(!isFinite(cym)) continue;
-    var ccol = (pc.tag === 'ps') ? '#7c3aed' : (pc.tag === 'sb' ? '#0891b2' : '#db2777');
-    gm.push('<circle cx="' + cxm.toFixed(1) + '" cy="' + cym.toFixed(1) + '" r="3" fill="#fff" stroke="' + ccol + '" stroke-width="1.7"/>');
+    gm.push('<circle cx="' + cxm.toFixed(1) + '" cy="' + cym.toFixed(1) + '" r="3" fill="#fff" stroke="#7c3aed" stroke-width="1.7"/>');
   }
 
   var svg = [];
   svg.push('<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;display:block">');
   svg.push(g.join(''));
-  if(haveBd) svg.push('<path d="' + pathOf('b', yB) + '" fill="none" stroke="#e08700" stroke-width="1.4" stroke-linejoin="round"/>');
-  svg.push('<path d="' + pathOf('s', yS) + '" fill="none" stroke="#d92b2b" stroke-width="1.5" stroke-linejoin="round"/>');
+  if(haveV) svg.push('<path d="' + pathOf('v', yS) + '" fill="none" stroke="#d92b2b" stroke-width="1.5" stroke-linejoin="round"/>');
   if(haveP) svg.push('<path d="' + pathOf('p', yP) + '" fill="none" stroke="#2563eb" stroke-width="1.9" stroke-linejoin="round"/>');
   svg.push(gm.join(''));
   svg.push('</svg>');
@@ -701,7 +715,7 @@ function render(){
   svg.push('<div class="tip" id="tip"></div>');
 
   cw.innerHTML = svg.join('');
-  S.view = {W:W, H:H, L:L, T:T, pw:pw, n:n, rows:rows, pDigits:pDigits, xg:xg, vm:vm};
+  S.view = {W:W, H:H, L:L, T:T, pw:pw, n:n, rows:rows, pDigits:pDigits, xg:xg, vm:vm, gap:GAP};
 
   capAndStat(rows, haveP);
 
@@ -715,36 +729,49 @@ function render(){
 function capAndStat(rows, haveP){
   var first = rows[0], last = rows[rows.length - 1];
   var n = rows.length;
-  var cumS = 0, cumB = 0, inS = 0, outS = 0;
+  var cumA = 0, sumV = 0, vCnt = 0, inS = 0, outS = 0, vMax = null, vMin = null;
   for(var i = 0; i < n; i++){
-    cumS += rows[i].s0; cumB += rows[i].b0;
-    if(rows[i].s0 > 0) inS++; else if(rows[i].s0 < 0) outS++;
+    cumA += rows[i].a0;
+    if(rows[i].a0 > 0) inS++; else if(rows[i].a0 < 0) outS++;
+    var dv = rows[i].v0;
+    if(dv != null && isFinite(dv)){
+      sumV += dv; vCnt++;
+      if(vMax == null || dv > vMax) vMax = dv;
+      if(vMin == null || dv < vMin) vMin = dv;
+    }
   }
+  if(vMax == null){ vMax = 0; vMin = 0; }
   var digits = (S.view && S.view.pDigits) || 2;
   var pFirst = haveP ? first.p : null, pLast = haveP ? last.p : null;
   var chg = (haveP && pFirst) ? (pLast - pFirst) / pFirst * 100 : null;
+  var gapPct = Math.round(((S.view && S.view.gap) || 0) * 100);
 
   var cap = '数据区间 ' + first.d + ' → ' + last.d + '（' + n + ' 个交易日）';
   if(haveP && chg != null){
     cap += ' · 收盘价 ' + px2(pLast, digits) + ' 元（区间 <span class="' + cls(chg) + '">' + sgn(chg, 2) + '%</span>）';
   }
+  cap += '<br>资金线口径 = <b>净流入占当日成交额比（%）</b>';
+  cap += (S.mode === 'cum')
+    ? '，当前为 <b>区间累计</b>：自 ' + first.d + ' 起逐日累加（百分点的简单累加，非复利），平移窗口会重新起算（浮层显示的仍是当日值）'
+    : '，当前为 <b>每日</b>：只画当日强度，纵向幅度才如实反映单日大小';
   cap += '<br>资金为 <b>日终值</b>，较价格滞后一档（新浪盘后更新）；价格已前复权';
-  if(S.mode === 'cum'){
-    cap += '<br>资金线为 <b>区间累计</b>：自本窗口左端 ' + first.d + ' 起逐日累加，平移窗口会重新起算（浮层显示的仍是当日净额）';
-  }
   if(S.norm){
-    cap += '<br><span class="hot">当前为「形态对比」：三条线各自按本区间高低缩放，纵向位置不代表真实量级，数值见浮层</span>';
+    cap += '<br><span class="hot">当前为「形态对比」：两条线各自按本区间高低缩放，纵向位置不代表真实量级，数值见浮层</span>';
   }
   if(S.cross){
-    cap += '<br>当前为 <b>趋势交叉</b>：三线以窗口左端为同一起点、各自按自身最大偏离归一到 &#177;100% 后共轴比较，'
-         + '交点由数据唯一决定 —— <b>但只在当前窗口内成立，缩放或平移窗口都会换基准、交点随之重算</b>'
-         + '（窗口越长，交点越接近趋势级信号；浮层显示的仍是真实数值）';
-  }
-  if(!S.hasBd){
-    cap += '<br><span class="hot">该标的无行业板块归属（ETF/无分类），已隐藏板块线</span>';
+    cap += '<br>当前为 <b>趋势交叉</b>：两线以窗口左端为同一起点、各自按自身最大偏离归一到 &#177;100% 后共轴比较，'
+         + '交点由数据唯一决定 —— <b>但只在当前窗口内成立，缩放或平移窗口都会换基准、交点随之重算</b>';
+    cap += (gapPct > 0)
+      ? '<br><span class="bad">蓝线（价格）已整体上移 ' + gapPct + '% 满幅</span>，只为把两线分开。于是这里的“交叉”= '
+        + '<b>价格相对资金走弱超过这一档</b>（阈值信号）：会滤掉幅度更小的浅穿越，信号更干净，代价是最早的转弱会晚出现。'
+        + '要看真实交点请切「贴合（真实交点）」。'
+      : '<br>当前 <b>未分离</b>：两线贴合，交点即真实的“价格线穿过资金线”。';
   }
   if(!haveP){
     cap += '<br><span class="bad">价格源不可用，已只画资金线</span>';
+  }
+  if(S.qOk < S.rows.length){
+    cap += '<br><span class="hot">占比字段缺失 ' + (S.rows.length - S.qOk) + ' 天（新浪未返回），这些天不参与资金线累加</span>';
   }
   setCap(cap);
 
@@ -754,37 +781,32 @@ function capAndStat(rows, haveP){
   if(haveP){
     h.push('<div class="sbox"><div class="k">收盘价（前复权）</div><div class="v">' + px2(pLast, digits) + '</div><div class="x ' + cls(chg) + '">' + sgn(chg, 2) + '%｜' + px2(pFirst, digits) + ' → ' + px2(pLast, digits) + '</div></div>');
   }
-  h.push('<div class="sbox"><div class="k">个股资金累计净额</div><div class="v ' + cls(cumS) + '">' + sgn(cumS, 1) + ' 亿</div><div class="x">流入 ' + inS + ' 天／流出 ' + outS + ' 天</div></div>');
-  if(S.hasBd){
-    h.push('<div class="sbox"><div class="k">板块资金累计净额</div><div class="v ' + cls(cumB) + '">' + sgn(cumB, 1) + ' 亿</div><div class="x">行业板块（新浪口径）</div></div>');
-  }
+  h.push('<div class="sbox"><div class="k">资金强度累计</div><div class="v ' + cls(sumV) + '">' + sgn(sumV, 1) + '%</div><div class="x">&#931;每日(净流入÷成交额) · 共 ' + vCnt + ' 天</div></div>');
+  h.push('<div class="sbox"><div class="k">资金净额累计</div><div class="v ' + cls(cumA) + '">' + sgn(cumA, 1) + ' 亿</div><div class="x">流入 ' + inS + ' 天／流出 ' + outS + ' 天</div></div>');
+  h.push('<div class="sbox"><div class="k">单日强度极值</div><div class="v">' + sgn(vMax, 1) + '%</div><div class="x">最低 ' + sgn(vMin, 1) + '%（占成交额比）</div></div>');
   h.push('</div>');
 
   /* ── 趋势交叉点清单（仅趋势交叉模式） ── */
   if(S.cross){
     var xgs = (S.view && S.view.xg) || [];
-    h.push('<h2 style="margin-top:12px">趋势交叉点（本窗口 ' + xgs.length + ' 次）</h2>');
+    h.push('<h2 style="margin-top:12px">趋势交叉点（本窗口 ' + xgs.length + ' 次' +
+      (gapPct > 0 ? ' · 蓝线已上移 ' + gapPct + '%' : ' · 未分离') + '）</h2>');
     if(!xgs.length){
-      h.push('<div class="xempty">本窗口内两线<b>同向、没有交叉</b>。按 &#65293; 缩小到更长区间（例如 120 / 250 日）才容易看到趋势级的交叉。</div>');
+      h.push('<div class="xempty">本窗口内两线<b>同向、没有交叉</b>。按 &#65293; 缩小到更长区间（例如 120 / 250 日）才容易看到趋势级的交叉。'
+        + (gapPct > 0 ? '也可以切到「贴合（真实交点）」把阈值归零。' : '') + '</div>');
     } else {
-      h.push('<table class="tb"><tr><th>日期</th><th>对比</th><th>转强的一侧</th>' +
-        (haveP ? '<th>收盘</th>' : '') + '<th>个股净额(亿)</th></tr>');
+      h.push('<table class="tb"><tr><th>日期</th><th>转强的一侧</th>' +
+        (haveP ? '<th>收盘</th>' : '') + '<th>当日净额(亿)</th><th>当日强度</th></tr>');
       var camt = (xgs.length > CFG.XMAX) ? xgs.slice(-CFG.XMAX) : xgs;
       for(var xi = camt.length - 1; xi >= 0; xi--){
         var cx = camt[xi];
         var cr = rows[cx.i];
         if(!cr) continue;
-        var cname = (cx.tag === 'ps') ? '价格 × 个股资金'
-                  : (cx.tag === 'pb') ? '价格 × 板块资金' : '个股 × 板块资金';
-        var cwho = (cx.tag === 'ps')
-          ? (cx.up ? '价格 &#8593; 强于个股资金' : '个股资金 &#8593; 强于价格')
-          : (cx.tag === 'pb')
-            ? (cx.up ? '价格 &#8593; 强于板块资金' : '板块资金 &#8593; 强于价格')
-            : (cx.up ? '个股资金 &#8593; 强于板块' : '板块 &#8593; 强于个股资金');
-        h.push('<tr><td>' + cr.d + '</td><td style="text-align:left;color:var(--txt3)">' + cname + '</td>' +
-          '<td style="text-align:left">' + cwho + '</td>');
+        var cwho = cx.up ? '价格 &#8593; 强于资金（价格上穿）' : '资金 &#8593; 强于价格（价格下穿）';
+        h.push('<tr><td>' + cr.d + '</td><td style="text-align:left">' + cwho + '</td>');
         if(haveP) h.push('<td>' + px2(cr.p, digits) + '</td>');
-        h.push('<td class="' + cls(cr.s0) + '">' + sgn(cr.s0, 2) + '</td></tr>');
+        h.push('<td class="' + cls(cr.a0) + '">' + sgn(cr.a0, 2) + '</td>');
+        h.push('<td class="' + cls(cr.v0) + '">' + (cr.v0 == null ? '—' : sgn(cr.v0, 2) + '%') + '</td></tr>');
       }
       h.push('</table>');
       if(xgs.length > CFG.XMAX){
@@ -799,7 +821,7 @@ function capAndStat(rows, haveP){
   var all = S.rows;
   var tail = all.slice(-5).reverse();
   h.push('<h2 style="margin-top:12px">最新 5 个交易日（全序列）</h2>');
-  h.push('<table class="tb"><tr><th>日期</th>' + (haveP ? '<th>收盘</th><th>涨跌</th>' : '') + '<th>个股净额(亿)</th>' + (S.hasBd ? '<th>板块净额(亿)</th>' : '') + '</tr>');
+  h.push('<table class="tb"><tr><th>日期</th>' + (haveP ? '<th>收盘</th><th>涨跌</th>' : '') + '<th>净额(亿)</th><th>强度</th></tr>');
   for(var t = 0; t < tail.length; t++){
     var r = tail[t];
     var gi = all.length - 1 - t;
@@ -810,7 +832,7 @@ function capAndStat(rows, haveP){
       h.push('<td>' + px2(r.p, digits) + '</td><td class="' + cls(ch) + '">' + sgn(ch, 2) + '%</td>');
     }
     h.push('<td class="' + cls(r.s) + '">' + sgn(r.s, 2) + '</td>');
-    if(S.hasBd) h.push('<td class="' + cls(r.b) + '">' + sgn(r.b, 2) + '</td>');
+    h.push('<td class="' + cls(r.v) + '">' + (r.v == null ? '—' : sgn(r.v, 2) + '%') + '</td>');
     h.push('</tr>');
   }
   h.push('</table>');
@@ -849,21 +871,18 @@ function showAt(clientX){
   var ap = i > 0 ? rows[i - 1] : null;
   var ch = (ap && ap.p) ? (r.p - ap.p) / ap.p * 100 : 0;
   var dg = v.pDigits || 2;
-  var s0 = (r.s0 == null ? r.s : r.s0), b0 = (r.b0 == null ? r.b : r.b0);
+  var dv = (r.v0 == null ? r.v : r.v0), da = (r.a0 == null ? r.a : r.a0);
 
   var tip = $('tip');
   var html = ['<div class="dt">' + r.d + '</div>'];
   if(r.p != null) html.push('<div class="rw"><s style="background:#2563eb"></s><em>收盘</em><b>' + px2(r.p, dg) + ' <span class="' + cls(ch) + '">' + sgn(ch, 2) + '%</span></b></div>');
-  html.push('<div class="rw"><s style="background:#d92b2b"></s><em>个股</em><b class="' + cls(s0) + '">' + sgn(s0, 2) + ' 亿</b></div>');
-  if(S.hasBd) html.push('<div class="rw"><s style="background:#e08700"></s><em>板块</em><b class="' + cls(b0) + '">' + sgn(b0, 2) + ' 亿</b></div>');
+  html.push('<div class="rw"><s style="background:#d92b2b"></s><em>资金强度</em><b class="' + cls(dv) + '">' + (dv == null ? '—' : sgn(dv, 2) + '%') + '</b></div>');
+  html.push('<div class="rw"><s style="background:#c9ced6"></s><em>资金净额</em><b class="' + cls(da) + '">' + sgn(da, 2) + ' 亿</b></div>');
   if(v.xg && v.xg.length){
     var hits = [];
     for(var hx = 0; hx < v.xg.length; hx++){
       if(v.xg[hx].i !== i) continue;
-      var htg = v.xg[hx].tag, hup = v.xg[hx].up;
-      hits.push(htg === 'ps' ? (hup ? '价格&#8593;强于个股资金' : '个股资金&#8593;强于价格')
-        : htg === 'pb' ? (hup ? '价格&#8593;强于板块资金' : '板块资金&#8593;强于价格')
-        : (hup ? '个股资金&#8593;强于板块' : '板块&#8593;强于个股资金'));
+      hits.push(v.xg[hx].up ? '价格上穿（价格转强）' : '价格下穿（资金转强）');
     }
     if(hits.length) html.push('<div class="rxx">&#9679; 交叉点 &#183; ' + hits.join(' / ') + '</div>');
   }
@@ -998,6 +1017,7 @@ document.addEventListener('click', function(e){
   var m = t.getAttribute('data-m');
   var nn = t.getAttribute('data-n');
   var xx = t.getAttribute('data-x');
+  var ss = t.getAttribute('data-s');
   if(c){ load(c, (t.textContent || '').replace(c, '').trim()); return; }
   S.pin = false; clearIdle(); hideTip();
   if(m){
@@ -1010,6 +1030,13 @@ document.addEventListener('click', function(e){
   }
   else if(xx !== null){
     if(!S.cross){ S.cross = true; S.crossHold = false; S.norm = false; S.mode = 'cum'; paintUI(); render(); }
+  }
+  else if(ss !== null){
+    var sv = (ss === '1');
+    if(!S.cross || sv !== S.sep){
+      S.cross = true; S.crossHold = false; S.norm = false; S.mode = 'cum'; S.sep = sv;
+      paintUI(); render();
+    }
   }
   else if(nn !== null){
     var bv = (nn === '1');
