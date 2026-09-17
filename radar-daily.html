@@ -47,6 +47,19 @@ h1{font-size:19px;margin:0 0 4px;display:flex;align-items:center;gap:8px;flex-wr
 .chip{font-size:12px;border:1px solid var(--line);background:#fafbfc;color:var(--txt2);
   border-radius:20px;padding:3px 11px;cursor:pointer;white-space:nowrap;line-height:1.6}
 .chip.on{background:#e8f0fe;border-color:#bcd2fb;color:var(--info);font-weight:600}
+.nav{display:flex;gap:8px;align-items:center;margin-top:10px}
+.nbtn{height:38px;min-width:46px;padding:0 10px;border:1px solid var(--line);background:#fff;color:var(--txt2);
+  border-radius:10px;font-size:15px;font-family:inherit;font-weight:700;line-height:1;cursor:pointer;
+  -webkit-user-select:none;user-select:none;touch-action:manipulation}
+.nbtn:active{background:#eef2ff;border-color:#bcd2fb;color:var(--info)}
+.nbtn[disabled]{background:#fafbfc;color:#ccd2da;border-color:var(--line2);cursor:default}
+.nbtn.sm{font-size:13px;min-width:56px;font-weight:600}
+.nsp{flex:1 1 auto}
+.navinfo{font-size:11px;color:var(--txt3);margin-top:7px;line-height:1.6}
+.navinfo b{color:var(--txt2);font-weight:600;font-variant-numeric:tabular-nums}
+.navinfo .now{color:var(--info);font-weight:600}
+.navinfo .past{color:var(--warn);font-weight:600}
+.navhint{font-size:10.5px;color:#b6bcc6;margin-top:4px;line-height:1.55}
 .sep{width:100%;height:1px;background:var(--line2);margin:9px 0 3px}
 .lbl{font-size:11px;color:var(--txt3);width:100%;margin-bottom:1px}
 
@@ -101,8 +114,17 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
       <button id="goBtn">查询</button>
     </div>
     <div class="chips" id="chips"></div>
+    <div class="nav">
+      <button class="nbtn" id="pvBtn" type="button" aria-label="看更早">&#9664;</button>
+      <button class="nbtn" id="nxBtn" type="button" aria-label="看更新">&#9654;</button>
+      <span class="nsp"></span>
+      <button class="nbtn" id="zoBtn" type="button" aria-label="放大">&#65291;</button>
+      <button class="nbtn" id="ziBtn" type="button" aria-label="缩小">&#65293;</button>
+      <button class="nbtn sm" id="lsBtn" type="button">最新</button>
+    </div>
+    <div class="navinfo" id="navInfo">&mdash;</div>
+    <div class="navhint">&#9664;&#9654; 平移（按住连续）｜&#65291;&#65293; 缩放｜轻点或长按看当天数值</div>
     <div class="sep"></div>
-    <div class="chips" id="wins"></div>
     <div class="chips" id="modes" style="margin-top:6px"></div>
   </div>
 
@@ -129,8 +151,9 @@ var CFG = {
   SINA: 'https://vip.stock.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/',
   TX:   'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get',
   N: 600,
-  WINS: [30, 60, 120, 250, 500],
-  WIN0: 120,
+  SPANS: [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 250],
+  SPAN_M: 20,        // 手机默认可视天数
+  SPAN_D: 60,        // 桌面默认可视天数
   QUICK: [
     {c:'600176', n:'中国巨石'},
     {c:'588170', n:'科创半导体ETF'},
@@ -143,7 +166,9 @@ var CFG = {
 var S = {
   code: '', name: '',
   rows: [],        // 升序 [{d,p,s,b}]
-  win: CFG.WIN0,
+  span: 0,         // 可视窗口天数（0 = 未初始化，按屏幕宽度取默认）
+  end: null,       // 窗口右端在 S.rows 中的下标（null = 最新一天）
+  pin: false,      // 浮层是否已固定（触摸端轻点/长按后）
   mode: 'day',     // day | cum
   norm: false,     // 形态对比（各线各自缩放）
   hasBd: false,
@@ -311,9 +336,12 @@ function load(code, label){
       for(var q = 0; q < rows.length; q++){ if(Math.abs(rows[q].b) > 1e-9) return true; }
       return false;
     })();
-    if(S.win > rows.length){
-      S.win = CFG.WINS.filter(function(w){ return w <= rows.length; }).pop() || rows.length;
+    if(!S.span){
+      S.span = (window.innerWidth < 620) ? CFG.SPAN_M : CFG.SPAN_D;
     }
+    if(S.span > rows.length) S.span = Math.max(1, rows.length);
+    S.end = rows.length - 1;
+    S.pin = false;
     paintUI();
     render();
     void missing;
@@ -333,14 +361,7 @@ function paintUI(){
   }
   $('chips').innerHTML = '<span class="lbl">' + (wl.length ? '我的自选（读自雷达页面）' : '示例') + '</span>' + chips.join('');
 
-  var ws = [];
-  for(var k = 0; k < CFG.WINS.length; k++){
-    var w = CFG.WINS[k];
-    if(S.rows.length && w > S.rows.length) continue;
-    ws.push('<span class="chip' + (w === S.win ? ' on' : '') + '" data-w="' + w + '">' + w + ' 日</span>');
-  }
-  if(!ws.length) ws.push('<span class="chip on">全部 ' + S.rows.length + ' 日</span>');
-  $('wins').innerHTML = '<span class="lbl">时间窗</span>' + ws.join('');
+  paintNav();
 
   $('modes').innerHTML = '<span class="lbl">数值口径</span>' +
     '<span class="chip' + (S.mode === 'day' ? ' on' : '') + '" data-m="day">每日净额</span>' +
@@ -350,6 +371,78 @@ function paintUI(){
     '<span class="chip' + (S.norm ? ' on' : '') + '" data-n="1">形态对比（各自缩放）</span>';
 
   $('lgBd').style.display = S.hasBd ? '' : 'none';
+}
+
+/* ══════════════ 窗口导航（逐日平移 + 缩放） ══════════════ */
+function spanIdx(){
+  var best = 0, d0 = Infinity;
+  for(var i = 0; i < CFG.SPANS.length; i++){
+    var d = Math.abs(CFG.SPANS[i] - S.span);
+    if(d < d0){ d0 = d; best = i; }
+  }
+  return best;
+}
+function maxEnd(){ return S.rows.length - 1; }
+function atLatest(){ return S.end == null || S.end >= maxEnd(); }
+
+function paintNav(){
+  var tot = S.rows.length;
+  var bi = spanIdx();
+  if(!tot){
+    $('navInfo').innerHTML = '&mdash;';
+    ['pvBtn','nxBtn','zoBtn','ziBtn','lsBtn'].forEach(function(id){ $(id).disabled = true; });
+    return;
+  }
+  var span = Math.min(S.span || tot, tot);
+  var end = atLatest() ? tot - 1 : S.end;
+  var st = Math.max(0, end - span + 1);
+  $('pvBtn').disabled = (st <= 0);
+  $('nxBtn').disabled = atLatest();
+  $('zoBtn').disabled = (bi <= 0);                          // ＋ 放大 = 天数变少
+  $('ziBtn').disabled = (bi >= CFG.SPANS.length - 1);       // － 缩小 = 天数变多
+  $('lsBtn').disabled = atLatest();
+  $('navInfo').innerHTML =
+    '<b>' + S.rows[st].d.slice(5) + ' &rarr; ' + S.rows[end].d.slice(5) + '</b>' +
+    ' · 第 ' + (st + 1) + '&ndash;' + (end + 1) + ' / 共 ' + tot + ' 日' +
+    ' · 显示 <b>' + span + '</b> 日' +
+    (atLatest() ? ' <span class="now">最新</span>' : ' <span class="past">历史档</span>');
+}
+
+function navTo(end, span){
+  var tot = S.rows.length;
+  if(!tot) return;
+  if(span != null){
+    var lo = CFG.SPANS[0], hi = CFG.SPANS[CFG.SPANS.length - 1];
+    S.span = Math.max(lo, Math.min(hi, span));
+    if(S.span > tot) S.span = tot;
+  }
+  var sp = Math.min(S.span || tot, tot);
+  if(end == null) S.end = tot - 1;
+  else {
+    S.end = end;
+    if(S.end > tot - 1) S.end = tot - 1;
+    if(S.end < sp - 1) S.end = sp - 1;
+  }
+  S.pin = false; hideTip();
+  paintNav();
+  render();
+}
+
+function navShift(dir){                      // dir<0 向更早，dir>0 向更新
+  var tot = S.rows.length;
+  if(!tot) return;
+  var end = atLatest() ? tot - 1 : S.end;
+  navTo(end + dir, null);
+}
+
+function navZoom(dir){                       // dir<0 缩小（天数变多），dir>0 放大（天数变少）
+  var bi = spanIdx() + dir;
+  if(bi < 0) bi = 0;
+  if(bi > CFG.SPANS.length - 1) bi = CFG.SPANS.length - 1;
+  var tot = S.rows.length;
+  if(!tot) return;
+  var end = atLatest() ? tot - 1 : S.end;    // 缩放时右端保持不动
+  navTo(end, CFG.SPANS[bi]);
 }
 
 function readWatchlist(){
@@ -366,9 +459,15 @@ function readWatchlist(){
   }catch(e){ return []; }
 }
 
-/* ══════════════ 切片 ══════════════ */
+/* ══════════════ 切片（可视窗口，右端可平移） ══════════════ */
 function sliceRows(){
-  var base = S.rows.slice(-S.win);
+  var tot = S.rows.length;
+  if(!tot) return [];
+  var span = Math.min(S.span || tot, tot);
+  var end = (S.end == null || S.end > tot - 1) ? tot - 1 : S.end;
+  if(end < span - 1) end = span - 1;
+  var st = Math.max(0, end - span + 1);
+  var base = S.rows.slice(st, end + 1);
   if(S.mode !== 'cum'){
     return base.map(function(x){ return {d:x.d, p:x.p, s:x.s, b:x.b, s0:x.s, b0:x.b}; });
   }
@@ -477,10 +576,13 @@ function render(){
   if(norm){
     g.push('<text x="' + L + '" y="' + (T + 9) + '" font-size="8.5" fill="#c3c8d0">形态对比 · 各线按自身区间缩放（数值见下方浮层）</text>');
   }
-  var tickN = mob ? 4 : 5;
-  if(n < tickN) tickN = Math.max(2, n);
+  var tickN = Math.round(pw / (mob ? 62 : 96)) + 1;
+  if(tickN > 7) tickN = 7;
+  if(tickN < 2) tickN = 2;
+  if(n < tickN) tickN = (n <= 1) ? 1 : n;
   for(var t = 0; t < tickN; t++){
-    var idx = Math.round((n - 1) * t / (tickN - 1));
+    var idx = (tickN <= 1) ? 0 : Math.round((n - 1) * t / (tickN - 1));
+    if(!rows[idx]) continue;
     var xx = X(idx);
     var anc = (t === 0) ? 'start' : (t === tickN - 1 ? 'end' : 'middle');
     g.push('<text x="' + (t === 0 ? L : (t === tickN - 1 ? L + pw : xx)).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="' + anc + '" font-size="9" fill="#9ca3af">' + rows[idx].d.slice(5) + '</text>');
@@ -548,19 +650,22 @@ function capAndStat(rows, haveP){
   }
   h.push('</div>');
 
-  var tail = rows.slice(-5).reverse();
-  h.push('<h2 style="margin-top:12px">最近 5 个交易日</h2>');
+  /* 明细表固定给「全序列最新 5 天」，不随窗口平移漂移，避免被误读成窗口右端 */
+  var all = S.rows;
+  var tail = all.slice(-5).reverse();
+  h.push('<h2 style="margin-top:12px">最新 5 个交易日（全序列）</h2>');
   h.push('<table class="tb"><tr><th>日期</th>' + (haveP ? '<th>收盘</th><th>涨跌</th>' : '') + '<th>个股净额(亿)</th>' + (S.hasBd ? '<th>板块净额(亿)</th>' : '') + '</tr>');
   for(var t = 0; t < tail.length; t++){
     var r = tail[t];
-    var ap = rows[rows.length - 1 - t - 1];
+    var gi = all.length - 1 - t;
+    var ap = (gi > 0) ? all[gi - 1] : null;
     h.push('<tr><td>' + r.d + '</td>');
     if(haveP){
       var ch = (ap && ap.p) ? (r.p - ap.p) / ap.p * 100 : 0;
       h.push('<td>' + px2(r.p, digits) + '</td><td class="' + cls(ch) + '">' + sgn(ch, 2) + '%</td>');
     }
-    h.push('<td class="' + cls(r.s0) + '">' + sgn(r.s0, 2) + '</td>');
-    if(S.hasBd) h.push('<td class="' + cls(r.b0) + '">' + sgn(r.b0, 2) + '</td>');
+    h.push('<td class="' + cls(r.s) + '">' + sgn(r.s, 2) + '</td>');
+    if(S.hasBd) h.push('<td class="' + cls(r.b) + '">' + sgn(r.b, 2) + '</td>');
     h.push('</tr>');
   }
   h.push('</table>');
@@ -592,7 +697,7 @@ function showAt(clientX){
   var px = L + (n <= 1 ? pw / 2 : (i / (n - 1)) * pw);
 
   var cross = $('cross');
-  cross.style.display = '';
+  cross.style.display = 'block';
   cross.style.left = (px * scale).toFixed(1) + 'px';
   cross.style.height = rect.height.toFixed(1) + 'px';
 
@@ -607,7 +712,7 @@ function showAt(clientX){
   html.push('<div class="rw"><s style="background:#d92b2b"></s><em>个股</em><b class="' + cls(s0) + '">' + sgn(s0, 2) + ' 亿</b></div>');
   if(S.hasBd) html.push('<div class="rw"><s style="background:#e08700"></s><em>板块</em><b class="' + cls(b0) + '">' + sgn(b0, 2) + ' 亿</b></div>');
   tip.innerHTML = html.join('');
-  tip.style.display = '';
+  tip.style.display = 'block';
 
   var cwW = $('cw').clientWidth;
   var tw = tip.offsetWidth, pxCss = px * scale;
@@ -617,42 +722,104 @@ function showAt(clientX){
 }
 
 /* ══════════════ 事件 ══════════════ */
+var IDLE_MS = 8000;                 // 浮层固定后无操作自动收起
+var _idle = null;
+function armIdle(){
+  if(_idle){ clearTimeout(_idle); }
+  _idle = setTimeout(function(){ _idle = null; S.pin = false; hideTip(); }, IDLE_MS);
+}
+function clearIdle(){ if(_idle){ clearTimeout(_idle); _idle = null; } }
+function pinAt(clientX){
+  showAt(clientX);
+  S.pin = true;
+  armIdle();
+}
+
 (function bindPointer(){
   var cw = $('cw');
-  var down = false, moved = false, dx = 0, dy = 0;
+  var down = false, moved = false, lp = false, dismissed = false, x0 = 0, y0 = 0, lpTimer = null;
+
+  function stopLp(){ if(lpTimer){ clearTimeout(lpTimer); lpTimer = null; } }
 
   cw.addEventListener('pointerdown', function(e){
     if(e.pointerType === 'mouse') return;
-    down = true; moved = false; dx = e.clientX; dy = e.clientY;
+    if(S.pin){ S.pin = false; clearIdle(); hideTip(); dismissed = true; return; }   // 已固定 → 轻点收起
+    dismissed = false;
+    down = true; moved = false; lp = false;
+    x0 = e.clientX; y0 = e.clientY;
+    stopLp();
+    lpTimer = setTimeout(function(){                               // 按住 450ms = 长按
+      lpTimer = null;
+      if(!down || moved) return;
+      lp = true;
+      pinAt(x0);
+    }, 450);
   }, {passive:true});
 
   cw.addEventListener('pointermove', function(e){
     if(e.pointerType === 'mouse'){ showAt(e.clientX); return; }
     if(!down) return;
-    if(Math.abs(e.clientX - dx) > 8 || Math.abs(e.clientY - dy) > 8){ moved = true; hideTip(); }
+    if(Math.abs(e.clientX - x0) > 8 || Math.abs(e.clientY - y0) > 8){   // 二维位移 = 滑动页面
+      moved = true; stopLp();
+      if(!lp) hideTip();                                                // 长按已弹出则不打断
+    }
   }, {passive:true});
 
   cw.addEventListener('pointerup', function(e){
     if(e.pointerType === 'mouse') return;
+    stopLp();
     down = false;
-    if(!moved) showAt(e.clientX);
+    if(dismissed){ dismissed = false; lp = false; return; }   // 刚才那一下是「收起」，不再弹
+    if(!moved && !lp) pinAt(e.clientX);                       // 轻点
+    lp = false;
   }, {passive:true});
 
-  cw.addEventListener('pointercancel', function(){ down = false; }, {passive:true});
-  cw.addEventListener('pointerleave', function(e){ if(e.pointerType === 'mouse') hideTip(); }, {passive:true});
+  cw.addEventListener('pointercancel', function(){ stopLp(); down = false; lp = false; }, {passive:true});
+  cw.addEventListener('pointerleave', function(e){
+    if(e.pointerType === 'mouse'){ clearIdle(); hideTip(); }
+  }, {passive:true});
   cw.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+})();
+
+/* 点图表以外任意处 → 收起浮层 */
+document.addEventListener('pointerdown', function(e){
+  if(!S.pin) return;
+  var cw = $('cw');
+  if(cw && cw.contains(e.target)) return;
+  S.pin = false; clearIdle(); hideTip();
+}, true);
+
+/* 浏览条：轻点走一步，按住连续走 */
+function bindStep(btn, fn){
+  var t1 = null, t2 = null;
+  function stop(){ if(t1){ clearTimeout(t1); t1 = null; } if(t2){ clearInterval(t2); t2 = null; } }
+  btn.addEventListener('pointerdown', function(e){
+    if(btn.disabled) return;
+    e.preventDefault();
+    fn();
+    t1 = setTimeout(function(){ t2 = setInterval(function(){ if(btn.disabled){ stop(); return; } fn(); }, 110); }, 420);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(function(ev){
+    btn.addEventListener(ev, stop, {passive:true});
+  });
+}
+(function bindNav(){
+  bindStep($('pvBtn'), function(){ navShift(-1); });
+  bindStep($('nxBtn'), function(){ navShift(1); });
+  bindStep($('zoBtn'), function(){ navZoom(-1); });   // ＋ 放大（天数变少）
+  bindStep($('ziBtn'), function(){ navZoom(1); });    // － 缩小（天数变多）
+  $('lsBtn').addEventListener('click', function(){ navTo(null, null); });
 })();
 
 document.addEventListener('click', function(e){
   var t = e.target;
   if(!t || !t.className || String(t.className).indexOf('chip') < 0) return;
   var c = t.getAttribute('data-c');
-  var w = t.getAttribute('data-w');
   var m = t.getAttribute('data-m');
   var nn = t.getAttribute('data-n');
-  if(c) load(c, (t.textContent || '').replace(c, '').trim());
-  else if(w){ S.win = parseInt(w, 10); paintUI(); render(); }
-  else if(m){ if(m !== S.mode){ S.mode = m; paintUI(); render(); } }
+  if(c){ load(c, (t.textContent || '').replace(c, '').trim()); return; }
+  S.pin = false; clearIdle(); hideTip();
+  if(m){ if(m !== S.mode){ S.mode = m; paintUI(); render(); } }
   else if(nn !== null){ var bv = (nn === '1'); if(bv !== S.norm){ S.norm = bv; paintUI(); render(); } }
 });
 
