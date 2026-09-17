@@ -77,10 +77,13 @@ h1{font-size:19px;margin:0 0 4px;display:flex;align-items:center;gap:8px;flex-wr
 .tip .rw s{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
 .tip .rw em{font-style:normal;color:var(--txt3)}
 .tip .rw b{font-weight:600;margin-left:auto;padding-left:10px}
+.tip .rxx{margin-top:3px;padding-top:3px;border-top:1px solid var(--line2);color:#7c3aed;font-weight:600}
 .pos{color:var(--up)} .neg{color:var(--down)} .zero{color:var(--txt3)}
 .cap{font-size:11px;color:var(--txt3);margin-top:7px;line-height:1.6}
 .cap .hot{color:var(--warn)} .cap .bad{color:var(--up)}
 .na{color:var(--txt3);font-size:13px;padding:28px 0;text-align:center}
+.xempty{font-size:11.5px;color:var(--txt3);line-height:1.6;margin-top:6px}
+.xempty b{color:var(--txt2);font-weight:600}
 
 .stat{display:flex;gap:10px;flex-wrap:wrap}
 .sbox{flex:1 1 130px;min-width:118px;background:#fafbfc;border:1px solid var(--line2);border-radius:10px;padding:8px 10px}
@@ -102,9 +105,13 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
 
   <h1>资金日线雷达<span class="tag">试验版</span></h1>
   <div class="sub">
-    日K级三条曲线：<b style="color:var(--pl)">个股收盘价</b>（前复权·右轴·元）、
-    <b style="color:var(--stk)">个股每日资金净额</b>、
-    <b style="color:var(--bd)">所属板块每日资金净额</b>（左轴·亿元）<br>
+    日K级三条曲线：<b style="color:var(--pl)">个股收盘价</b>（前复权·元）、
+    <b style="color:var(--stk)">个股资金累计净额</b>、
+    <b style="color:var(--bd)">所属板块资金累计净额</b>（亿元）<br>
+    默认「<b>趋势交叉</b>」：三线以窗口左端为同一起点、各自满幅归一到 &#177;100% 后共轴，自动标出交点 ——
+    <span style="color:#7c3aed">紫点</span>=价格×个股资金、
+    <span style="color:#0891b2">青点</span>=个股×板块资金、
+    <span style="color:#db2777">玫红点</span>=价格×板块资金（交点随窗口重算）<br>
     价格源：腾讯前复权日K · 资金源：新浪财经 · 纯前端直连 · 试验页面，与稳定版／beta 互不影响
   </div>
 
@@ -133,6 +140,7 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
       <span id="lgPl"><i style="background:var(--pl)"></i>个股收盘价</span>
       <span id="lgStk"><i style="background:var(--stk)"></i>个股资金净额</span>
       <span id="lgBd"><i style="background:var(--bd)"></i>板块资金净额</span>
+      <span id="lgX" style="display:none"></span>
     </div>
     <div class="cw" id="cw"><div class="na">加载中…</div></div>
     <div class="cap" id="cap">—</div>
@@ -154,6 +162,8 @@ var CFG = {
   SPANS: [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 250],
   SPAN_M: 20,        // 手机默认可视天数
   SPAN_D: 60,        // 桌面默认可视天数
+  XGAP: 5,           // 交点去抖：两次交点至少间隔的交易日数（防贴线反复穿）
+  XMAX: 12,          // 交叉点清单最多列出的条数
   QUICK: [
     {c:'600176', n:'中国巨石'},
     {c:'588170', n:'科创半导体ETF'},
@@ -171,6 +181,8 @@ var S = {
   pin: false,      // 浮层是否已固定（触摸端轻点/长按后）
   mode: 'cum',     // day=每日净额 | cum=区间累计（默认，更能看清资金累积方向）
   norm: false,     // 形态对比（各线各自缩放）
+  cross: true,     // 趋势交叉（三线共轴·同一起点·自动标注交点）默认开
+  crossHold: false,// 因切「每日净额」被动关掉交叉 → 切回「区间累计」时自动恢复
   hasBd: false,
   busy: false,
   view: null
@@ -367,13 +379,17 @@ function paintUI(){
     '<span class="chip' + (S.mode === 'day' ? ' on' : '') + '" data-m="day">每日净额</span>' +
     '<span class="chip' + (S.mode === 'cum' ? ' on' : '') + '" data-m="cum">区间累计</span>' +
     '<span class="lbl" style="margin-top:7px">纵向缩放</span>' +
-    '<span class="chip' + (!S.norm ? ' on' : '') + '" data-n="0">原值（真实量级）</span>' +
-    '<span class="chip' + (S.norm ? ' on' : '') + '" data-n="1">形态对比（各自缩放）</span>';
+    '<span class="chip' + (!S.norm && !S.cross ? ' on' : '') + '" data-n="0">原值（真实量级）</span>' +
+    '<span class="chip' + (S.norm ? ' on' : '') + '" data-n="1">形态对比（各自缩放）</span>' +
+    '<span class="chip' + (S.cross ? ' on' : '') + '" data-x="1">趋势交叉（共轴·标交点）</span>';
 
   var cum = (S.mode === 'cum');
   $('lgStk').innerHTML = '<i style="background:var(--stk)"></i>个股资金' + (cum ? '累计' : '净额');
   $('lgBd').innerHTML  = '<i style="background:var(--bd)"></i>板块资金' + (cum ? '累计' : '净额');
   $('lgBd').style.display = S.hasBd ? '' : 'none';
+  $('lgX').style.display = S.cross ? '' : 'none';
+  $('lgX').innerHTML = '<i style="background:#7c3aed;border-radius:50%;width:8px;height:8px"></i>交点（' +
+    (S.hasBd ? '价格×个股资金、个股×板块资金、价格×板块资金' : '价格×个股资金') + '）';
 }
 
 /* ══════════════ 窗口导航（逐日平移 + 缩放） ══════════════ */
@@ -528,13 +544,16 @@ function render(){
     for(var i = 0; i < n; i++){
       var v = rows[i][key];
       if(v == null || !isFinite(v)) continue;
-      d += (d ? ' L' : 'M') + X(i).toFixed(1) + ',' + Y(v).toFixed(1);
+      var yy = Y(v, i);
+      if(yy == null || !isFinite(yy)) continue;
+      d += (d ? ' L' : 'M') + X(i).toFixed(1) + ',' + yy.toFixed(1);
     }
     return d;
   }
 
-  /* 形态对比：各线按自身区间缩放，专看联动/背离 */
-  var norm = !!S.norm;
+  /* ── 三种纵向尺度：raw 真实量级 | norm 各自缩放 | cross 共轴（趋势交叉） ── */
+  var vm = S.cross ? 'cross' : (S.norm ? 'norm' : 'raw');
+
   function mkSc(a){
     if(!a.length) return {lo:0, hi:1};
     var lo = Math.min.apply(null, a), hi = Math.max.apply(null, a);
@@ -549,10 +568,64 @@ function render(){
   }
   var scS = mkSc(sArr), scB = mkSc(bArr), scP = mkSc(pArr);
   function YN(v, sc){ return T + (1 - (v - sc.lo) / (sc.hi - sc.lo)) * ph; }
+
+  /* ── 共轴：三线各自以窗口左端为 0 基准，再除以自身最大偏离归一到 ±1
+        → 同一起点、同一标尺，交点由数据唯一决定，与放大缩小无关 ── */
+  var uP = null, uS = null, uB = null, xg = [];
+  function unitize(a){
+    var mx = 0;
+    for(var i2 = 0; i2 < a.length; i2++){
+      var v2 = a[i2];
+      if(v2 == null || !isFinite(v2)) continue;
+      if(Math.abs(v2) > mx) mx = Math.abs(v2);
+    }
+    if(mx < 1e-9) mx = 1;
+    var o = [];
+    for(var i3 = 0; i3 < a.length; i3++){
+      var v3 = a[i3];
+      o.push((v3 == null || !isFinite(v3)) ? null : v3 / mx);
+    }
+    return o;
+  }
+  function findCross(A, B, tag){
+    var out = [], gap = CFG.XGAP;
+    for(var i4 = 1; i4 < n; i4++){
+      var a0 = A[i4 - 1], b0 = B[i4 - 1], a1 = A[i4], b1 = B[i4];
+      if(a0 == null || b0 == null || a1 == null || b1 == null) continue;
+      var dd0 = a0 - b0, dd1 = a1 - b1;
+      if(dd0 === 0 || dd0 * dd1 >= 0) continue;
+      if(out.length && (i4 - out[out.length - 1].i) < gap) continue;   /* 去抖：贴线反复穿 */
+      out.push({ i:i4, d:rows[i4].d, up:(dd1 > dd0), tag:tag });
+    }
+    return out;
+  }
+  if(vm === 'cross'){
+    var p0 = null;
+    for(var i0 = 0; i0 < n; i0++){ if(rows[i0].p != null && isFinite(rows[i0].p)){ p0 = rows[i0].p; break; } }
+    var dP = [], dS = [], dB = [];
+    for(var i1 = 0; i1 < n; i1++){
+      var r1 = rows[i1];
+      dP.push((p0 != null && r1.p != null && isFinite(r1.p)) ? (r1.p - p0) : null);
+      dS.push(r1.s);
+      dB.push(haveBd ? r1.b : null);
+    }
+    uP = unitize(dP); uS = unitize(dS); uB = unitize(dB);
+    xg = [];
+    if(haveP) xg = xg.concat(findCross(uP, uS, 'ps'));            /* 价格 × 个股资金 */
+    if(haveBd) xg = xg.concat(findCross(uS, uB, 'sb'));           /* 个股资金 × 板块资金 */
+    if(haveP && haveBd) xg = xg.concat(findCross(uP, uB, 'pb'));  /* 价格 × 板块资金 */
+    xg.sort(function(a2, b2){ return a2.i - b2.i; });
+  }
+
+  function YU(u){ return T + (1 - (u + 1) / 2) * ph; }      /* u ∈ [-1,1] */
   function yOf(key){
-    if(!norm) return (key === 'p') ? YP : YF;
-    var sc = (key === 'p') ? scP : (key === 'b' ? scB : scS);
-    return function(v){ return YN(v, sc); };
+    if(vm === 'raw') return (key === 'p') ? YP : YF;
+    if(vm === 'norm'){
+      var sc = (key === 'p') ? scP : (key === 'b' ? scB : scS);
+      return function(v){ return YN(v, sc); };
+    }
+    var uu = (key === 'p') ? uP : (key === 'b' ? uB : uS);
+    return function(v, i){ return (uu[i] == null) ? NaN : YU(uu[i]); };
   }
   var yB = yOf('b'), yS = yOf('s'), yP = yOf('p');
 
@@ -560,24 +633,36 @@ function render(){
   var g = [];
   for(var k = 0; k <= 4; k++){
     var v = fLo + (fHi - fLo) * k / 4;
-    var y = norm ? (T + ph * k / 4) : YF(v);
+    var y = (vm === 'raw') ? YF(v) : (T + ph * k / 4);
     g.push('<line x1="' + L + '" y1="' + y.toFixed(1) + '" x2="' + (L + pw) + '" y2="' + y.toFixed(1) + '" stroke="#f1f3f5" stroke-width="1"/>');
-    if(!norm){
+    if(vm === 'raw'){
       g.push('<text x="' + (L - 5) + '" y="' + (y + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + v.toFixed(fDigits) + '</text>');
+    } else if(vm === 'cross'){
+      var uv = 100 - k * 50;
+      g.push('<text x="' + (L - 5) + '" y="' + (y + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + (uv > 0 ? '+' + uv : '' + uv) + '</text>');
     }
   }
-  if(!norm && haveP){
+  if(vm === 'raw' && haveP){
     for(var k2 = 0; k2 <= 4; k2++){
       var pv = pLo + (pHi - pLo) * k2 / 4, py = YP(pv);
       g.push('<text x="' + (L + pw + 5) + '" y="' + (py + 3.4).toFixed(1) + '" text-anchor="start" font-size="9" fill="#9ca3af">' + pv.toFixed(pDigits) + '</text>');
     }
   }
-  if(!norm && fLo < 0 && fHi > 0){
+  if(vm === 'cross'){
+    var zy0 = YU(0);
+    g.push('<line x1="' + L + '" y1="' + zy0.toFixed(1) + '" x2="' + (L + pw) + '" y2="' + zy0.toFixed(1) + '" stroke="#c9ced6" stroke-width="1" stroke-dasharray="4,3"/>');
+  } else if(vm === 'raw' && fLo < 0 && fHi > 0){
     var zy = YF(0);
     g.push('<line x1="' + L + '" y1="' + zy.toFixed(1) + '" x2="' + (L + pw) + '" y2="' + zy.toFixed(1) + '" stroke="#c9ced6" stroke-width="1" stroke-dasharray="3,3"/>');
   }
-  if(norm){
+  if(vm === 'norm'){
     g.push('<text x="' + L + '" y="' + (T + 9) + '" font-size="8.5" fill="#c3c8d0">形态对比 · 各线按自身区间缩放（数值见下方浮层）</text>');
+  } else if(vm === 'cross'){
+    g.push('<text x="' + L + '" y="' + (T + 9) + '" font-size="8.5" fill="#c3c8d0">趋势交叉 · 三线同起点共轴（各自满幅 = &#177;100）</text>');
+    for(var xa = 0; xa < xg.length; xa++){
+      var xvx = X(xg[xa].i);
+      g.push('<line x1="' + xvx.toFixed(1) + '" y1="' + T + '" x2="' + xvx.toFixed(1) + '" y2="' + (T + ph).toFixed(1) + '" stroke="#ede9fe" stroke-width="1" stroke-dasharray="2,3"/>');
+    }
   }
   var tickN = Math.round(pw / (mob ? 62 : 96)) + 1;
   if(tickN > 7) tickN = 7;
@@ -591,18 +676,32 @@ function render(){
     g.push('<text x="' + (t === 0 ? L : (t === tickN - 1 ? L + pw : xx)).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="' + anc + '" font-size="9" fill="#9ca3af">' + rows[idx].d.slice(5) + '</text>');
   }
 
+  /* 交点圆点（画在曲线之上） */
+  var gm = [];
+  for(var xb = 0; xb < xg.length; xb++){
+    var pc = xg[xb];
+    var cxm = X(pc.i);
+    var uval = (String(pc.tag).charAt(0) === 'p') ? uP[pc.i] : uS[pc.i];
+    if(uval == null || !isFinite(uval)) continue;
+    var cym = YU(uval);
+    if(!isFinite(cym)) continue;
+    var ccol = (pc.tag === 'ps') ? '#7c3aed' : (pc.tag === 'sb' ? '#0891b2' : '#db2777');
+    gm.push('<circle cx="' + cxm.toFixed(1) + '" cy="' + cym.toFixed(1) + '" r="3" fill="#fff" stroke="' + ccol + '" stroke-width="1.7"/>');
+  }
+
   var svg = [];
   svg.push('<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;display:block">');
   svg.push(g.join(''));
   if(haveBd) svg.push('<path d="' + pathOf('b', yB) + '" fill="none" stroke="#e08700" stroke-width="1.4" stroke-linejoin="round"/>');
   svg.push('<path d="' + pathOf('s', yS) + '" fill="none" stroke="#d92b2b" stroke-width="1.5" stroke-linejoin="round"/>');
   if(haveP) svg.push('<path d="' + pathOf('p', yP) + '" fill="none" stroke="#2563eb" stroke-width="1.9" stroke-linejoin="round"/>');
+  svg.push(gm.join(''));
   svg.push('</svg>');
   svg.push('<div class="cross" id="cross"></div>');
   svg.push('<div class="tip" id="tip"></div>');
 
   cw.innerHTML = svg.join('');
-  S.view = {W:W, H:H, L:L, T:T, pw:pw, n:n, rows:rows, pDigits:pDigits};
+  S.view = {W:W, H:H, L:L, T:T, pw:pw, n:n, rows:rows, pDigits:pDigits, xg:xg, vm:vm};
 
   capAndStat(rows, haveP);
 
@@ -636,6 +735,11 @@ function capAndStat(rows, haveP){
   if(S.norm){
     cap += '<br><span class="hot">当前为「形态对比」：三条线各自按本区间高低缩放，纵向位置不代表真实量级，数值见浮层</span>';
   }
+  if(S.cross){
+    cap += '<br>当前为 <b>趋势交叉</b>：三线以窗口左端为同一起点、各自按自身最大偏离归一到 &#177;100% 后共轴比较，'
+         + '交点由数据唯一决定 —— <b>但只在当前窗口内成立，缩放或平移窗口都会换基准、交点随之重算</b>'
+         + '（窗口越长，交点越接近趋势级信号；浮层显示的仍是真实数值）';
+  }
   if(!S.hasBd){
     cap += '<br><span class="hot">该标的无行业板块归属（ETF/无分类），已隐藏板块线</span>';
   }
@@ -655,6 +759,41 @@ function capAndStat(rows, haveP){
     h.push('<div class="sbox"><div class="k">板块资金累计净额</div><div class="v ' + cls(cumB) + '">' + sgn(cumB, 1) + ' 亿</div><div class="x">行业板块（新浪口径）</div></div>');
   }
   h.push('</div>');
+
+  /* ── 趋势交叉点清单（仅趋势交叉模式） ── */
+  if(S.cross){
+    var xgs = (S.view && S.view.xg) || [];
+    h.push('<h2 style="margin-top:12px">趋势交叉点（本窗口 ' + xgs.length + ' 次）</h2>');
+    if(!xgs.length){
+      h.push('<div class="xempty">本窗口内两线<b>同向、没有交叉</b>。按 &#65293; 缩小到更长区间（例如 120 / 250 日）才容易看到趋势级的交叉。</div>');
+    } else {
+      h.push('<table class="tb"><tr><th>日期</th><th>对比</th><th>转强的一侧</th>' +
+        (haveP ? '<th>收盘</th>' : '') + '<th>个股净额(亿)</th></tr>');
+      var camt = (xgs.length > CFG.XMAX) ? xgs.slice(-CFG.XMAX) : xgs;
+      for(var xi = camt.length - 1; xi >= 0; xi--){
+        var cx = camt[xi];
+        var cr = rows[cx.i];
+        if(!cr) continue;
+        var cname = (cx.tag === 'ps') ? '价格 × 个股资金'
+                  : (cx.tag === 'pb') ? '价格 × 板块资金' : '个股 × 板块资金';
+        var cwho = (cx.tag === 'ps')
+          ? (cx.up ? '价格 &#8593; 强于个股资金' : '个股资金 &#8593; 强于价格')
+          : (cx.tag === 'pb')
+            ? (cx.up ? '价格 &#8593; 强于板块资金' : '板块资金 &#8593; 强于价格')
+            : (cx.up ? '个股资金 &#8593; 强于板块' : '板块 &#8593; 强于个股资金');
+        h.push('<tr><td>' + cr.d + '</td><td style="text-align:left;color:var(--txt3)">' + cname + '</td>' +
+          '<td style="text-align:left">' + cwho + '</td>');
+        if(haveP) h.push('<td>' + px2(cr.p, digits) + '</td>');
+        h.push('<td class="' + cls(cr.s0) + '">' + sgn(cr.s0, 2) + '</td></tr>');
+      }
+      h.push('</table>');
+      if(xgs.length > CFG.XMAX){
+        h.push('<div class="xempty">共 ' + xgs.length + ' 次，上表只列最近 ' + CFG.XMAX + ' 次（已按 ' + CFG.XGAP + ' 个交易日去抖）。</div>');
+      } else {
+        h.push('<div class="xempty">已按 ' + CFG.XGAP + ' 个交易日去抖（滤掉贴线反复穿越的噪声点）。</div>');
+      }
+    }
+  }
 
   /* 明细表固定给「全序列最新 5 天」，不随窗口平移漂移，避免被误读成窗口右端 */
   var all = S.rows;
@@ -717,6 +856,17 @@ function showAt(clientX){
   if(r.p != null) html.push('<div class="rw"><s style="background:#2563eb"></s><em>收盘</em><b>' + px2(r.p, dg) + ' <span class="' + cls(ch) + '">' + sgn(ch, 2) + '%</span></b></div>');
   html.push('<div class="rw"><s style="background:#d92b2b"></s><em>个股</em><b class="' + cls(s0) + '">' + sgn(s0, 2) + ' 亿</b></div>');
   if(S.hasBd) html.push('<div class="rw"><s style="background:#e08700"></s><em>板块</em><b class="' + cls(b0) + '">' + sgn(b0, 2) + ' 亿</b></div>');
+  if(v.xg && v.xg.length){
+    var hits = [];
+    for(var hx = 0; hx < v.xg.length; hx++){
+      if(v.xg[hx].i !== i) continue;
+      var htg = v.xg[hx].tag, hup = v.xg[hx].up;
+      hits.push(htg === 'ps' ? (hup ? '价格&#8593;强于个股资金' : '个股资金&#8593;强于价格')
+        : htg === 'pb' ? (hup ? '价格&#8593;强于板块资金' : '板块资金&#8593;强于价格')
+        : (hup ? '个股资金&#8593;强于板块' : '板块&#8593;强于个股资金'));
+    }
+    if(hits.length) html.push('<div class="rxx">&#9679; 交叉点 &#183; ' + hits.join(' / ') + '</div>');
+  }
   tip.innerHTML = html.join('');
   tip.style.display = 'block';
 
@@ -847,10 +997,24 @@ document.addEventListener('click', function(e){
   var c = t.getAttribute('data-c');
   var m = t.getAttribute('data-m');
   var nn = t.getAttribute('data-n');
+  var xx = t.getAttribute('data-x');
   if(c){ load(c, (t.textContent || '').replace(c, '').trim()); return; }
   S.pin = false; clearIdle(); hideTip();
-  if(m){ if(m !== S.mode){ S.mode = m; paintUI(); render(); } }
-  else if(nn !== null){ var bv = (nn === '1'); if(bv !== S.norm){ S.norm = bv; paintUI(); render(); } }
+  if(m){
+    if(m !== S.mode){
+      S.mode = m;
+      if(S.mode === 'day' && S.cross){ S.cross = false; S.crossHold = true; }        /* 交叉只在「区间累计」下成立，先记一笔 */
+      else if(S.mode === 'cum' && S.crossHold){ S.cross = true; S.crossHold = false; }/* 切回累计 → 交点自动回来 */
+      paintUI(); render();
+    }
+  }
+  else if(xx !== null){
+    if(!S.cross){ S.cross = true; S.crossHold = false; S.norm = false; S.mode = 'cum'; paintUI(); render(); }
+  }
+  else if(nn !== null){
+    var bv = (nn === '1');
+    if(S.cross || bv !== S.norm){ S.cross = false; S.crossHold = false; S.norm = bv; paintUI(); render(); }
+  }
 });
 
 $('goBtn').addEventListener('click', function(){
