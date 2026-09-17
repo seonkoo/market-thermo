@@ -42,6 +42,15 @@ h1{font-size:19px;margin:0 0 4px;display:flex;align-items:center;gap:8px;flex-wr
   font-size:14px;font-family:inherit;font-weight:600;cursor:pointer}
 .ctl button:active{opacity:.82}
 .ctl button[disabled]{background:#c7cdd6;cursor:default}
+.who{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;margin:9px 0 0;min-height:22px}
+.who .wn{font-size:16px;font-weight:700;color:var(--txt)}
+.who .wc{font-size:12px;color:var(--txt3);font-variant-numeric:tabular-nums}
+.who .wi{font-style:normal;font-size:12px;color:var(--txt2);border:1px solid var(--line);border-radius:6px;padding:0 6px;line-height:18px;background:#fafbfc}
+.who .wi.dim{color:var(--txt3)}
+.who .wi.wna{color:#8a6d1f;border-color:rgba(214,158,46,.45);background:rgba(214,158,46,.10)}
+.who .wi.wbad{color:#b42318;border-color:rgba(180,35,24,.35);background:rgba(180,35,24,.07)}
+.who .wt{font-style:normal;font-size:10px;color:var(--txt3)}
+.who .wm{font-size:12px;color:var(--txt3)}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
 .chip{font-size:12px;border:1px solid var(--line);background:#fafbfc;color:var(--txt2);
   border-radius:20px;padding:3px 11px;cursor:pointer;white-space:nowrap;line-height:1.6}
@@ -109,7 +118,7 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
     默认「<b>趋势交叉</b>」+「<b>蓝线分离</b>」：两线以窗口左端为同一起点、各自满幅归一到 &#177;100% 后共轴，
     蓝线（价格）整体上移一档（<b>+10%</b> / <b>+25%</b> 两档可切，另有「贴合」归零），共振上行时不再与资金线重叠 —— 价格相对资金走弱超过这一档时才标出
     <span style="color:#7c3aed">紫点</span>交点（交点随窗口与分离档位重算）<br>
-    资金口径：新浪 MoneyFlow 的「净流入占成交额比」 · 价格源：腾讯前复权日K · 纯前端直连 · 试验页面，与稳定版／beta 互不影响
+    资金口径：新浪 MoneyFlow 的「净流入占成交额比」 · 价格源：腾讯前复权日K · 名称／行业：东财（行业用东财分类口径） · 纯前端直连 · 试验页面，与稳定版／beta 互不影响
   </div>
 
   <div class="card">
@@ -117,6 +126,7 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
       <input id="codeIn" type="text" inputmode="numeric" placeholder="输入 6 位代码，如 600176" maxlength="8" autocomplete="off">
       <button id="goBtn">查询</button>
     </div>
+    <div class="who" id="who"><span class="wm">输入 6 位代码或点选下方标的</span></div>
     <div class="chips" id="chips"></div>
     <div class="nav">
       <button class="nbtn" id="pvBtn" type="button" aria-label="看更早">&#9664;</button>
@@ -154,6 +164,8 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
 var CFG = {
   SINA: 'https://vip.stock.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/',
   TX:   'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get',
+  EM:   'https://push2delay.eastmoney.com/api/qt/ulist.np/get',
+  META_MS: 7000,     // 名称 / 行业（东财）超时，失败不影响主图
   N: 600,
   SPANS: [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 250],
   SPAN_M: 120,       // 手机默认可视天数
@@ -183,6 +195,8 @@ var S = {
   gap: 0.25,       // 蓝线分离档位（满幅比例，0=贴合）；数值来自 CFG.GAPS
   crossHold: false,// 因切「每日净额」被动关掉交叉 → 切回「区间累计」时自动恢复
   qOk: 0,          // ratioamount（占比字段）可用行数
+  meta: null,      // {name, ind} 东财名称 + 行业（拿不到则为 null）
+  metaState: '',   // '' 未开始 | 'loading' 识别中 | 'ok' | 'noind' | 'fail'
   noPrice: false,
   busy: false,
   view: null
@@ -207,6 +221,8 @@ function toMkt(code){
   if(c === '6' || c === '9' || c === '5') return 'sh' + code;
   return 'sz' + code;
 }
+/* 东财 secid：1.=沪市 0.=深市 */
+function toSec(mkt){ return (mkt.slice(0, 2) === 'sh' ? '1.' : '0.') + mkt.slice(2); }
 
 /* ══════════════ 通道 1：新浪资金（JSONP） ══════════════ */
 var cbSeq = 0;
@@ -224,6 +240,33 @@ function fetchFund(mktCode, num, ok, fail){
   timer = setTimeout(function(){ if(done) return; done = true; clean(); fail('新浪资金请求超时'); }, 15000);
   sc.src = CFG.SINA + name + '/MoneyFlow.ssl_qsfx_zjlrqs?page=1&num=' + num +
            '&sort=opendate&asc=0&daima=' + encodeURIComponent(mktCode);
+  document.head.appendChild(sc);
+}
+
+/* ══════════════ 通道 3：名称 + 行业（东财 JSONP，失败不影响主图） ══════════════ */
+function fetchMeta(mktCode, code, cb){
+  var name = '__rzm' + (++cbSeq) + '_' + (new Date().getTime());
+  var sc = document.createElement('script');
+  var done = false, timer = null;
+  function clean(){
+    if(timer){ clearTimeout(timer); timer = null; }
+    try{ delete window[name]; }catch(e){ window[name] = undefined; }
+    if(sc.parentNode){ sc.parentNode.removeChild(sc); }
+  }
+  function bail(){ if(done) return; done = true; clean(); cb(null); }
+  window[name] = function(j){
+    if(done) return; done = true; clean();
+    var d = (j && j.data && j.data.diff) || [], hit = null;
+    for(var i = 0; i < d.length; i++){ if(String(d[i].f12) === String(code)){ hit = d[i]; break; } }
+    if(!hit){ cb(null); return; }
+    var nm  = String(hit.f14 == null ? '' : hit.f14).trim();
+    var ind = String(hit.f100 == null ? '' : hit.f100).trim();
+    cb(nm ? {name: nm, ind: ind} : null);
+  };
+  sc.onerror = bail;
+  timer = setTimeout(bail, CFG.META_MS);
+  sc.src = CFG.EM + '?fltt=2&secids=' + encodeURIComponent(toSec(mktCode)) +
+           '&fields=f12,f14,f100&cb=' + name;
   document.head.appendChild(sc);
 }
 
@@ -283,9 +326,12 @@ function load(code, label){
   S.busy = true;
   S.code = code;
   S.name = label || '';
+  S.meta = null;
+  S.metaState = 'loading';
+  paintWho();
   $('goBtn').disabled = true;
   $('cw').innerHTML = '<div class="na">加载中…</div>';
-  setCap('正在并行拉取：腾讯前复权价格 + 新浪资金…');
+  setCap('正在并行拉取：腾讯前复权价格 + 新浪资金 + 东财名称／行业…');
   hideTip();
 
   var mkt = toMkt(code);
@@ -310,6 +356,14 @@ function load(code, label){
     priceOk = false; priceMap = {};
     errs.push(msg);
     if(--pending === 0) finish();
+  });
+
+  /* 名称 / 行业：独立通道，失败或超时都不影响主图（只更新标的信息行） */
+  fetchMeta(mkt, code, function(m){
+    if(S.code !== code) return;                 /* 期间已换标的 → 丢弃 */
+    S.meta = m;
+    S.metaState = m ? (m.ind ? 'ok' : 'noind') : 'fail';
+    paintWho();
   });
 
   function finish(){
@@ -367,6 +421,24 @@ function load(code, label){
 
 /* ══════════════ 界面小件 ══════════════ */
 function setCap(html){ $('cap').innerHTML = html; }
+
+/* 标的信息行：名称（东财 f14）+ 行业（东财 f100 行业分类）
+   ⚠️ 拿不到就如实留白／标注，不猜、不编 */
+function paintWho(){
+  var el = $('who');
+  if(!el) return;
+  var code = S.code || '';
+  if(!code){ el.innerHTML = '<span class="wm">输入 6 位代码或点选下方标的</span>'; return; }
+  var nm  = (S.meta && S.meta.name) ? S.meta.name : (S.name || '');
+  var ind = (S.meta && S.meta.ind) ? S.meta.ind : '';
+  var h = '<b class="wn">' + esc(nm || code) + '</b>';
+  h += '<span class="wc">' + esc(code) + '</span>';
+  if(S.metaState === 'loading')      h += '<i class="wi dim">识别中…</i>';
+  else if(S.metaState === 'ok')      h += '<i class="wi">行业：' + esc(ind) + '</i><i class="wt">东财分类</i>';
+  else if(S.metaState === 'noind')   h += '<i class="wi wna">无行业分类（ETF／基金）</i>';
+  else if(S.metaState === 'fail')    h += '<i class="wi wbad">名称／行业源未响应</i>';
+  el.innerHTML = h;
+}
 
 function paintUI(){
   var chips = [];
