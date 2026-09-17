@@ -1270,6 +1270,14 @@ var CFG = {
     EARLY_MIN: 30       // 开盘放大窗口（分钟）：09:30–09:59 铺满宽度，10:00 起恢复全天
 
   },
+  // tooltip 交互（beta）：点击固定后，若一段时间没有继续操作就自动收起
+
+  TIP: {
+
+    IDLE_MS: 5000       // 点击固定（📌）后，图上无操作多久自动收起（毫秒）；改大留更久、改小收更快
+
+  },
+
 
   // 资金历史参照（beta）：回答「这个净流入数字到底算大算小」
   // · 日线资金流分布走新浪（实测 750 个交易日 ≈ 3 年，股票/ETF 均可取），用 script 标签读全局变量
@@ -9498,13 +9506,37 @@ rzStart();
 
   }
 
-  var RZ_PIN = null, RZ_PIN_T = null, RZ_DOWN_C = null, RZ_DOWN_T = 0, RZ_DOWN_X = 0, RZ_DOWN_Y = 0, RZ_MOVED = false, RZ_LONG = false, RZ_TOUCH = false, RZ_ACTIVE = false;
+  var RZ_PIN = null, RZ_PIN_T = null, RZ_DOWN_C = null, RZ_DOWN_T = 0, RZ_DOWN_X = 0, RZ_DOWN_Y = 0, RZ_MOVED = false, RZ_LONG = false, RZ_TOUCH = false, RZ_ACTIVE = false, RZ_IDLE_T = null, RZ_DOWN = false;
 
   function rzSetPin(on, chart){ if(chart && chart.classList) chart.classList.toggle('rz-pinned', on); }
 
-  function rzUnpin(){ if(RZ_PIN){ rzSetPin(false, RZ_PIN); RZ_PIN = null; } }
+  // 点击固定（📌）后若一段时间没有继续操作，自动收起。两张图共用同一套状态，此处改一次即两图都生效。
 
-  function rzPin(c){ if(RZ_PIN && RZ_PIN !== c) rzSetPin(false, RZ_PIN); RZ_PIN = c; rzSetPin(true, c); }
+  function rzIdleClear(){ if(RZ_IDLE_T){ clearTimeout(RZ_IDLE_T); RZ_IDLE_T = null; } }
+
+  function rzIdleArm(){
+
+    rzIdleClear();
+
+    if(!RZ_PIN) return;
+
+    RZ_IDLE_T = setTimeout(function(){
+
+      RZ_IDLE_T = null;
+
+      if(!RZ_PIN) return;
+
+      if(RZ_ACTIVE || RZ_DOWN){ rzIdleArm(); return; }   // 手指/鼠标还按着 → 顺延，不收起
+
+      rzUnpin(); rzHideTip();
+
+    }, (CFG.TIP && CFG.TIP.IDLE_MS) || 5000);
+
+  }
+
+  function rzUnpin(){ if(RZ_PIN){ rzSetPin(false, RZ_PIN); RZ_PIN = null; } rzIdleClear(); }
+
+  function rzPin(c){ if(RZ_PIN && RZ_PIN !== c) rzSetPin(false, RZ_PIN); RZ_PIN = c; rzSetPin(true, c); rzIdleArm(); }
 
   function rzUpdateTip(chart, e){
 
@@ -9663,7 +9695,7 @@ rzStart();
 
     RZ_TOUCH = !!(e.pointerType && e.pointerType !== 'mouse');
 
-    RZ_DOWN_C = c; RZ_DOWN_T = Date.now(); RZ_DOWN_X = e.clientX; RZ_DOWN_Y = e.clientY; RZ_MOVED = false; RZ_LONG = false; RZ_ACTIVE = false;
+    RZ_DOWN = true; RZ_DOWN_C = c; RZ_DOWN_T = Date.now(); RZ_DOWN_X = e.clientX; RZ_DOWN_Y = e.clientY; RZ_MOVED = false; RZ_LONG = false; RZ_ACTIVE = false;
 
     clearTimeout(RZ_PIN_T);
 
@@ -9676,9 +9708,9 @@ rzStart();
 
         RZ_LONG = true; RZ_ACTIVE = true;
 
-        rzUpdateTip(c, {clientX:RZ_DOWN_X, clientY:RZ_DOWN_Y});
+        if(RZ_PIN === c) rzUnpin(); else rzPin(c);   // 先定 pin 状态再重绘，📌 标记才即时出现
 
-        if(RZ_PIN === c) rzUnpin(); else rzPin(c);
+        rzUpdateTip(c, {clientX:RZ_DOWN_X, clientY:RZ_DOWN_Y});
 
       }, 450);
 
@@ -9689,7 +9721,7 @@ rzStart();
     // 桌面鼠标：保持原样（划到哪显示哪）
     rzUpdateTip(c, e);
 
-    RZ_PIN_T = setTimeout(function(){ RZ_LONG = true; if(RZ_MOVED) return; if(RZ_PIN === c) rzUnpin(); else rzPin(c); }, 450);
+    RZ_PIN_T = setTimeout(function(){ RZ_LONG = true; if(RZ_MOVED) return; if(RZ_PIN === c) rzUnpin(); else rzPin(c); rzUpdateTip(c, {clientX:RZ_DOWN_X, clientY:RZ_DOWN_Y}); }, 450);   // 定 pin 后重绘，📌 即时出现
 
   }, {passive:true});
 
@@ -9707,6 +9739,8 @@ rzStart();
 
     }
 
+    if(RZ_PIN) rzIdleArm();   // 图上还在操作 → 重新计时（点击固定后自动收起用）
+
     rzUpdateTip(c, e);
 
   }, {passive:true});
@@ -9714,6 +9748,8 @@ rzStart();
   document.addEventListener('pointerup', function(e){
 
     clearTimeout(RZ_PIN_T);
+
+    RZ_DOWN = false;
 
     if(RZ_TOUCH){
 
@@ -9723,7 +9759,7 @@ rzStart();
 
         if(RZ_PIN === tc){ rzUnpin(); rzHideTip(); }
 
-        else { rzUpdateTip(tc, {clientX:RZ_DOWN_X, clientY:RZ_DOWN_Y}); rzPin(tc); }
+        else { rzPin(tc); rzUpdateTip(tc, {clientX:RZ_DOWN_X, clientY:RZ_DOWN_Y}); }   // 先 pin 再重绘，📌 即时出现
 
       } else if(!RZ_ACTIVE && !RZ_PIN){ rzHideTip(); }
 
@@ -9735,13 +9771,13 @@ rzStart();
 
     if(RZ_DOWN_C === RZ_PIN && !RZ_MOVED && !RZ_LONG){ rzUnpin(); rzHideTip(); }
 
-    if(RZ_PIN) return;
+    if(RZ_PIN){ rzIdleArm(); return; }
 
     setTimeout(rzHideTip, 1500);
 
   }, {passive:true});
 
-  document.addEventListener('pointercancel', function(){ RZ_ACTIVE = false; RZ_DOWN_C = null; if(!RZ_PIN) rzHideTip(); }, {passive:true});
+  document.addEventListener('pointercancel', function(){ RZ_ACTIVE = false; RZ_DOWN = false; RZ_DOWN_C = null; if(!RZ_PIN) rzHideTip(); }, {passive:true});
 
   // 长按图形时屏蔽手机系统菜单（选择/复制/搜索），否则长按弹出的是系统菜单
   document.addEventListener('contextmenu', function(e){ if(rzChartFromPoint(e.target)) e.preventDefault(); }, {passive:false});
