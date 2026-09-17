@@ -73,6 +73,7 @@ h1{font-size:19px;margin:0 0 4px;display:flex;align-items:center;gap:8px;flex-wr
 
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--txt2);margin-bottom:8px}
 .legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.legend .lgmode{color:var(--txt3);font-size:11px;line-height:1.5}
 .cw{position:relative;touch-action:pan-y pinch-zoom;user-select:none;-webkit-user-select:none}
 .cw svg{display:block}
 .cross{position:absolute;top:0;width:1px;background:#9ca3af;opacity:.75;pointer-events:none;display:none}
@@ -115,9 +116,9 @@ h2{font-size:13px;margin:0 0 8px;color:var(--txt2);font-weight:600}
   <div class="sub">
     日K级两条曲线：<b style="color:var(--pl)">个股收盘价</b>（前复权·元）、
     <b style="color:var(--stk)">个股资金强度</b>（净流入占当日成交额比·%）<br>
-    默认「<b>趋势交叉</b>」+「<b>蓝线分离</b>」：两线以窗口左端为同一起点、各自满幅归一到 &#177;100% 后共轴，
-    蓝线（价格）整体上移一档（<b>+10%</b> / <b>+25%</b> 两档可切，另有「贴合」归零），共振上行时不再与资金线重叠 —— 价格相对资金走弱超过这一档时才标出
-    <span style="color:#7c3aed">紫点</span>交点（交点随窗口与分离档位重算）<br>
+    默认「<b>独立双轴 · 各铺满</b>」（对齐量能做T beta 版分时图的 Y 轴策略）：价格轴按窗口收盘价、资金轴按窗口资金强度各自铺满整高，
+    资金轴强制把 0 纳入范围 —— 看形态共振／背离最直观<br>
+    需要按同一标尺看<b>交点</b>时可切「<b>趋势交叉</b>」：两线共轴归一，蓝线（价格）可整体上移一档（<b>+10%</b>／<b>+25%</b>，另有「贴合」归零）<br>
     资金口径：新浪 MoneyFlow 的「净流入占成交额比」 · 价格源：腾讯前复权日K · 名称／行业：东财（行业用东财分类口径） · 纯前端直连 · 试验页面，与稳定版／beta 互不影响
   </div>
 
@@ -190,8 +191,8 @@ var S = {
   end: null,       // 窗口右端在 S.rows 中的下标（null = 最新一天）
   pin: false,      // 浮层是否已固定（触摸端轻点/长按后）
   mode: 'cum',     // day=每日净额 | cum=区间累计（默认，更能看清资金累积方向）
-  norm: false,     // 形态对比（各线各自缩放）
-  cross: true,     // 趋势交叉（两线共轴·同一起点·自动标注交点）默认开
+  norm: true,      // 独立双轴·各铺满（beta 分时图策略）—— 默认，看形态共振/背离
+  cross: false,    // 趋势交叉（两线共轴·同一起点·自动标注交点）—— 需要看交点时再切
   gap: 0.25,       // 蓝线分离档位（满幅比例，0=贴合）；数值来自 CFG.GAPS
   crossHold: false,// 因切「每日净额」被动关掉交叉 → 切回「区间累计」时自动恢复
   qOk: 0,          // ratioamount（占比字段）可用行数
@@ -455,9 +456,9 @@ function paintUI(){
   $('modes').innerHTML = '<span class="lbl">数值口径</span>' +
     '<span class="chip' + (S.mode === 'day' ? ' on' : '') + '" data-m="day">每日强度</span>' +
     '<span class="chip' + (S.mode === 'cum' ? ' on' : '') + '" data-m="cum">区间累计</span>' +
-    '<span class="lbl" style="margin-top:7px">纵向缩放</span>' +
+    '<span class="lbl" style="margin-top:7px">纵向尺度</span>' +
+    '<span class="chip' + (S.norm ? ' on' : '') + '" data-n="1">独立双轴·各铺满（beta 策略）</span>' +
     '<span class="chip' + (!S.norm && !S.cross ? ' on' : '') + '" data-n="0">原值（真实 % 轴）</span>' +
-    '<span class="chip' + (S.norm ? ' on' : '') + '" data-n="1">形态对比（各自缩放）</span>' +
     '<span class="chip' + (S.cross ? ' on' : '') + '" data-x="1">趋势交叉（共轴·标交点）</span>' +
     '<span class="lbl" style="margin-top:7px">两线间距（仅趋势交叉）</span>' +
     (function(){
@@ -472,9 +473,16 @@ function paintUI(){
 
   var cum = (S.mode === 'cum');
   $('lgStk').innerHTML = '<i style="background:var(--stk)"></i>个股资金强度' + (cum ? '累计' : '') + '（占成交额 %）';
-  $('lgX').style.display = S.cross ? '' : 'none';
-  $('lgX').innerHTML = '<i style="background:#7c3aed;border-radius:50%;width:8px;height:8px"></i>交点（价格 × 个股资金）' +
-    ((S.gap || 0) > 0 ? ' · 蓝线已上移 ' + Math.round(S.gap * 100) + '%' : ' · 贴合（未分离）');
+  if(S.cross){
+    $('lgX').style.display = '';
+    $('lgX').innerHTML = '<i style="background:#7c3aed;border-radius:50%;width:8px;height:8px"></i>交点（价格 × 个股资金）' +
+      ((S.gap || 0) > 0 ? ' · 蓝线已上移 ' + Math.round(S.gap * 100) + '%' : ' · 贴合（未分离）');
+  } else if(S.norm){
+    $('lgX').style.display = '';
+    $('lgX').innerHTML = '<span class="lgmode">独立双轴 · 价格／资金各自铺满整高（资金轴含 0）</span>';
+  } else {
+    $('lgX').style.display = 'none';
+  }
 }
 
 /* ══════════════ 窗口导航（逐日平移 + 缩放） ══════════════ */
@@ -645,11 +653,15 @@ function render(){
   var vm = S.cross ? 'cross' : (S.norm ? 'norm' : 'raw');
   var GAP = (vm === 'cross') ? (S.gap || 0) : 0;   /* 蓝线分离档位（满幅比例，0=贴合） */
 
-  function mkSc(a){
+  /* 纵向尺度：对齐「量能做T beta 版」分时组合图的做法 ——
+     价格轴/资金轴各自独立满幅；资金轴额外强制把 0 纳入范围（正负一眼分明）；
+     上下各留 10% 余量（beta 同为 0.1）。 */
+  function mkSc(a, anchorZero){
     if(!a.length) return {lo:0, hi:1};
     var lo = Math.min.apply(null, a), hi = Math.max.apply(null, a);
+    if(anchorZero){ lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
     if(hi - lo < 1e-9){ var m = (hi + lo) / 2; lo = m - 1; hi = m + 1; }
-    var pd = (hi - lo) * 0.06;
+    var pd = (hi - lo) * 0.1;
     return {lo: lo - pd, hi: hi + pd};
   }
   var vArr = [], pArr = [];
@@ -657,7 +669,7 @@ function render(){
     if(rows[q].v != null && isFinite(rows[q].v)) vArr.push(rows[q].v);
     if(rows[q].p != null && isFinite(rows[q].p)) pArr.push(rows[q].p);
   }
-  var scS = mkSc(vArr), scP = mkSc(pArr);
+  var scS = mkSc(vArr, true), scP = mkSc(pArr, false);
   function YN(v, sc){ return T + (1 - (v - sc.lo) / (sc.hi - sc.lo)) * ph; }
 
   /* ── 共轴：两线各自以窗口左端为 0 基准，再除以自身最大偏离归一到 ±1
@@ -749,9 +761,7 @@ function render(){
     var zy = YF(0);
     g.push('<line x1="' + L + '" y1="' + zy.toFixed(1) + '" x2="' + (L + pw) + '" y2="' + zy.toFixed(1) + '" stroke="#c9ced6" stroke-width="1" stroke-dasharray="3,3"/>');
   }
-  if(vm === 'norm'){
-    g.push('<text x="' + L + '" y="' + (T + 9) + '" font-size="8.5" fill="#c3c8d0">形态对比 · 各线按自身区间缩放（数值见下方浮层）</text>');
-  } else if(vm === 'cross'){
+  if(vm === 'cross'){
     var yHint = (GAP > 0) ? (YU(1) + 11) : (T + 9);
     g.push('<text x="' + L + '" y="' + yHint.toFixed(1) + '" font-size="8.5" fill="#c3c8d0">趋势交叉 · 两线同起点共轴（各自满幅 = &#177;100）' +
       (GAP > 0 ? ' · 蓝线已上移 ' + Math.round(GAP * 100) + '%' : '') + '</text>');
@@ -795,7 +805,7 @@ function render(){
   svg.push('<div class="tip" id="tip"></div>');
 
   cw.innerHTML = svg.join('');
-  S.view = {W:W, H:H, L:L, T:T, pw:pw, n:n, rows:rows, pDigits:pDigits, xg:xg, vm:vm, gap:GAP};
+  S.view = {W:W, H:H, L:L, T:T, pw:pw, n:n, rows:rows, pDigits:pDigits, xg:xg, vm:vm, gap:GAP, scS:scS, scP:scP};
 
   capAndStat(rows, haveP);
 
@@ -836,7 +846,10 @@ function capAndStat(rows, haveP){
     : '，当前为 <b>每日</b>：只画当日强度，纵向幅度才如实反映单日大小';
   cap += '<br>资金为 <b>日终值</b>，较价格滞后一档（新浪盘后更新）；价格已前复权';
   if(S.norm){
-    cap += '<br><span class="hot">当前为「形态对比」：两条线各自按本区间高低缩放，纵向位置不代表真实量级，数值见浮层</span>';
+    cap += '<br>当前为 <b>独立双轴</b>（beta 分时图同款 Y 轴策略）：<b style="color:var(--pl)">价格轴</b>按窗口收盘价、'
+         + '<b style="color:var(--stk)">资金轴</b>按窗口资金强度各自铺满整高，资金轴强制把 0 纳入范围（正负一眼分明），上下各留 10% 余量。'
+         + '<span class="hot">两轴的纵向位置互不相通 —— 看的是形态共振／背离（价格创新高时资金有没有跟上），不是穿越时刻</span>'
+         + '<br>想看两线按同一标尺的<b>交点</b>，切到「趋势交叉（共轴·标交点）」';
   }
   if(S.cross){
     cap += '<br>当前为 <b>趋势交叉</b>：两线以窗口左端为同一起点、各自按自身最大偏离归一到 &#177;100% 后共轴比较，'
