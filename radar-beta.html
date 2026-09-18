@@ -387,7 +387,7 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 .rzsb .sbpc.up{color:var(--up)}.rzsb .sbpc.down{color:var(--down)}.rzsb .sbpc.flat{color:var(--txt3)}
 .rzsb.pin{border-color:var(--info);background:#eef4ff;color:#1d6fd0}
 .rzsb.tip{flex:1 1 100%;max-width:none;justify-content:center;color:var(--info);font-weight:700;border-style:dashed;border-color:#bcd7f7;background:#eef4ff}
-/* 空位 ⊕：点一下指定这一格显示哪只；长按 3 秒的确认态整格变红 */
+/* 空位 ⊕：点一下指定这一格显示哪只；长按 1.5 秒的确认态整格变红 */
 .rzsb.add{justify-content:center;color:var(--txt3);border-style:dashed;border-color:#c7d2dd;font-size:15px;font-weight:600;padding:3px 8px}
 .rzsb.add:active{background:var(--line2)}
 .rzsb.cf{border-color:#e5484d;background:#e5484d;color:#fff}
@@ -6516,7 +6516,7 @@ function rzSlotSet(i, code){
   if(h) h.textContent = '第 ' + (i + 1) + ' 格已设为 ' + nm + ' ' + code + '。';
 }
 
-// 长按 3 秒后那声「删除？」确认 → 再点一下才真的腾空（只动这 3 格的呈现，自选列表不动）
+// 长按 1.5 秒后那声「删除？」确认 → 再点一下才真的腾空（只动这 3 格的呈现，自选列表不动）
 function rzSlotClear(i){
   if(RZ._holdT){ clearTimeout(RZ._holdT); RZ._holdT = null; }
   if(RZ._slotCfT){ clearTimeout(RZ._slotCfT); RZ._slotCfT = null; }
@@ -9655,7 +9655,7 @@ function tbSelBarHTML(){
     var pct = (q && isFinite(q.pct)) ? q.pct : null;
     var cf = (RZ._slotCf === i);
     h += '<span class="rzsb' + ((it && it._pin) ? ' pin' : '') + (cf ? ' cf' : '') +
-         '" data-sb="' + c + '" data-slot="' + i + '" title="点一下跳到 ' + esc(c) + ' 的卡片；长按 3 秒可腾空这一格">' +
+         '" data-sb="' + c + '" data-slot="' + i + '" title="点一下跳到 ' + esc(c) + ' 的卡片；长按 1.5 秒可腾空这一格">' +
          (cf ? '<i class="sbcf">删除？</i>'
              : (((it && it._pin) ? '<i class="sbpin">📌</i>' : '') +
                 '<i class="sbnm">' + esc((q && q.name) ? q.name : c) + '</i>' +
@@ -9703,7 +9703,7 @@ function tbSelBarBinds(){
   if(!sb || sb.dataset.bind) return;
   sb.dataset.bind = '1';
 
-  var HOLD = 3000;   // 长按多久算「要腾空这一格」（想改手感只改这里）
+  var HOLD = 1500;   // 长按多久算「要腾空这一格」（想改手感只改这里）
 
   function holdClear(){
     if(RZ._holdT){ clearTimeout(RZ._holdT); RZ._holdT = null; }
@@ -9716,7 +9716,7 @@ function tbSelBarBinds(){
     return isFinite(v) ? v : -1;
   }
 
-  // 长按：按住 3 秒 → 这一格变红问「删除？」，再点一下才真的腾空
+  // 长按：按住 1.5 秒 → 这一格变红问「删除？」，再点一下才真的腾空
   sb.addEventListener('pointerdown', function(e){
     var i = slotIndex(e.target);
     if(i < 0) return;
