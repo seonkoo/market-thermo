@@ -410,7 +410,7 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 .rzsb .sbpc.up{color:var(--up)}.rzsb .sbpc.down{color:var(--down)}.rzsb .sbpc.flat{color:var(--txt3)}
 .rzsb.pin{border-color:var(--info);background:#eef4ff;color:#1d6fd0}
 .rzsb.tip{flex:1 1 100%;max-width:none;justify-content:center;color:var(--info);font-weight:700;border-style:dashed;border-color:#bcd7f7;background:#eef4ff}
-/* 空位 ⊕：点一下指定这一格显示哪只；长按 1.5 秒的确认态整格变红 */
+/* 空位 ⊕：点一下指定这一格显示哪只；长按约 1 秒的确认态整格变红 */
 .rzsb.add{justify-content:center;color:var(--txt3);border-style:dashed;border-color:#c7d2dd;font-size:15px;font-weight:600;padding:3px 8px}
 .rzsb.add:active{background:var(--line2)}
 .rzsb.cf{border-color:#e5484d;background:#e5484d;color:#fff}
@@ -6445,6 +6445,7 @@ var RZ = {
 
   _holdT: null, _holdFired: false, _holdX: 0, _holdY: 0,   // 长按计时器 / 这次触摸是否已被长按消费 / 起按坐标
   _holdSlot: -1, _tapAt: 0,                                // 正在计时的是第几格 / 触摸端最近一次已处理的轻点（用于忽略随后补发的 click）
+  _tX: null, _tY: null,                                    // 触摸起点坐标（touchend 判「轻点 vs 划动」）
 
 
   fund: {}, fundTs: 0,            // code -> 东财多周期资金（今日净占比 / 5日 / 10日），一次批量拉全部自选
@@ -6532,7 +6533,7 @@ function rzSlotSet(i, code){
   if(h) h.textContent = '第 ' + (i + 1) + ' 格已设为 ' + nm + ' ' + code + '。';
 }
 
-// 长按 1.5 秒后那声「删除？」确认 → 再点一下才真的腾空（只动这 3 格的呈现，自选列表不动）
+// 长按约 1 秒后那声「删除？」确认 → 再点一下才真的腾空（只动这 3 格的呈现，自选列表不动）
 function rzSlotClear(i){
   if(RZ._holdT){ clearTimeout(RZ._holdT); RZ._holdT = null; }
   if(RZ._slotCfT){ clearTimeout(RZ._slotCfT); RZ._slotCfT = null; }
@@ -9003,23 +9004,7 @@ function rzOverview(){
 
       var tar = document.getElementById(t.getAttribute('data-jump')); if(tar) tar.scrollIntoView({behavior:'smooth', block:'start'}); }); }
 
-  // 大市：上证指数涨跌 + 量能比（今日累计 ÷ 昨日同期）
-
-  var mk = STATE.idx, mkPct = (mk && isFinite(mk.pct)) ? mk.pct : null;
-
-  var mkCls = mkPct === null ? 'flat' : (mkPct > 0 ? 'up' : (mkPct < 0 ? 'down' : 'flat'));
-
-  var mkTxt = mkPct === null ? '—' : pctS(mkPct);
-
-  var vc = mk && mk.vc, vr = (vc && !vc.unavail && isFinite(vc.ratio)) ? vc.ratio : null;
-
-  var vrCls = vr === null ? 'flat' : (vr >= 1 ? 'up' : 'down');
-
-  var vrTxt = vr === null ? '' : (' · 量能 ' + (vr*100).toFixed(0) + '%' + (vc && vc.fallback ? '(参)' : ''));
-
-  // 板块：净流入/净流出板块数
-
-  var bIn = PZT.nin, bOut = PZT.nout, bTxt = (PZT.ts ? (bIn + ' 流入 / ' + bOut + ' 流出') : '—');
+  // 顶栏只留「自选」：大市 / 板块流入流出共振 / 更新时间 / 日夜切换都撤掉（顶部太占位置，2026-09-18 用户要求）
 
   // 标的：自选共振 / 总数
 
@@ -9031,21 +9016,9 @@ function rzOverview(){
 
   el.innerHTML =
 
-    '<span class="tb-item" data-jump="mktRoot"><span class="tb-k">大市</span><span class="tb-v ' + mkCls + '">' + mkTxt + '</span><span class="tb-v ' + vrCls + '">' + vrTxt + '</span></span>' +
-
-    '<span class="tb-sep"></span>' +
-
-    '<span class="tb-item" data-jump="pztRoot"><span class="tb-k">板块</span><span class="tb-v">' + bTxt + '</span></span>' +
-
-    '<span class="tb-sep"></span>' +
-
     '<span class="tb-item" data-jump="rzRoot"><span class="tb-k">标的</span><span class="tb-v">' + itTxt + '</span></span>' +
 
-    tbSelChipHTML() +
-
-    '<span class="tb-meta" id="rzTopMeta">更新 ' + new Date().toLocaleTimeString('zh-CN', {hour12:false}) + '</span>' +
-
-    '<button class="thm" id="thmBtn" type="button" title="切换日夜模式">' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️ 日间' : '🌙 夜间') + '</button>';
+    tbSelChipHTML();
 
   var tbp = $('tbSelPop');
 
@@ -9553,7 +9526,7 @@ function tbSelBarHTML(){
     var pct = (q && isFinite(q.pct)) ? q.pct : null;
     var cf = (RZ._slotCf === i);
     h += '<span class="rzsb' + ((it && it._pin) ? ' pin' : '') + (cf ? ' cf' : '') +
-         '" data-sb="' + c + '" data-slot="' + i + '" title="点一下跳到 ' + esc(c) + ' 的卡片；长按 1.5 秒可腾空这一格">' +
+         '" data-sb="' + c + '" data-slot="' + i + '" title="点一下跳到 ' + esc(c) + ' 的卡片；长按约 1 秒可腾空这一格">' +
          (cf ? '<i class="sbcf">删除？</i>'
              : (((it && it._pin) ? '<i class="sbpin">📌</i>' : '') +
                 '<i class="sbnm">' + esc((q && q.name) ? q.name : c) + '</i>' +
@@ -9601,7 +9574,7 @@ function tbSelBarBinds(){
   if(!sb || sb.dataset.bind) return;
   sb.dataset.bind = '1';
 
-  var HOLD = 1500;   // 长按多久算「要腾空这一格」（想改手感只改这里）
+  var HOLD = 900;    // 长按多久算「要腾空这一格」（想改手感只改这里；900ms = 原 1.5 秒再短 40%）
 
   function holdClear(){
     if(RZ._holdT){ clearTimeout(RZ._holdT); RZ._holdT = null; }
@@ -9639,7 +9612,7 @@ function tbSelBarBinds(){
     }, HOLD);
   }
 
-  // 长按：按住 1.5 秒 → 这一格变红问「删除？」，再点一下才真的腾空
+  // 长按：按住约 1 秒 → 这一格变红问「删除？」，再点一下才真的腾空
   sb.addEventListener('pointerdown', function(e){
     startHold(e.target, e.clientX, e.clientY);
   });
@@ -9648,8 +9621,9 @@ function tbSelBarBinds(){
   // 代价是这个条上的轻点不再产生 click → 轻点由下面的 touchend 自己判定并执行（要滚页面请从卡片区滑）。
   sb.addEventListener('touchstart', function(e){
     if(!slotEl(e.target)) return;
-    e.preventDefault();
     var t0 = (e.touches && e.touches[0]) || null;
+    if(t0){ RZ._tX = t0.clientX; RZ._tY = t0.clientY; }   // 记触摸起点：touchend 判「轻点/划动」用它（空位 ⊕ 不长按，长按那套坐标不可靠）
+    e.preventDefault();
     startHold(e.target, t0 ? t0.clientX : 0, t0 ? t0.clientY : 0);
   }, {passive:false});
 
@@ -9700,7 +9674,7 @@ function tbSelBarBinds(){
   sb.addEventListener('touchend', function(e){
     if(!slotEl(e.target)) return;
     var t0 = (e.changedTouches && e.changedTouches[0]) || null;
-    var moved = t0 ? (Math.abs(t0.clientX - RZ._holdX) > 12 || Math.abs(t0.clientY - RZ._holdY) > 12) : false;
+    var moved = (t0 && RZ._tX !== null) ? (Math.abs(t0.clientX - RZ._tX) > 12 || Math.abs(t0.clientY - RZ._tY) > 12) : false;
     var fired = RZ._holdFired;
     holdClear();
     RZ._tapAt = Date.now();
