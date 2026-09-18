@@ -391,19 +391,21 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 /* 吸顶栏正下方的常驻个股条：把已添加个股直接列出来（不用点开），滚动时跟着吸顶
    top 由 tbSelBarPlace() 实测 topbar 高度写入（topbar 会随窄屏换行变高） */
 .rzselbar{position:sticky;top:0;z-index:49;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;
-  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;white-space:nowrap;
+  overflow:hidden;
   padding:5px 2px;margin:-7px 0 10px;border-bottom:1px solid var(--line2);
   background:rgba(255,255,255,.94);backdrop-filter:saturate(150%) blur(6px)}
-.rzselbar::-webkit-scrollbar{height:0;display:none}
-.rzsb{flex:0 0 auto;display:inline-flex;align-items:baseline;gap:5px;padding:4px 10px;border:1px solid var(--line);
+/* 固定最多 3 只：每只最多占 1/3 宽，不左右滑（滑着找比点开下拉还慢） */
+.rzsb{flex:1 1 auto;min-width:0;max-width:calc((100% - 12px) / 3);
+  display:inline-flex;align-items:baseline;justify-content:center;gap:5px;padding:4px 8px;border:1px solid var(--line);
   border-radius:999px;background:var(--card);color:var(--txt);font-size:12px;font-weight:700;white-space:nowrap;
   cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rzsb .sbnm{font-style:normal;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rzsb:active{transform:scale(.97)}
 .rzsb .sbpin{font-style:normal;font-size:10px;line-height:1}
 .rzsb .sbpc{font-style:normal;font-variant-numeric:tabular-nums;font-size:11.5px;font-weight:700}
 .rzsb .sbpc.up{color:var(--up)}.rzsb .sbpc.down{color:var(--down)}.rzsb .sbpc.flat{color:var(--txt3)}
 .rzsb.pin{border-color:var(--info);background:#eef4ff;color:#1d6fd0}
-.rzsb.tip{color:var(--info);font-weight:700;border-style:dashed;border-color:#bcd7f7;background:#eef4ff}
+.rzsb.tip{flex:1 1 100%;max-width:none;justify-content:center;color:var(--info);font-weight:700;border-style:dashed;border-color:#bcd7f7;background:#eef4ff}
 html[data-theme="dark"] .rzselbar{background:rgba(17,24,39,.94);border-bottom-color:#2a3444}
 html[data-theme="dark"] .rzsb.pin,html[data-theme="dark"] .rzsb.tip{background:#1e2b3f;border-color:#3b6ea8;color:#8ab6e8}
 
@@ -9414,7 +9416,8 @@ function tbSelToggle(force){
 }
 
 // ── 常驻个股条（吸顶栏正下方）───────────────────────────────────────────
-// 目的：找股票时不必点开任何东西 —— 已添加的个股直接横排在这儿，点一下跳到它的卡片。
+// 目的：找股票时不必点开任何东西 —— 固定列出前 3 只（置顶优先，其余按自选顺序），点一下跳到它的卡片。
+// 超过 3 只不在这里横滑（滑着找比点开下拉还慢）；看全部点吸顶栏「★ 自选 N ▾」。
 // 数据同源（RZ.list / RZ.order / RZ.state），自己不存任何状态，只有渲染签名。
 function tbSelBarHTML(){
   var codes = rzSelCodes();
@@ -9422,12 +9425,13 @@ function tbSelBarHTML(){
     return '<span class="rzsb tip" data-sbgo="1">＋ 自选列表在这儿：还没添加个股，点这里去添加</span>';
   }
   var h = '';
-  codes.forEach(function(c){
+  // 固定只列前 3 只（置顶优先，其余按自选顺序）；超出部分点吸顶栏「★ 自选 N ▾」看全部
+  codes.slice(0, 3).forEach(function(c){
     var o = RZ.state[c] || {}, q = o.quote, it = rzItem(c);
     var pct = (q && isFinite(q.pct)) ? q.pct : null;
     h += '<span class="rzsb' + ((it && it._pin) ? ' pin' : '') + '" data-sb="' + c + '" title="跳到 ' + esc(c) + '">' +
          ((it && it._pin) ? '<i class="sbpin">📌</i>' : '') +
-         esc((q && q.name) ? q.name : c) +
+         '<i class="sbnm">' + esc((q && q.name) ? q.name : c) + '</i>' +
          (pct === null ? '' : '<i class="sbpc ' + cls(pct) + '">' + pctS(pct) + '</i>') +
          '</span>';
   });
