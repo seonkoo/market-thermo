@@ -204,6 +204,7 @@ var S = {
   pin: false,      // 浮层是否已固定（触摸端轻点/长按后）
   mode: 'cum',     // day=每日净额 | cum=区间累计（默认，更能看清资金累积方向）
   unit: 'pct',     // 'pct'=净流入占成交额比（%）| 'amt'=净流入金额（亿元）；与 mode 正交
+  ovl: true,       // 「亿元 · 每日」下是否在净额柱之上再叠一条累计净额曲线（默认开：柱看单日、线看趋势/交叉）
   norm: true,      // 独立双轴·各铺满（beta 分时图策略）—— 默认，看形态共振/背离
   cross: false,    // 趋势交叉（两线共轴·同一起点·自动标注交点）—— 需要看交点时再切
   gap: 0.25,       // 蓝线分离档位（满幅比例，0=贴合）；数值来自 CFG.GAPS
@@ -509,7 +510,12 @@ function paintUI(){
     '<span class="lbl" style="margin-top:7px">资金单位</span>' +
     '<span class="chip' + (S.unit !== 'amt' ? ' on' : '') + '" data-u="pct">占成交额 %</span>' +
     '<span class="chip' + (S.unit === 'amt' ? ' on' : '') + '" data-u="amt">净流入 亿元' +
-      (S.unit === 'amt' && S.mode === 'day' ? '（当前：柱状）' : '') + '</span>' +
+      (S.unit === 'amt' && S.mode === 'day' ? '（当前：柱' + (S.ovl ? ' + 累计线' : '') + '）' : '') + '</span>' +
+    (S.unit === 'amt' && S.mode === 'day'
+      ? '<span class="lbl" style="margin-top:7px">柱模式叠加</span>' +
+        '<span class="chip' + (S.ovl ? ' on' : '') + '" data-o="1">柱 + 累计线（看趋势／交叉）</span>' +
+        '<span class="chip' + (!S.ovl ? ' on' : '') + '" data-o="0">只看净额柱（幅度更醒目）</span>'
+      : '') +
     '<span class="lbl" style="margin-top:7px">纵向尺度</span>' +
     '<span class="chip' + (S.norm ? ' on' : '') + '" data-n="1">独立双轴·各铺满（beta 策略）</span>' +
     '<span class="chip' + (!S.norm && !S.cross ? ' on' : '') + '" data-n="0">原值（真实 ' + (S.unit === 'amt' ? '亿元' : '%') + ' 轴）</span>' +
@@ -528,17 +534,31 @@ function paintUI(){
   var cum = (S.mode === 'cum');
   var amtU = (S.unit === 'amt');
   var barU = (amtU && !cum && !S.cross);
-  $('lgStk').innerHTML = amtU
-    ? ('<i style="background:var(--stk)' + (barU ? ';width:9px;height:9px;border-radius:2px;vertical-align:baseline' : '') + '"></i>'
-       + '个股资金' + (cum ? '累计净额' : '每日净额') + '（亿元' + (barU ? ' · 柱' : '') + '）')
-    : ('<i style="background:var(--stk)"></i>个股资金强度' + (cum ? '累计' : '') + '（占成交额 %）');
+  var ovlU = (barU && !!S.ovl);
+  var iLn = '<i style="background:var(--stk)"></i>';
+  if(amtU){
+    if(cum){
+      $('lgStk').innerHTML = iLn + '个股资金累计净额（亿元）';
+    } else if(barU){
+      $('lgStk').innerHTML = ovlU
+        ? ('<i style="background:#a4161a"></i>累计净额（亿元 · 主图线）'
+           + '<i style="background:var(--stk);width:9px;height:9px;border-radius:2px;margin-left:12px"></i>每日净额（亿元 · 底部柱带）')
+        : ('<i style="background:var(--stk);width:9px;height:9px;border-radius:2px"></i>每日净额（亿元 · 柱）');
+    } else {
+      $('lgStk').innerHTML = iLn + '个股资金净额（亿元）';
+    }
+  } else {
+    $('lgStk').innerHTML = iLn + '个股资金强度' + (cum ? '累计' : '') + '（占成交额 %）';
+  }
   if(S.cross){
     $('lgX').style.display = '';
     $('lgX').innerHTML = '<i style="background:#7c3aed;border-radius:50%;width:8px;height:8px"></i>交点（价格 × 个股资金）' +
       ((S.gap || 0) > 0 ? ' · 蓝线已上移 ' + Math.round(S.gap * 100) + '%' : ' · 贴合（未分离）');
   } else if(S.norm){
     $('lgX').style.display = '';
-    $('lgX').innerHTML = '<span class="lgmode">独立双轴 · 价格／资金各自铺满整高（资金轴含 0）</span>';
+    $('lgX').innerHTML = '<span class="lgmode">独立双轴 · 价格／资金各自铺满' +
+      ((S.unit === 'amt' && S.mode !== 'cum' && S.ovl && !S.cross) ? '主图区（底部柱带单独刻度）' : '整高') +
+      '（资金轴含 0）</span>';
   } else {
     $('lgX').style.display = 'none';
   }
@@ -643,22 +663,17 @@ function sliceRows(){
      恒定字段（不随单位变）：vr = 当日强度(%)；a0 = 当日净额(亿) —— 统计与相关度都用这两个口径
      unit='pct' → 占成交额比 %；unit='amt' → 净流入金额 亿元 */
   var amt = (S.unit === 'amt');
-  if(S.mode !== 'cum'){
-    return base.map(function(x){
-      var dv = amt ? x.s : x.v;
-      return {d:x.d, p:x.p, v:dv, a:x.s, v0:dv, vr:x.v, a0:x.s};
-    });
-  }
   var cv = 0, ca = 0, out = [];
   for(var i = 0; i < base.length; i++){
     if(base[i].v != null && isFinite(base[i].v)) cv += base[i].v;
     ca += base[i].s;
     out.push({d:base[i].d, p:base[i].p,
-              v: amt ? ca : cv,                    /* 累计净额(亿) 或 累计强度(百分点) */
-              a: ca,
-              v0: amt ? base[i].s : base[i].v,     /* 当日值 */
+              v: (S.mode === 'cum') ? (amt ? ca : cv) : (amt ? base[i].s : base[i].v),
+              a: base[i].s,                        /* 当日净额 亿 —— 恒定 */
+              v0: amt ? base[i].s : base[i].v,     /* 当日值（浮层用） */
               vr: base[i].v,                       /* 当日强度 % —— 恒定口径 */
-              a0: base[i].s});                     /* 当日净额 亿 —— 恒定口径 */
+              a0: base[i].s,                       /* 当日净额 亿 —— 恒定口径 */
+              vc: amt ? ca : cv});                 /* 累计值（窗口左端起算）—— 「每日」口径下给叠加曲线用 */
   }
   return out;
 }
@@ -711,11 +726,29 @@ function render(){
   var haveV = false;
   for(var i0 = 0; i0 < n; i0++){ if(rows[i0].v != null && isFinite(rows[i0].v)){ haveV = true; break; } }
 
+  /* ── 三种纵向尺度：raw 真实轴 | norm 各自缩放 | cross 共轴（趋势交叉） ── */
+  var vm = S.cross ? 'cross' : (S.norm ? 'norm' : 'raw');
+  var GAP = (vm === 'cross') ? (S.gap || 0) : 0;   /* 蓝线分离档位（满幅比例，0=贴合） */
+  /* 资金线形态：
+     「净额（亿元）+ 每日口径 + 非共轴」→ 画每日净额柱；
+     若 S.ovl（默认开）→ 换成「主图（线）+ 底部条带（柱）」分区：
+       · 主图：价格线 + 累计净额线（自窗口左端逐日累加）→ 看方向／交叉／背离
+       · 条带：每日净额柱，独立刻度铺满 → 单日金额看得清
+          （若与累计线共轴，柱会被累计跨度压成一条平线 —— 实测 588170 只剩 20px） */
+  var asBar = (S.unit === 'amt' && S.mode !== 'cum' && vm !== 'cross');
+  var asOvl = (asBar && !!S.ovl);
+  var amtU = (S.unit === 'amt');
+  var bandH = 0, phMain = ph;
+  if(asOvl){
+    bandH = Math.max(44, Math.min(104, Math.round(ph * 0.27)));
+    phMain = ph - bandH - 8;                 /* 8px = 主图与柱带之间的留白 */
+  }
+  var lineKey = asOvl ? 'vc' : 'v';          /* 主图上真正画出来的那条资金线 */
+
   var fLo = 0, fHi = 0;
   for(var i = 0; i < n; i++){
-    var fv = rows[i].v;
-    if(fv == null || !isFinite(fv)) continue;
-    fLo = Math.min(fLo, fv); fHi = Math.max(fHi, fv);
+    var fv = rows[i][lineKey];
+    if(fv != null && isFinite(fv)){ fLo = Math.min(fLo, fv); fHi = Math.max(fHi, fv); }
   }
   if(fHi - fLo < 1e-9){ fHi = 1; fLo = -1; }
   var fPad = (fHi - fLo) * 0.08; fLo -= fPad; fHi += fPad;
@@ -735,8 +768,8 @@ function render(){
   var pDigits = (pHi < 10) ? 3 : 2;
 
   function X(i){ return L + (n <= 1 ? pw / 2 : (i / (n - 1)) * pw); }
-  function YF(v){ return T + ((fHi - v) / (fHi - fLo)) * ph; }
-  function YP(v){ return T + ((pHi - v) / (pHi - pLo)) * ph; }
+  function YF(v){ return T + ((fHi - v) / (fHi - fLo)) * phMain; }
+  function YP(v){ return T + ((pHi - v) / (pHi - pLo)) * phMain; }
 
   function pathOf(key, Y){
     var d = '';
@@ -750,11 +783,7 @@ function render(){
     return d;
   }
 
-  /* ── 三种纵向尺度：raw 真实 % 轴 | norm 各自缩放 | cross 共轴（趋势交叉） ── */
-  var vm = S.cross ? 'cross' : (S.norm ? 'norm' : 'raw');
-  var GAP = (vm === 'cross') ? (S.gap || 0) : 0;   /* 蓝线分离档位（满幅比例，0=贴合） */
-  /* 资金线形态：只有「净额（亿元）+ 每日口径 + 非共轴」才画柱 —— 每日净额有正有负，柱状最直观 */
-  var asBar = (S.unit === 'amt' && S.mode !== 'cum' && vm !== 'cross');
+  /* 纵向尺度三种形态见 render 开头（vm / asBar / asOvl） */
 
   /* 纵向尺度：对齐「量能做T beta 版」分时组合图的做法 ——
      价格轴/资金轴各自独立满幅；资金轴额外强制把 0 纳入范围（正负一眼分明）；
@@ -767,13 +796,17 @@ function render(){
     var pd = (hi - lo) * 0.1;
     return {lo: lo - pd, hi: hi + pd};
   }
-  var vArr = [], pArr = [];
+  var vArr = [], pArr = [], bArr = [];
   for(var q = 0; q < n; q++){
-    if(rows[q].v != null && isFinite(rows[q].v)) vArr.push(rows[q].v);
+    if(rows[q][lineKey] != null && isFinite(rows[q][lineKey])) vArr.push(rows[q][lineKey]);
+    if(asOvl && rows[q].v != null && isFinite(rows[q].v)) bArr.push(rows[q].v);
     if(rows[q].p != null && isFinite(rows[q].p)) pArr.push(rows[q].p);
   }
   var scS = mkSc(vArr, true), scP = mkSc(pArr, false);
-  function YN(v, sc){ return T + (1 - (v - sc.lo) / (sc.hi - sc.lo)) * ph; }
+  function YN(v, sc){ return T + (1 - (v - sc.lo) / (sc.hi - sc.lo)) * phMain; }
+  /* 底部条带：每日净额柱用独立刻度铺满（与累计线共轴会被压扁），含 0 */
+  var bTop = T + phMain + 8, bBot = T + ph, scB = mkSc(bArr, true);
+  function YB(v){ return bTop + (1 - (v - scB.lo) / (scB.hi - scB.lo)) * bandH; }
 
   /* ── 共轴：两线各自以窗口左端为 0 基准，再除以自身最大偏离归一到 ±1
         → 同一起点、同一标尺。分离档位 GAP>0 时把价格线整体上移 GAP，
@@ -822,7 +855,7 @@ function render(){
     xg = haveP ? findCross(uP, uS, 'ps') : [];
   }
 
-  function YU(u){ return T + (1 - (u + 1) / (2 + GAP)) * ph; }   /* u ∈ [-1, 1+GAP] */
+  function YU(u){ return T + (1 - (u + 1) / (2 + GAP)) * phMain; }   /* u ∈ [-1, 1+GAP] */
   function yOf(key){
     if(vm === 'raw') return (key === 'p') ? YP : YF;
     if(vm === 'norm'){
@@ -842,10 +875,11 @@ function render(){
   for(var k = 0; k <= 4; k++){
     var v = fLo + (fHi - fLo) * k / 4;
     var uc = 1 - k * 0.5;
-    var y = (vm === 'raw') ? YF(v) : (vm === 'cross' ? YU(uc) : (T + ph * k / 4));
+    var y = (vm === 'raw') ? YF(v) : (vm === 'cross' ? YU(uc) : (T + phMain * k / 4));
     g.push('<line x1="' + L + '" y1="' + y.toFixed(1) + '" x2="' + (L + pw) + '" y2="' + y.toFixed(1) + '" stroke="#f1f3f5" stroke-width="1"/>');
     if(vm === 'raw'){
-      g.push('<text x="' + (L - 5) + '" y="' + (y + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + v.toFixed(1) + '%</text>');
+      var fTxt = (amtU && Math.abs(v) >= 100) ? v.toFixed(0) : v.toFixed(1);
+      g.push('<text x="' + (L - 5) + '" y="' + (y + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + fTxt + (amtU ? '亿' : '%') + '</text>');
     } else if(vm === 'cross'){
       var luv = Math.round(uc * 100);
       g.push('<text x="' + (L - 5) + '" y="' + (y + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">' + (luv > 0 ? '+' + luv : '' + luv) + '%</text>');
@@ -899,27 +933,48 @@ function render(){
 
   var svg = [];
   svg.push('<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;display:block">');
+  if(asOvl){
+    svg.push('<rect x="' + L + '" y="' + bTop.toFixed(1) + '" width="' + pw + '" height="' + bandH.toFixed(1) + '" fill="#fafbfd"/>');
+  }
   svg.push(g.join(''));
   if(haveV && asBar){
-    /* 每日净额柱：红=净流入 绿=净流出；基线取资金轴的 0 位 */
-    var yZero = yS(0);
+    /* 每日净额柱：红=净流入 绿=净流出
+       asOvl → 画在底部独立条带（独立刻度铺满，单日金额看得清）
+       否则   → 与价格线同区，用资金轴 */
+    var yZeroB = asOvl ? YB(0) : yS(0);
     var bw = Math.max(pw / n * 0.66, 1.2);
     var bars = [];
     for(var bb = 0; bb < n; bb++){
       var bv = rows[bb].v;
       if(bv == null || !isFinite(bv)) continue;
-      var yb = yS(bv, bb);
+      var yb = asOvl ? YB(bv) : yS(bv, bb);
       if(yb == null || !isFinite(yb)) continue;
-      var yt = Math.min(yb, yZero);
-      var bh = Math.max(Math.abs(yb - yZero), 0.9);
+      var yt = Math.min(yb, yZeroB);
+      var bh = Math.max(Math.abs(yb - yZeroB), 0.9);
       bars.push('<rect x="' + (X(bb) - bw / 2).toFixed(1) + '" y="' + yt.toFixed(1) +
                 '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) +
-                '" fill="' + (bv >= 0 ? '#d92b2b' : '#0f9d58') + '" opacity="0.78"/>');
+                '" fill="' + (bv >= 0 ? '#d92b2b' : '#0f9d58') + '" opacity="' + (asOvl ? '0.86' : '0.78') + '"/>');
     }
     svg.push(bars.join(''));
-    svg.push('<line x1="' + L + '" y1="' + yZero.toFixed(1) + '" x2="' + (L + pw) + '" y2="' + yZero.toFixed(1) +
+    svg.push('<line x1="' + L + '" y1="' + yZeroB.toFixed(1) + '" x2="' + (L + pw) + '" y2="' + yZeroB.toFixed(1) +
              '" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3"/>');
-    svg.push('<text x="' + (L - 5) + '" y="' + (yZero + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">0</text>');
+    svg.push('<text x="' + (L - 5) + '" y="' + (yZeroB + 3.4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9ca3af">0</text>');
+    if(asOvl){
+      /* ── 主图／柱带分隔 + 条带标注 ── */
+      svg.push('<line x1="' + L + '" y1="' + (T + phMain + 4).toFixed(1) + '" x2="' + (L + pw) + '" y2="' + (T + phMain + 4).toFixed(1) +
+               '" stroke="#e2e6ec" stroke-width="1"/>');
+      var bMaxV = null, bMinV = null;
+      for(var bm = 0; bm < bArr.length; bm++){
+        if(bMaxV == null || bArr[bm] > bMaxV) bMaxV = bArr[bm];
+        if(bMinV == null || bArr[bm] < bMinV) bMinV = bArr[bm];
+      }
+      if(bMaxV == null){ bMaxV = 0; bMinV = 0; }
+      svg.push('<text x="' + (L + 2) + '" y="' + (bTop + 9.5).toFixed(1) + '" font-size="8.5" fill="#a8b0bb">每日净额柱（亿元）· 独立刻度铺满</text>');
+      svg.push('<text x="' + (L + pw - 2) + '" y="' + (bTop + 9.5).toFixed(1) + '" text-anchor="end" font-size="8.5" fill="#a8b0bb">单日 '
+        + sgn(bMinV, 1) + ' ~ ' + sgn(bMaxV, 1) + ' 亿</text>');
+      /* ── 主图：累计净额线（自窗口左端起逐日累加）—— 看方向／交叉／背离 ── */
+      svg.push('<path d="' + pathOf('vc', yS) + '" fill="none" stroke="#a4161a" stroke-width="1.9" stroke-linejoin="round"/>');
+    }
   } else if(haveV){
     svg.push('<path d="' + pathOf('v', yS) + '" fill="none" stroke="#d92b2b" stroke-width="1.5" stroke-linejoin="round"/>');
   }
@@ -937,7 +992,7 @@ function render(){
 
   cw.innerHTML = svg.join('');
   S.view = {W:W, H:H, L:L, T:T, pw:pw, n:n, rows:rows, pDigits:pDigits, xg:xg, vm:vm, gap:GAP, scS:scS, scP:scP,
-            unit:S.unit, asBar:asBar};
+            unit:S.unit, asBar:asBar, asOvl:asOvl};
 
   capAndStat(rows, haveP, rr);
 
@@ -976,15 +1031,23 @@ function capAndStat(rows, haveP, rr){
   }
   var amtU = (S.unit === 'amt');
   var asBar = !!(S.view && S.view.asBar);
+  var asOvl = !!(S.view && S.view.asOvl);
   cap += '<br>资金线口径 = <b>' + (amtU ? '净流入金额（亿元）' : '净流入占当日成交额比（%）') + '</b>';
   if(S.mode === 'cum'){
     cap += '，当前为 <b>区间累计</b>：自 ' + first.d + ' 起逐日累加'
          + (amtU ? '（单位：亿元）' : '（百分点的简单累加，非复利）')
          + '，平移窗口会重新起算（浮层显示的仍是当日值）';
+  } else if(asBar && asOvl){
+    cap += '，当前为 <b>每日 · 主图线 + 底部净额柱</b>：主图里 <b style="color:var(--pl)">蓝线</b>=收盘价、'
+         + '<b style="color:#a4161a">深红线</b>=自 ' + first.d + ' 起逐日累加的<b>累计净额</b>（看方向、与价格的共振／背离）；'
+         + '底部条带是<b>每日净额柱</b>（<b style="color:var(--up)">红=流入</b>／<b style="color:var(--down)">绿=流出</b>），'
+         + '<b>独立刻度铺满</b>，单日金额看得清。'
+         + '<span class="hot">两条不同量纲的系列不能共用一根轴：累计跨度远大于单日（588170 实测累计极差 158 亿 vs 单日最大 10 亿），'
+         + '共轴会把柱压成一条平线 —— 所以柱单占底部一条带、各用自己的刻度</span>';
   } else if(asBar){
-    cap += '，当前为 <b>每日 · 柱状</b>：每根柱就是当天的净流入金额（<b style="color:var(--up)">红=流入</b>／'
-         + '<b style="color:var(--down)">绿=流出</b>），纵向幅度 <b>如实反映单日大小</b>。'
-         + '<span class="hot">区间累计会把逐日高低磨平（588170 实测：累计极差 158 亿 → 单日 1 亿只占图高 0.6%），要看「1 亿 / 10 亿到底多大」只能用这个模式</span>';
+    cap += '，当前为 <b>每日 · 纯净额柱</b>：每根柱就是当天的净流入金额（<b style="color:var(--up)">红=流入</b>／'
+         + '<b style="color:var(--down)">绿=流出</b>），纵向按单日范围铺满，金额大小最直观。'
+         + '<span class="hot">但只有柱、没有曲线 —— 看不出与价格线的交叉／背离，要这个请切回「柱 + 累计线」</span>';
   } else {
     cap += '，当前为 <b>每日</b>：只画当日值，纵向幅度才如实反映单日大小';
   }
@@ -1006,7 +1069,7 @@ function capAndStat(rows, haveP, rr){
   }
   if(S.norm){
     cap += '<br>当前为 <b>独立双轴</b>（beta 分时图同款 Y 轴策略）：<b style="color:var(--pl)">价格轴</b>按窗口收盘价、'
-         + '<b style="color:var(--stk)">资金轴</b>按窗口资金强度各自铺满整高，资金轴强制把 0 纳入范围（正负一眼分明），上下各留 10% 余量。'
+         + '<b style="color:var(--stk)">资金轴</b>按窗口资金值各自铺满' + (asOvl ? '<b>主图区</b>（不含底部柱带）' : '整高') + '，资金轴强制把 0 纳入范围（正负一眼分明），上下各留 10% 余量。'
          + '<span class="hot">两轴的纵向位置互不相通 —— 看的是形态共振／背离（价格创新高时资金有没有跟上），不是穿越时刻</span>'
          + '<br>想看两线按同一标尺的<b>交点</b>，切到「趋势交叉（共轴·标交点）」';
   }
@@ -1131,6 +1194,9 @@ function showAt(clientX){
   if(r.p != null) html.push('<div class="rw"><s style="background:#2563eb"></s><em>收盘</em><b>' + px2(r.p, dg) + ' <span class="' + cls(ch) + '">' + sgn(ch, 2) + '%</span></b></div>');
   if(amtU){
     html.push('<div class="rw"><s style="background:#d92b2b"></s><em>' + (S.mode === 'cum' ? '当日净额' : '净流入') + '</em><b class="' + cls(dv) + '">' + sgn(dv, 2) + ' 亿</b></div>');
+    if(S.mode !== 'cum' && S.ovl && r.vc != null && isFinite(r.vc)){
+      html.push('<div class="rw"><s style="background:#a4161a"></s><em>累计净额</em><b class="' + cls(r.vc) + '">' + sgn(r.vc, 2) + ' 亿</b></div>');
+    }
     html.push('<div class="rw"><s style="background:#c9ced6"></s><em>占成交额</em><b class="' + cls(r.vr) + '">' + (r.vr == null ? '—' : sgn(r.vr, 2) + '%') + '</b></div>');
   } else {
     html.push('<div class="rw"><s style="background:#d92b2b"></s><em>资金强度</em><b class="' + cls(dv) + '">' + (dv == null ? '—' : sgn(dv, 2) + '%') + '</b></div>');
@@ -1277,6 +1343,7 @@ document.addEventListener('click', function(e){
   var xx = t.getAttribute('data-x');
   var sg = t.getAttribute('data-g');
   var un = t.getAttribute('data-u');
+  var ov = t.getAttribute('data-o');
   if(c){ load(c, (t.textContent || '').replace(c, '').trim()); return; }
   S.pin = false; clearIdle(); hideTip();
   if(m){
@@ -1292,6 +1359,10 @@ document.addEventListener('click', function(e){
       S.unit = (un === 'amt') ? 'amt' : 'pct';
       paintUI(); render();
     }
+  }
+  else if(ov !== null){
+    var ovv = (ov === '1');
+    if(ovv !== !!S.ovl){ S.ovl = ovv; paintUI(); render(); }
   }
   else if(xx !== null){
     if(!S.cross){ S.cross = true; S.crossHold = false; S.norm = false; S.mode = 'cum'; paintUI(); render(); }
