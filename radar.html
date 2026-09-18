@@ -398,7 +398,10 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 .rzsb{flex:1 1 auto;min-width:0;max-width:calc((100% - 12px) / 3);
   display:inline-flex;align-items:baseline;justify-content:center;gap:5px;padding:4px 8px;border:1px solid var(--line);
   border-radius:999px;background:var(--card);color:var(--txt);font-size:12px;font-weight:700;white-space:nowrap;
-  cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+  cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none;touch-action:manipulation}
+/* 长按不能被浏览器当成「选文字／弹复制菜单」：壳和里面每个子元素都各写一遍（部分手机浏览器对 user-select 的继承不认） */
+.rzsb,.rzsb *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none}
+.rzselbar{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 
 .rzsb .sbnm{font-style:normal;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rzsb:active{transform:scale(.97)}
@@ -6441,6 +6444,7 @@ var RZ = {
   _slotPick: -1, _slotCf: -1, _slotCfT: null,  // 正在给第几格选股 / 长按确认落在第几格 / 确认态自动取消定时器
 
   _holdT: null, _holdFired: false, _holdX: 0, _holdY: 0,   // 长按计时器 / 这次触摸是否已被长按消费 / 起按坐标
+  _holdSlot: -1, _tapAt: 0,                                // 正在计时的是第几格 / 触摸端最近一次已处理的轻点（用于忽略随后补发的 click）
 
 
   fund: {}, fundTs: 0,            // code -> 东财多周期资金（今日净占比 / 5日 / 10日），一次批量拉全部自选
@@ -9601,6 +9605,7 @@ function tbSelBarBinds(){
 
   function holdClear(){
     if(RZ._holdT){ clearTimeout(RZ._holdT); RZ._holdT = null; }
+    RZ._holdSlot = -1;
   }
 
   function slotIndex(t){
@@ -9609,24 +9614,44 @@ function tbSelBarBinds(){
     var v = parseInt(el.getAttribute('data-slot'), 10);
     return isFinite(v) ? v : -1;
   }
+  function slotEl(t){ return (t && t.closest) ? t.closest('.rzsb') : null; }
+  function killSel(){ try{ var s = window.getSelection(); if(s && s.removeAllRanges) s.removeAllRanges(); }catch(e2){} }
 
-  // 长按：按住 1.5 秒 → 这一格变红问「删除？」，再点一下才真的腾空
-  sb.addEventListener('pointerdown', function(e){
-    var i = slotIndex(e.target);
-    if(i < 0) return;
+  // 长按计时：pointerdown / touchstart 谁先到就谁启动，后到的那个幂等跳过（同一格只计一次时）
+  function startHold(t, x, y){
+    if(RZ._holdT) return;
+    var i = slotIndex(t);
+    if(i < 0) return;                            // 空位 ⊕ 没有 data-slot，长按无动作
     holdClear();
     RZ._holdFired = false;
-    RZ._holdX = e.clientX; RZ._holdY = e.clientY;
+    RZ._holdSlot = i;
+    RZ._holdX = x; RZ._holdY = y;
+    killSel();                                   // 先把可能已经选中的文字清掉
     RZ._holdT = setTimeout(function(){
       RZ._holdT = null;
-      RZ._holdFired = true;                    // 这次触摸已被长按消费，抬手产生的那次 click 要忽略
+      RZ._holdFired = true;                      // 这次触摸已被长按消费，抬手那一下不算第二次点击
       RZ._slotCf = i;
+      killSel();
       if(RZ._slotCfT) clearTimeout(RZ._slotCfT);
       RZ._slotCfT = setTimeout(function(){ RZ._slotCfT = null; rzSlotCfClear(); }, 5000);   // 5 秒不点自动取消
       tbSelBarRender(true);
       var h = $('rzHint'); if(h) h.textContent = '再点一下这一格就腾空（只影响这 3 格的呈现，自选列表不动）。';
     }, HOLD);
+  }
+
+  // 长按：按住 1.5 秒 → 这一格变红问「删除？」，再点一下才真的腾空
+  sb.addEventListener('pointerdown', function(e){
+    startHold(e.target, e.clientX, e.clientY);
   });
+
+  // 触摸端：浏览器会把手按 0.5 秒当成「选文字／弹出复制菜单」，这里把原生默认行为挡掉。
+  // 代价是这个条上的轻点不再产生 click → 轻点由下面的 touchend 自己判定并执行（要滚页面请从卡片区滑）。
+  sb.addEventListener('touchstart', function(e){
+    if(!slotEl(e.target)) return;
+    e.preventDefault();
+    var t0 = (e.touches && e.touches[0]) || null;
+    startHold(e.target, t0 ? t0.clientX : 0, t0 ? t0.clientY : 0);
+  }, {passive:false});
 
   sb.addEventListener('pointermove', function(e){
     if(!RZ._holdT) return;
@@ -9642,28 +9667,25 @@ function tbSelBarBinds(){
     if(e.target && e.target.closest && e.target.closest('.rzsb')) e.preventDefault();
   });
 
-  sb.addEventListener('click', function(e){
-    var t = e.target;
-
+  // 轻点（tap）该干什么就这一段：鼠标端由 click 走，触摸端由 touchend 走；返回 true = 命中槽位
+  function doTap(t){
     // ① 空位 ⊕ → 打开自选面板，点一只放进这一格
     var add = (t && t.closest) ? t.closest('[data-sbslot]') : null;
     if(add){
-      e.preventDefault(); e.stopPropagation();
       var si = parseInt(add.getAttribute('data-sbslot'), 10);
       if(isFinite(si)) rzSlotPick(si);
-      return;
+      return true;
     }
 
     var i = slotIndex(t);
-    if(i < 0) return;
-    e.preventDefault(); e.stopPropagation();
+    if(i < 0) return false;
 
     // ② 长按抬手那一下不算「第二次点击」，确认态留着
-    if(RZ._holdFired){ RZ._holdFired = false; return; }
+    if(RZ._holdFired){ RZ._holdFired = false; return true; }
 
     // ③ 已在确认态：再点同一格 = 真腾空；点别处 = 取消
     if(RZ._slotCf >= 0){
-      if(RZ._slotCf === i){ rzSlotClear(i); return; }
+      if(RZ._slotCf === i){ rzSlotClear(i); return true; }
       rzSlotCfClear();
     }
 
@@ -9671,6 +9693,27 @@ function tbSelBarBinds(){
     var c = (t && t.closest) ? t.closest('[data-sb]') : null;
     var code = c ? c.getAttribute('data-sb') : null;
     if(code) rzJump(code);
+    return true;
+  }
+
+  // 触摸端抬手：判定是「轻点」还是「划动」，轻点就自己执行（touchstart 已挡掉默认行为，浏览器不再补发 click）
+  sb.addEventListener('touchend', function(e){
+    if(!slotEl(e.target)) return;
+    var t0 = (e.changedTouches && e.changedTouches[0]) || null;
+    var moved = t0 ? (Math.abs(t0.clientX - RZ._holdX) > 12 || Math.abs(t0.clientY - RZ._holdY) > 12) : false;
+    var fired = RZ._holdFired;
+    holdClear();
+    RZ._tapAt = Date.now();
+    if(fired){ RZ._holdFired = false; return; }      // 长按抬手那一下不算第二次点击
+    if(moved) return;                                // 划动 = 不算轻点
+    var el = t0 ? document.elementFromPoint(t0.clientX, t0.clientY) : null;
+    doTap(slotEl(el) || e.target);
+  });
+
+  // 鼠标/桌面走 click；触摸端 touchend 已处理，用 _tapAt 去重（个别浏览器仍会补发 click，防点一次动两下）
+  sb.addEventListener('click', function(e){
+    if(Date.now() - (RZ._tapAt || 0) < 800) return;
+    if(doTap(e.target)){ e.preventDefault(); e.stopPropagation(); }
   });
 }
 function tbSelBinds(){
