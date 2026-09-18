@@ -9253,6 +9253,20 @@ function rzAdd(codeRaw){
 
 // 既保证列表顺序与下面卡片一致，又能剔掉已删除但残留的代码；不在 order 里的再补在后面。
 
+function rzRemove(code){
+
+  RZ.list = RZ.list.filter(function(x){ return x.c !== code; });
+
+  delete RZ.state[code];
+
+  rzSave();
+
+  RZ.sortDirty = true;
+
+  rzRender();
+
+}
+
 function rzItem(code){
 
   var hit = null;
