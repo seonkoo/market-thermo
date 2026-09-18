@@ -237,7 +237,9 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzsl{color:var(--txt2);font-size:11px;font-weight:600;white-space:nowrap}
 .rzsign .rzok,.rzsign .rzno{font-size:17px;line-height:1}
 /* 添加自选输入框：手机上更显眼 */
-.rzadd{display:flex;gap:6px;align-items:center;background:linear-gradient(180deg,#eef6ff,#e2eeff);border:1px dashed #93c5fd;border-radius:11px;padding:7px 8px;margin:2px 0 6px}
+.rzadd{display:flex;gap:6px;align-items:center;background:linear-gradient(180deg,#eef6ff,#e2eeff);border:1px dashed #93c5fd;border-radius:11px;padding:7px 8px;margin:2px 0 6px;transition:box-shadow .25s ease,border-color .25s ease}
+/* 「搜索」跳过来时闪一下，指明就是这里 */
+.rzadd.flash{border-color:var(--info);box-shadow:0 0 0 3px rgba(37,99,235,.32)}
 .rzadd input{flex:1;min-width:0;padding:8px 10px;border:1px solid #93c5fd;border-radius:8px;font-size:16px;background:#fff}
 .rzadd input:focus{outline:none;border-color:var(--info);box-shadow:0 0 0 3px rgba(37,99,235,.16)}
 .rzadd .rzaddlbl{color:var(--info);font-size:15px;font-weight:800;line-height:1}
@@ -392,6 +394,16 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 .rzsb.add:active{background:var(--line2)}
 .rzsb.cf{border-color:#e5484d;background:#e5484d;color:#fff}
 .rzsb.cf .sbcf{font-style:normal;font-size:11.5px;font-weight:800}
+/* 面板第一行的「搜索」：页面长了输入框不好找，点它直接滚到输入区并聚焦。
+   面板自己有滚动（max-height 62vh），所以这行 position:sticky 常驻顶部。 */
+.rzselsearch{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:6px;
+  padding:8px 10px;font-size:12.5px;font-weight:700;color:var(--info);
+  background:#f4f8ff;border-bottom:1px solid var(--line2);cursor:pointer}
+.rzselsearch:active{background:#e6f0ff}
+.rzselsearch i{font-style:normal;font-size:13px;line-height:1}
+.rzselsearch em{font-style:normal;margin-left:auto;font-weight:600;font-size:11.5px;color:var(--txt3)}
+html[data-theme="dark"] .rzselsearch{background:#16223a;color:#8fb6f0}
+html[data-theme="dark"] .rzselsearch em{color:var(--txt3)}
 .rzslotpicktip{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;font-size:12px;font-weight:700;color:var(--info);background:#eef4ff;border-bottom:1px solid var(--line2)}
 .rzslotpicktip b{cursor:pointer;font-weight:700;color:var(--txt3);background:#fff;border:1px solid var(--line);border-radius:7px;padding:2px 8px}
 .rzselpk{flex:0 0 auto;font-size:11px;font-weight:700;color:var(--info);background:#eef4ff;border:1px solid #bcd7f7;border-radius:7px;padding:2px 7px}
@@ -9569,6 +9581,35 @@ function tbSelPlace(){
   pop.style.right = 'auto';
 }
 
+// 面板第一行「搜索 / 添加个股」：页面很长时，自选面板里一点就能回到顶部输入框，
+// 不用自己一路往上翻。（选股模式 pick 下不显示，那里点行是「放进第 N 格」）
+function rzSearchRowHTML(){
+  return '<div class="rzselsearch" data-gotoinput="1" title="滚到页面顶部的个股输入框"><i>🔍</i>搜索 / 添加个股<em>去输入框 ›</em></div>';
+}
+
+// 点「搜索」那一行：滚到输入区 → 闪一下 → 聚焦输入框 → 收起面板
+// 滚动不用 scrollIntoView：面板是 fixed，先收起它会让平滑滚动被浏览器吞掉（实测不动）。
+// 自己算目标 y 更稳；距离超过一屏半就直接跳 —— 长距离平滑滚动在手机上要「飞」好几秒。
+function rzGotoInput(){
+  var inp = $('rzInp'); if(!inp) return;
+  var box = (inp.closest && inp.closest('.rzadd')) || inp;
+  var r = box.getBoundingClientRect();
+  var cur = window.pageYOffset || document.documentElement.scrollTop || 0;
+  var vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  var y = Math.max(0, Math.round(cur + r.top - Math.max(10, (vh - r.height) * 0.35)));
+  var far = Math.abs(r.top) > vh * 1.5;          // 在视口外很远 → 直接跳
+  try{ window.scrollTo({top: y, behavior: far ? 'auto' : 'smooth'}); }
+  catch(err){ window.scrollTo(0, y); }
+  tbSelToggle(false);
+  if(box.classList){
+    box.classList.add('flash');
+    setTimeout(function(){ box.classList.remove('flash'); }, 1500);
+  }
+  setTimeout(function(){
+    try{ inp.focus({preventScroll:true}); }catch(err){ try{ inp.focus(); }catch(e2){} }
+  }, far ? 90 : 450);                            // 即时跳的情况下不用等滚动动画
+}
+
 function tbSelRender(force){
   var pop = $('tbSelPop'), chip = $('tbSelChip');
   if(chip) chip.outerHTML = tbSelChipHTML();          // 计数／箭头跟着数据走
@@ -9581,7 +9622,7 @@ function tbSelRender(force){
             codes.map(function(c){ var o = RZ.state[c]; return (o && o.quote) ? (o.quote.name + ':' + o.quote.pct) : ''; }).join(',');
   if(!force && sig === RZ._tbSig) return;   // 内容没变就不重画，滚动时面板不跳
   RZ._tbSig = sig;
-  pop.innerHTML = (pick ? '<div class="rzslotpicktip">点一只放进第 ' + (RZ._slotPick + 1) + ' 格<b data-slotcancel="1">取消</b></div>' : '') +
+  pop.innerHTML = (pick ? '<div class="rzslotpicktip">点一只放进第 ' + (RZ._slotPick + 1) + ' 格<b data-slotcancel="1">取消</b></div>' : rzSearchRowHTML()) +
     (codes.length ? rzSelRowsHTML(codes, cf, pick) : '<div class="rzselempty">还没有自选：回到页面顶部输入 6 位代码，点「添加」</div>');
   tbSelPlace();
 }
@@ -9807,6 +9848,7 @@ function tbSelBinds(){
     e.stopPropagation();
     var t = e.target;
     if(t && t.closest && t.closest('[data-slotcancel]')){ RZ._slotPick = -1; tbSelToggle(false); return; }
+    if(t && t.closest && t.closest('[data-gotoinput]')){ e.preventDefault(); rzGotoInput(); return; }   // 第一行「搜索」→ 跳输入框
     if(RZ._slotPick >= 0){                                     // 「给某一格选股」模式：点一只 = 放进那一格
       var pr = (t && t.closest) ? t.closest('.rzselrow[data-pick]') : null;
       var pc = pr ? pr.getAttribute('data-pick') : null;
