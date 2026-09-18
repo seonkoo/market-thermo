@@ -342,17 +342,36 @@ html[data-theme="dark"] .rzmark.dn{background:rgba(31,157,85,.22);border-color:r
 
 .rzflash{animation:rzflashk 1.2s ease}
 
-/* 吸顶栏「自选」入口：滚动到哪都能一键唤出个股列表、跳到某只 */
-.topbar .tb-sel{display:inline-flex;align-items:center;gap:4px;padding:1px 9px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--txt2);font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;transition:background .12s,border-color .12s}
-.topbar .tb-sel:hover{background:rgba(77,163,255,.12)}
+/* 吸顶栏「自选」入口：滚动到哪都能一键唤出个股列表、跳到某只
+   （配色故意做成实心蓝底，和旁边的灰色指标区分开，一眼能认出是按钮） */
+.topbar .tb-sel{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border:1px solid #bcd7f7;border-radius:999px;background:#eef4ff;color:#1d6fd0;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;transition:background .12s,border-color .12s}
+.topbar .tb-sel:hover{background:#e2edff;border-color:#8fc0f5}
 .topbar .tb-sel:active{transform:scale(.97)}
-.topbar .tb-sel.on{border-color:var(--info);color:var(--info);background:#eef4ff}
-.topbar .tb-sel.empty{color:var(--txt3)}
+.topbar .tb-sel.on{border-color:var(--info);color:#fff;background:var(--info)}
+.topbar .tb-sel.empty{opacity:.8}
 .topbar .tb-sel .tbselic{font-style:normal;color:#f0a020;font-size:11px}
 .topbar .tb-sel b{font-variant-numeric:tabular-nums;font-weight:800}
-.topbar .tb-sel .rzselar{font-style:normal;font-size:10px;color:var(--txt3)}
+.topbar .tb-sel .rzselar{font-style:normal;font-size:10px;color:inherit;opacity:.75}
 /* 面板：贴在吸顶栏正下方（位置由 tbSelPlace 实测写入），行样式复用 .rzselrow 系 */
 .tbselpop{position:fixed;z-index:60;margin:0;max-height:62vh;box-shadow:0 10px 30px rgba(15,23,42,.22)}
+/* 吸顶栏正下方的常驻个股条：把已添加个股直接列出来（不用点开），滚动时跟着吸顶
+   top 由 tbSelBarPlace() 实测 topbar 高度写入（topbar 会随窄屏换行变高） */
+.rzselbar{position:sticky;top:0;z-index:49;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;
+  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;white-space:nowrap;
+  padding:5px 2px;margin:-7px 0 10px;border-bottom:1px solid var(--line2);
+  background:rgba(255,255,255,.94);backdrop-filter:saturate(150%) blur(6px)}
+.rzselbar::-webkit-scrollbar{height:0;display:none}
+.rzsb{flex:0 0 auto;display:inline-flex;align-items:baseline;gap:5px;padding:4px 10px;border:1px solid var(--line);
+  border-radius:999px;background:var(--card);color:var(--txt);font-size:12px;font-weight:700;white-space:nowrap;
+  cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rzsb:active{transform:scale(.97)}
+.rzsb .sbpin{font-style:normal;font-size:10px;line-height:1}
+.rzsb .sbpc{font-style:normal;font-variant-numeric:tabular-nums;font-size:11.5px;font-weight:700}
+.rzsb .sbpc.up{color:var(--up)}.rzsb .sbpc.down{color:var(--down)}.rzsb .sbpc.flat{color:var(--txt3)}
+.rzsb.pin{border-color:var(--info);background:#eef4ff;color:#1d6fd0}
+.rzsb.tip{color:var(--info);font-weight:700;border-style:dashed;border-color:#bcd7f7;background:#eef4ff}
+html[data-theme="dark"] .rzselbar{background:rgba(17,24,39,.94);border-bottom-color:#2a3444}
+html[data-theme="dark"] .rzsb.pin,html[data-theme="dark"] .rzsb.tip{background:#1e2b3f;border-color:#3b6ea8;color:#8ab6e8}
 
 .rza{display:flex;flex-direction:column;gap:1px;padding:6px 9px;font-size:11.5px;line-height:1.5;border-left:3px solid}
 
@@ -566,7 +585,8 @@ html[data-theme="dark"] .rzadd input{border-color:#3b6ea8}
 html[data-theme="dark"] .rzselrow.cf{background:#2d1719}
 html[data-theme="dark"] .rzselx{background:#1b2330}
 html[data-theme="dark"] .rzselx.cf{background:#e5484d;color:#fff}
-html[data-theme="dark"] .topbar .tb-sel.on{background:#1e2b3f;color:#7db4ff;border-color:#3b6ea8}
+html[data-theme="dark"] .topbar .tb-sel{background:#1e2b3f;border-color:#3b6ea8;color:#8ab6e8}
+html[data-theme="dark"] .topbar .tb-sel.on{background:#2f6fd0;color:#fff;border-color:#4d8fe8}
 /* 图表浮层 / 圆点 */
 html[data-theme="dark"] .rzdot{border-color:var(--card)}
 html[data-theme="dark"] .rztip{background:rgba(22,29,38,.97);border-color:#3a4657;color:#e7ecf3}
@@ -663,6 +683,9 @@ html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
 
   <!-- 吸顶栏自选面板：固定定位在 topbar 下方，不参与 topbar 的 innerHTML 重建 -->
   <div class="rzselpop tbselpop" id="tbSelPop" style="display:none"></div>
+
+  <!-- 吸顶栏正下方的常驻个股条：已添加的个股直接列出来（不用点开），点一下跳到卡片 -->
+  <div class="rzselbar" id="rzSelBar" style="display:none"></div>
 
 
 
@@ -6297,7 +6320,8 @@ var RZ = {
 
   _selOpen: false, _selSig: '', _selCf: null,  // 自选下拉：展开态 / 渲染签名 / 删除二次确认
 
-  _tbSig: ''                                   // 吸顶栏面板：渲染签名（数据没变就不重画）
+  _tbSig: '',                                  // 吸顶栏面板：渲染签名（数据没变就不重画）
+  _sbSig: ''                                   // 常驻个股条：渲染签名（数据没变就不重画）
 
 };
 
@@ -8073,6 +8097,8 @@ function rzRender(){
 
   tbSelRender();      // 吸顶栏面板与卡片同源：数量／涨跌幅同步
 
+  tbSelBarRender();   // 常驻个股条同理（有自选时才显示）
+
   rzOverview();
 
 }
@@ -8141,6 +8167,8 @@ function rzOverview(){
   var tbp = $('tbSelPop');
 
   if(tbp && tbp.style.display === 'block') tbSelPlace();   // 吸顶栏换行高度变了，面板跟着挪，不跑位
+
+  tbSelBarPlace();   // 同理：个股条的吸附位置按新栏高重贴
 
 }
 
@@ -8395,6 +8423,7 @@ function rzSelToggle(forceOpen){
 function rzSelRender(force){
 
   tbSelRender();   // 吸顶栏入口与这里共用一份数据，顺手同步（内部有签名守护，不重复重画）
+  tbSelBarRender();
 
   var box = $('rzSelPop'), btn = $('rzSelBtn');
 
@@ -8618,6 +8647,83 @@ function tbSelToggle(force){
   }
 }
 
+// ── 常驻个股条（吸顶栏正下方）───────────────────────────────────────────
+// 目的：找股票时不必点开任何东西 —— 已添加的个股直接横排在这儿，点一下跳到它的卡片。
+// 数据同源（RZ.list / RZ.order / RZ.state），自己不存任何状态，只有渲染签名。
+function tbSelBarHTML(){
+  var codes = rzSelCodes();
+  if(!codes.length){
+    return '<span class="rzsb tip" data-sbgo="1">＋ 自选列表在这儿：还没添加个股，点这里去添加</span>';
+  }
+  var h = '';
+  codes.forEach(function(c){
+    var o = RZ.state[c] || {}, q = o.quote, it = rzItem(c);
+    var pct = (q && isFinite(q.pct)) ? q.pct : null;
+    h += '<span class="rzsb' + ((it && it._pin) ? ' pin' : '') + '" data-sb="' + c + '" title="跳到 ' + esc(c) + '">' +
+         ((it && it._pin) ? '<i class="sbpin">📌</i>' : '') +
+         esc((q && q.name) ? q.name : c) +
+         (pct === null ? '' : '<i class="sbpc ' + cls(pct) + '">' + pctS(pct) + '</i>') +
+         '</span>';
+  });
+  return h;
+}
+
+function tbSelBarPlace(){
+  var bar = $('rzTopBar'), sb = $('rzSelBar');
+  if(!bar || !sb) return;
+  var h = Math.round(bar.getBoundingClientRect().height);
+  sb.style.top = (h > 0 ? h : 34) + 'px';   // 紧贴吸顶栏底部（栏高随窄屏换行变）
+}
+
+function tbSelBarRender(force){
+  var sb = $('rzSelBar');
+  if(!sb) return;
+  var codes = rzSelCodes();
+  var sig = codes.join(',') + '|' + codes.map(function(c){
+    var o = RZ.state[c], it = rzItem(c);
+    return ((it && it._pin) ? 1 : 0) + ((o && o.quote) ? (o.quote.name + ':' + o.quote.pct) : '');
+  }).join(',');
+  if(!force && sig === RZ._sbSig) return;   // 数据没变就不重画，滚动时不闪
+  RZ._sbSig = sig;
+  sb.style.display = 'flex';
+  sb.innerHTML = tbSelBarHTML();
+  tbSelBarPlace();
+}
+
+// 点个股条：只「跳过去看」，不改置顶顺序（置顶／删除留给上面的面板，避免误触改排序）
+function rzJump(code){
+  var card = document.querySelector('.rzcard[data-rzc="' + code + '"]');
+  var hh = $('rzHint');
+  var nm = (RZ.state[code] && RZ.state[code].quote && RZ.state[code].quote.name) || code;
+  if(!card){ if(hh) hh.textContent = '没找到 ' + code + ' 的卡片（可能还在加载）'; return; }
+  try{ card.scrollIntoView({behavior:'smooth', block:'start'}); }catch(e){ try{ card.scrollIntoView(); }catch(e2){} }
+  card.classList.add('rzflash');
+  setTimeout(function(){ card.classList.remove('rzflash'); }, 1200);
+  if(hh) hh.textContent = '已定位 ' + nm + ' ' + code;
+}
+
+function tbSelBarBinds(){
+  var sb = $('rzSelBar');
+  if(!sb || sb.dataset.bind) return;
+  sb.dataset.bind = '1';
+  sb.addEventListener('click', function(e){
+    var t = e.target;
+    var goadd = (t && t.closest) ? t.closest('[data-sbgo]') : null;
+    if(goadd){                                                                   // 没自选 → 滚到输入框
+      e.preventDefault();
+      var inp = $('rzInp');
+      if(inp){ try{ inp.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e2){} try{ inp.focus(); }catch(e3){} }
+      return;
+    }
+    var c = (t && t.closest) ? t.closest('[data-sb]') : null;
+    if(!c) return;
+    var code = c.getAttribute('data-sb');
+    if(!code) return;
+    e.preventDefault(); e.stopPropagation();
+    rzJump(code);
+  });
+}
+
 function tbSelBinds(){
   var pop = $('tbSelPop');
   if(pop) pop.addEventListener('click', function(e){
@@ -8685,12 +8791,15 @@ function rzStart(){
 
   });
 
-  tbSelBinds();   // 吸顶栏自选面板事件
+  tbSelBinds();     // 吸顶栏自选面板事件
+
+  tbSelBarBinds();  // 常驻个股条事件
 
   // 横竖屏切换 / 地址栏收缩等导致宽度变化时，面板重新贴一次吸顶栏（固定定位不会自动跟随）
   window.addEventListener('resize', function(){
     var p = $('tbSelPop');
     if(p && p.style.display === 'block') tbSelPlace();
+    tbSelBarPlace();   // 栏高变了，个股条的吸附位置跟着调
   });
 
   body.addEventListener('click', function(e){
