@@ -398,7 +398,8 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 .rzsb{flex:1 1 auto;min-width:0;max-width:calc((100% - 12px) / 3);
   display:inline-flex;align-items:baseline;justify-content:center;gap:5px;padding:4px 8px;border:1px solid var(--line);
   border-radius:999px;background:var(--card);color:var(--txt);font-size:12px;font-weight:700;white-space:nowrap;
-  cursor:pointer;-webkit-tap-highlight-color:transparent}
+  cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+
 .rzsb .sbnm{font-style:normal;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rzsb:active{transform:scale(.97)}
 .rzsb .sbpin{font-style:normal;font-size:10px;line-height:1}
@@ -406,8 +407,22 @@ html[data-theme="dark"] .rzsig .rzsigc.dn{background:rgba(31,157,85,.2)}
 .rzsb .sbpc.up{color:var(--up)}.rzsb .sbpc.down{color:var(--down)}.rzsb .sbpc.flat{color:var(--txt3)}
 .rzsb.pin{border-color:var(--info);background:#eef4ff;color:#1d6fd0}
 .rzsb.tip{flex:1 1 100%;max-width:none;justify-content:center;color:var(--info);font-weight:700;border-style:dashed;border-color:#bcd7f7;background:#eef4ff}
+/* 空位 ⊕：点一下指定这一格显示哪只；长按 3 秒的确认态整格变红 */
+.rzsb.add{justify-content:center;color:var(--txt3);border-style:dashed;border-color:#c7d2dd;font-size:15px;font-weight:600;padding:3px 8px}
+.rzsb.add:active{background:var(--line2)}
+.rzsb.cf{border-color:#e5484d;background:#e5484d;color:#fff}
+.rzsb.cf .sbcf{font-style:normal;font-size:11.5px;font-weight:800}
+.rzslotpicktip{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;font-size:12px;font-weight:700;color:var(--info);background:#eef4ff;border-bottom:1px solid var(--line2)}
+.rzslotpicktip b{cursor:pointer;font-weight:700;color:var(--txt3);background:#fff;border:1px solid var(--line);border-radius:7px;padding:2px 8px}
+.rzselpk{flex:0 0 auto;font-size:11px;font-weight:700;color:var(--info);background:#eef4ff;border:1px solid #bcd7f7;border-radius:7px;padding:2px 7px}
+
 html[data-theme="dark"] .rzselbar{background:rgba(17,24,39,.94);border-bottom-color:#2a3444}
 html[data-theme="dark"] .rzsb.pin,html[data-theme="dark"] .rzsb.tip{background:#1e2b3f;border-color:#3b6ea8;color:#8ab6e8}
+html[data-theme="dark"] .rzsb.add{border-color:#3b4657;color:var(--txt3)}
+html[data-theme="dark"] .rzslotpicktip{background:#1e2b3f;border-bottom-color:#2a3444}
+html[data-theme="dark"] .rzslotpicktip b{background:#111827;border-color:#2a3444;color:var(--txt3)}
+html[data-theme="dark"] .rzselpk{background:#1e2b3f;border-color:#3b6ea8;color:#8ab6e8}
+
 
 .rza{display:flex;flex-direction:column;gap:1px;padding:6px 9px;font-size:11.5px;line-height:1.5;border-left:3px solid}
 
@@ -6419,7 +6434,14 @@ var RZ = {
   _selOpen: false, _selSig: '', _selCf: null,  // 自选下拉：展开态 / 渲染签名 / 删除二次确认
 
   _tbSig: '',                                  // 吸顶栏面板：渲染签名（数据没变就不重画）
-  _sbSig: '',                                  // 常驻个股条：渲染签名（数据没变就不重画）
+  _sbSig: '',                                  // 三槽个股条：渲染签名（数据没变就不重画）
+
+  slots: [null, null, null],                   // 三个槽位各显示哪只（手动指定，存 rz_slots3）
+
+  _slotPick: -1, _slotCf: -1, _slotCfT: null,  // 正在给第几格选股 / 长按确认落在第几格 / 确认态自动取消定时器
+
+  _holdT: null, _holdFired: false, _holdX: 0, _holdY: 0,   // 长按计时器 / 这次触摸是否已被长按消费 / 起按坐标
+
 
   fund: {}, fundTs: 0,            // code -> 东财多周期资金（今日净占比 / 5日 / 10日），一次批量拉全部自选
 
@@ -6441,7 +6463,86 @@ function rzLoad(){
     rzSave(); // 一次性写回新格式
   }
   RZ.order = RZ.list.map(function(x){ return x.c; });
+  rzSlotsLoad();
 }
+
+// ── 三个固定槽位（吸顶栏下面那条）：每格显示哪只由你自己指定，记在本机 ──
+var RZ_SLOTS_KEY = 'rz_slots3';
+
+function rzSlotsLoad(){
+  var raw = null;
+  try{ raw = localStorage.getItem(RZ_SLOTS_KEY); }catch(e){}
+  if(raw){
+    try{
+      var arr = JSON.parse(raw);
+      if(Array.isArray(arr)){
+        RZ.slots = [0, 1, 2].map(function(i){ return (typeof arr[i] === 'string' && arr[i]) ? arr[i] : null; });
+        return;
+      }
+    }catch(e){}
+  }
+  // 本机第一次用（没存过）：拿当前自选的前 3 只预填，免得一进来三格全空不知干嘛
+  var codes = rzSelCodes();
+  RZ.slots = [0, 1, 2].map(function(i){ return codes[i] || null; });
+  rzSlotsSave();
+}
+
+function rzSlotsSave(){
+  try{ localStorage.setItem(RZ_SLOTS_KEY, JSON.stringify(RZ.slots)); }catch(e){}
+}
+
+// 第 i 格实际显示谁：没指定、或那只已经被移出自选 → 当空位处理
+function rzSlotCode(i){
+  var c = RZ.slots[i];
+  if(!c) return null;
+  return RZ.list.some(function(x){ return x.c === c; }) ? c : null;
+}
+
+function rzSlotCfClear(){
+  if(RZ._slotCfT){ clearTimeout(RZ._slotCfT); RZ._slotCfT = null; }
+  if(RZ._slotCf >= 0){ RZ._slotCf = -1; tbSelBarRender(true); }
+}
+
+// 点空位 ⊕ → 打开自选面板，点一只即放进这一格
+function rzSlotPick(i){
+  RZ._slotCf = -1;
+  if(!RZ.list.length){
+    var h = $('rzHint'); if(h) h.textContent = '还没有自选：先在上面输入 6 位代码点「添加」，再回来指定这一格。';
+    var inp = $('rzInp');
+    if(inp){ try{ inp.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){} try{ inp.focus(); }catch(e2){} }
+    return;
+  }
+  RZ._slotPick = i;
+  tbSelToggle(true);
+  var hp = $('rzHint'); if(hp) hp.textContent = '点一只放进第 ' + (i + 1) + ' 格。';
+}
+
+function rzSlotSet(i, code){
+  RZ.slots[i] = code;
+  rzSlotsSave();
+  RZ._slotPick = -1;
+  tbSelToggle(false);
+  tbSelBarRender(true);
+  var h = $('rzHint');
+  var nm = (RZ.state[code] && RZ.state[code].quote && RZ.state[code].quote.name) || code;
+  if(h) h.textContent = '第 ' + (i + 1) + ' 格已设为 ' + nm + ' ' + code + '。';
+}
+
+// 长按 3 秒后那声「删除？」确认 → 再点一下才真的腾空（只动这 3 格的呈现，自选列表不动）
+function rzSlotClear(i){
+  if(RZ._holdT){ clearTimeout(RZ._holdT); RZ._holdT = null; }
+  if(RZ._slotCfT){ clearTimeout(RZ._slotCfT); RZ._slotCfT = null; }
+  RZ._holdFired = false;
+  var c = RZ.slots[i];
+  RZ.slots[i] = null;
+  rzSlotsSave();
+  RZ._slotCf = -1;
+  tbSelBarRender(true);
+  var h = $('rzHint');
+  var nm = (c && RZ.state[c] && RZ.state[c].quote && RZ.state[c].quote.name) || c || '';
+  if(h) h.textContent = '第 ' + (i + 1) + ' 格已空出（' + nm + ' 还在自选里，可以再放回来）。';
+}
+
 
 function rzSave(){ try{ localStorage.setItem('rz_watch', JSON.stringify(RZ.list)); }catch(e){} }
 
@@ -9339,7 +9440,7 @@ function rzSelCodes(){
 }
 
 // 行 HTML 生成器：自选下拉与吸顶栏面板共用，保证两处长得一样、行为一样
-function rzSelRowsHTML(codes, cf){
+function rzSelRowsHTML(codes, cf, pick){
   var h = '';
   codes.forEach(function(c){
     var o = RZ.state[c] || {}, q = o.quote, it = rzItem(c), isCf = (cf === c);
@@ -9349,12 +9450,12 @@ function rzSelRowsHTML(codes, cf){
       '<span class="rzselnm">' + esc((q && q.name) ? q.name : c) + '<i>' + esc(c) + '</i></span>' +
       (isCf ? '<span class="rzselcf">确认删除？</span>' : '') +
       ((pct === null) ? '' : '<span class="rzselpx ' + cls(pct) + '">' + pctS(pct) + '</span>') +
-      '<button class="rzselx' + (isCf ? ' cf' : '') + '" type="button" data-del="' + c + '" title="删除">' + (isCf ? '删除' : '×') + '</button>' +
+      (pick ? '<span class="rzselpk">放入</span>'
+            : '<button class="rzselx' + (isCf ? ' cf' : '') + '" type="button" data-del="' + c + '" title="删除">' + (isCf ? '删除' : '×') + '</button>') +
     '</div>';
   });
   return h;
 }
-
 // 吸顶栏那颗「★ 自选 N ▾」小胶囊（由 rzOverview 写进 topbar，标签也在这里生成，避免两处漂移）
 function tbSelChipHTML(){
   var pop = $('tbSelPop');
@@ -9393,14 +9494,15 @@ function tbSelRender(force){
   if(pop.style.display !== 'block'){ RZ._tbSig = ''; return; }
   var codes = rzSelCodes();
   var cf = (RZ._selCf && RZ.list.some(function(x){ return x.c === RZ._selCf.code; })) ? RZ._selCf.code : '';
-  var sig = codes.join(',') + '|' + codes.map(function(c){ var it = rzItem(c); return (it && it._pin) ? 1 : 0; }).join('') + '|' + cf + '|' +
+  var pick = (RZ._slotPick >= 0);
+  var sig = codes.join(',') + '|' + codes.map(function(c){ var it = rzItem(c); return (it && it._pin) ? 1 : 0; }).join('') + '|' + cf + '|p' + RZ._slotPick + '|' +
             codes.map(function(c){ var o = RZ.state[c]; return (o && o.quote) ? (o.quote.name + ':' + o.quote.pct) : ''; }).join(',');
   if(!force && sig === RZ._tbSig) return;   // 内容没变就不重画，滚动时面板不跳
   RZ._tbSig = sig;
-  pop.innerHTML = codes.length ? rzSelRowsHTML(codes, cf) : '<div class="rzselempty">还没有自选：回到页面顶部输入 6 位代码，点「添加」</div>';
+  pop.innerHTML = (pick ? '<div class="rzslotpicktip">点一只放进第 ' + (RZ._slotPick + 1) + ' 格<b data-slotcancel="1">取消</b></div>' : '') +
+    (codes.length ? rzSelRowsHTML(codes, cf, pick) : '<div class="rzselempty">还没有自选：回到页面顶部输入 6 位代码，点「添加」</div>');
   tbSelPlace();
 }
-
 function tbSelToggle(force){
   var pop = $('tbSelPop'); if(!pop) return;
   var open = (force === true) ? true : (force === false ? false : (pop.style.display !== 'block'));
@@ -9411,33 +9513,37 @@ function tbSelToggle(force){
     tbSelRender(true);
   } else {
     if(RZ._selCf) rzSelCfClear();
+    RZ._slotPick = -1;                       // 收起 = 退出「给某一格选股」模式
+    RZ._tbSig = '';
     tbSelRender(true);
   }
 }
-
 // ── 常驻个股条（吸顶栏正下方）───────────────────────────────────────────
 // 目的：找股票时不必点开任何东西 —— 固定列出前 3 只（置顶优先，其余按自选顺序），点一下跳到它的卡片。
 // 超过 3 只不在这里横滑（滑着找比点开下拉还慢）；看全部点吸顶栏「★ 自选 N ▾」。
 // 数据同源（RZ.list / RZ.order / RZ.state），自己不存任何状态，只有渲染签名。
 function tbSelBarHTML(){
-  var codes = rzSelCodes();
-  if(!codes.length){
-    return '<span class="rzsb tip" data-sbgo="1">＋ 自选列表在这儿：还没添加个股，点这里去添加</span>';
-  }
   var h = '';
-  // 固定只列前 3 只（置顶优先，其余按自选顺序）；超出部分点吸顶栏「★ 自选 N ▾」看全部
-  codes.slice(0, 3).forEach(function(c){
+  for(var i = 0; i < 3; i++){
+    var c = rzSlotCode(i);
+    if(!c){
+      // 空位 ⊕：点一下就能指定这一格显示哪只自选
+      h += '<span class="rzsb add" data-sbslot="' + i + '" title="点这里指定第 ' + (i + 1) + ' 格显示哪只个股">⊕</span>';
+      continue;
+    }
     var o = RZ.state[c] || {}, q = o.quote, it = rzItem(c);
     var pct = (q && isFinite(q.pct)) ? q.pct : null;
-    h += '<span class="rzsb' + ((it && it._pin) ? ' pin' : '') + '" data-sb="' + c + '" title="跳到 ' + esc(c) + '">' +
-         ((it && it._pin) ? '<i class="sbpin">📌</i>' : '') +
-         '<i class="sbnm">' + esc((q && q.name) ? q.name : c) + '</i>' +
-         (pct === null ? '' : '<i class="sbpc ' + cls(pct) + '">' + pctS(pct) + '</i>') +
+    var cf = (RZ._slotCf === i);
+    h += '<span class="rzsb' + ((it && it._pin) ? ' pin' : '') + (cf ? ' cf' : '') +
+         '" data-sb="' + c + '" data-slot="' + i + '" title="点一下跳到 ' + esc(c) + ' 的卡片；长按 3 秒可腾空这一格">' +
+         (cf ? '<i class="sbcf">删除？</i>'
+             : (((it && it._pin) ? '<i class="sbpin">📌</i>' : '') +
+                '<i class="sbnm">' + esc((q && q.name) ? q.name : c) + '</i>' +
+                (pct === null ? '' : '<i class="sbpc ' + cls(pct) + '">' + pctS(pct) + '</i>'))) +
          '</span>';
-  });
+  }
   return h;
 }
-
 function tbSelBarPlace(){
   var bar = $('rzTopBar'), sb = $('rzSelBar');
   if(!bar || !sb) return;
@@ -9448,18 +9554,18 @@ function tbSelBarPlace(){
 function tbSelBarRender(force){
   var sb = $('rzSelBar');
   if(!sb) return;
-  var codes = rzSelCodes();
-  var sig = codes.join(',') + '|' + codes.map(function(c){
+  var sig = [0, 1, 2].map(function(i){
+    var c = rzSlotCode(i);
+    if(!c) return '-';
     var o = RZ.state[c], it = rzItem(c);
-    return ((it && it._pin) ? 1 : 0) + ((o && o.quote) ? (o.quote.name + ':' + o.quote.pct) : '');
-  }).join(',');
+    return c + ((it && it._pin) ? 1 : 0) + ((o && o.quote) ? (o.quote.name + ':' + o.quote.pct) : '');
+  }).join(',') + '|cf' + RZ._slotCf;
   if(!force && sig === RZ._sbSig) return;   // 数据没变就不重画，滚动时不闪
   RZ._sbSig = sig;
   sb.style.display = 'flex';
   sb.innerHTML = tbSelBarHTML();
   tbSelBarPlace();
 }
-
 // 点个股条：只「跳过去看」，不改置顶顺序（置顶／删除留给上面的面板，避免误触改排序）
 function rzJump(code){
   var card = document.querySelector('.rzcard[data-rzc="' + code + '"]');
@@ -9476,29 +9582,95 @@ function tbSelBarBinds(){
   var sb = $('rzSelBar');
   if(!sb || sb.dataset.bind) return;
   sb.dataset.bind = '1';
+
+  var HOLD = 3000;   // 长按多久算「要腾空这一格」（想改手感只改这里）
+
+  function holdClear(){
+    if(RZ._holdT){ clearTimeout(RZ._holdT); RZ._holdT = null; }
+  }
+
+  function slotIndex(t){
+    var el = (t && t.closest) ? t.closest('[data-slot]') : null;
+    if(!el) return -1;
+    var v = parseInt(el.getAttribute('data-slot'), 10);
+    return isFinite(v) ? v : -1;
+  }
+
+  // 长按：按住 3 秒 → 这一格变红问「删除？」，再点一下才真的腾空
+  sb.addEventListener('pointerdown', function(e){
+    var i = slotIndex(e.target);
+    if(i < 0) return;
+    holdClear();
+    RZ._holdFired = false;
+    RZ._holdX = e.clientX; RZ._holdY = e.clientY;
+    RZ._holdT = setTimeout(function(){
+      RZ._holdT = null;
+      RZ._holdFired = true;                    // 这次触摸已被长按消费，抬手产生的那次 click 要忽略
+      RZ._slotCf = i;
+      if(RZ._slotCfT) clearTimeout(RZ._slotCfT);
+      RZ._slotCfT = setTimeout(function(){ RZ._slotCfT = null; rzSlotCfClear(); }, 5000);   // 5 秒不点自动取消
+      tbSelBarRender(true);
+      var h = $('rzHint'); if(h) h.textContent = '再点一下这一格就腾空（只影响这 3 格的呈现，自选列表不动）。';
+    }, HOLD);
+  });
+
+  sb.addEventListener('pointermove', function(e){
+    if(!RZ._holdT) return;
+    if(Math.abs(e.clientX - RZ._holdX) > 12 || Math.abs(e.clientY - RZ._holdY) > 12) holdClear();   // 划动 = 不是长按
+  });
+
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function(ev){
+    sb.addEventListener(ev, function(){ holdClear(); });
+  });
+
+  // 长按会唤出系统菜单／选中文字，针对这条挡掉
+  sb.addEventListener('contextmenu', function(e){
+    if(e.target && e.target.closest && e.target.closest('.rzsb')) e.preventDefault();
+  });
+
   sb.addEventListener('click', function(e){
     var t = e.target;
-    var goadd = (t && t.closest) ? t.closest('[data-sbgo]') : null;
-    if(goadd){                                                                   // 没自选 → 滚到输入框
-      e.preventDefault();
-      var inp = $('rzInp');
-      if(inp){ try{ inp.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e2){} try{ inp.focus(); }catch(e3){} }
+
+    // ① 空位 ⊕ → 打开自选面板，点一只放进这一格
+    var add = (t && t.closest) ? t.closest('[data-sbslot]') : null;
+    if(add){
+      e.preventDefault(); e.stopPropagation();
+      var si = parseInt(add.getAttribute('data-sbslot'), 10);
+      if(isFinite(si)) rzSlotPick(si);
       return;
     }
-    var c = (t && t.closest) ? t.closest('[data-sb]') : null;
-    if(!c) return;
-    var code = c.getAttribute('data-sb');
-    if(!code) return;
+
+    var i = slotIndex(t);
+    if(i < 0) return;
     e.preventDefault(); e.stopPropagation();
-    rzJump(code);
+
+    // ② 长按抬手那一下不算「第二次点击」，确认态留着
+    if(RZ._holdFired){ RZ._holdFired = false; return; }
+
+    // ③ 已在确认态：再点同一格 = 真腾空；点别处 = 取消
+    if(RZ._slotCf >= 0){
+      if(RZ._slotCf === i){ rzSlotClear(i); return; }
+      rzSlotCfClear();
+    }
+
+    // ④ 普通点击 → 跳到这只个股的卡片
+    var c = (t && t.closest) ? t.closest('[data-sb]') : null;
+    var code = c ? c.getAttribute('data-sb') : null;
+    if(code) rzJump(code);
   });
 }
-
 function tbSelBinds(){
   var pop = $('tbSelPop');
   if(pop) pop.addEventListener('click', function(e){
     e.stopPropagation();
     var t = e.target;
+    if(t && t.closest && t.closest('[data-slotcancel]')){ RZ._slotPick = -1; tbSelToggle(false); return; }
+    if(RZ._slotPick >= 0){                                     // 「给某一格选股」模式：点一只 = 放进那一格
+      var pr = (t && t.closest) ? t.closest('.rzselrow[data-pick]') : null;
+      var pc = pr ? pr.getAttribute('data-pick') : null;
+      if(pc){ var slot = RZ._slotPick; rzSlotSet(slot, pc); }
+      return;
+    }
     var isDel = !!(t && t.closest && t.closest('.rzselx'));
     var isCf  = !!(t && t.closest && t.closest('.rzselrow[data-cf="1"]'));
     rzSelClick(e);                              // 与下拉同一套：点行 = 置顶 + 跳到卡片，点× = 二次确认删除
@@ -9510,11 +9682,12 @@ function tbSelBinds(){
     var inPop = pop.contains && pop.contains(t);
     var chip = $('tbSelChip');
     var inChip = chip && (t === chip || (chip.contains && chip.contains(t)));
-    if(!inPop && !inChip) tbSelToggle(false);
+    var bar = $('rzSelBar');                          // 点个股条（空位 ⊕）不算「点外面」
+    var inBar = bar && bar.contains && bar.contains(t);
+    if(!inPop && !inChip && !inBar) tbSelToggle(false);
   });
   tbSelRender(true);
 }
-
 function rzStart(){
 
   rzLoad();
