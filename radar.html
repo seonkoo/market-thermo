@@ -177,6 +177,8 @@ button.etfbtn:hover{background:#f4f6f8;border-color:var(--info);color:var(--info
 .rzcards{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 
 .rzcard{border:1px solid var(--line);border-radius:10px;padding:7px 9px 6px;background:#fff;display:flex;flex-direction:column;gap:4px}
+/* 从三格个股条 / 自选面板跳过来时，卡片标题（名字 + 涨跌幅）不能被吸顶栏盖住：留出吸顶栏的高度 + 8px 间隙。--tbH 由 JS 实测写入（窄屏换行栏变高也自动跟着变） */
+.rzcard{scroll-margin-top:calc(var(--tbH, 48px) + 8px)}
 
 /* 置顶卡：大市总览，强调"先看大市再做T"，用左边框 + 淡蓝底区分于自选个股卡 */
 
@@ -9506,6 +9508,9 @@ function tbBarEnsure(){
   el.innerHTML = '<span class="tbslots" id="rzSelBar"></span>' + tbSelChipHTML();
   sb = $('rzSelBar');
   tbSelBarBinds();
+  // 栏高变化（换行 / 内容变宽 / 字体加载完）时自动刷新 --tbH，卡片 scroll-margin 永远是对的
+  if(window.ResizeObserver && !el._tbRO){ el._tbRO = new ResizeObserver(tbHVar); el._tbRO.observe(el); }
+  tbHVar();
   return sb;
 }
 function tbSelBarHTML(){
@@ -9547,12 +9552,22 @@ function tbSelBarRender(force){
   RZ._sbSig = sig;
   sb.innerHTML = tbSelBarHTML();
 }
+// 吸顶栏高度实时写进 CSS 变量 --tbH：卡片靠 scroll-margin-top 留出这段距离，
+// 跳过来时「名字 + 涨跌幅」那行不会被吸顶栏盖住（窄屏换行、内容变宽导致栏变高都能自动跟）
+function tbHVar(){
+  var tb = $('rzTopBar');
+  if(!tb) return;
+  var h = Math.round(tb.getBoundingClientRect().height);
+  if(h > 0) document.documentElement.style.setProperty('--tbH', h + 'px');
+}
+
 // 点个股条：只「跳过去看」，不改置顶顺序（置顶／删除留给上面的面板，避免误触改排序）
 function rzJump(code){
   var card = document.querySelector('.rzcard[data-rzc="' + code + '"]');
   var hh = $('rzHint');
   var nm = (RZ.state[code] && RZ.state[code].quote && RZ.state[code].quote.name) || code;
   if(!card){ if(hh) hh.textContent = '没找到 ' + code + ' 的卡片（可能还在加载）'; return; }
+  tbHVar();   // 先刷新栏高，保证这次 scroll-margin 用的是最新值
   try{ card.scrollIntoView({behavior:'smooth', block:'start'}); }catch(e){ try{ card.scrollIntoView(); }catch(e2){} }
   card.classList.add('rzflash');
   setTimeout(function(){ card.classList.remove('rzflash'); }, 1200);
