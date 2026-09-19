@@ -11038,6 +11038,12 @@ rzStart();
     return Promise.all(seeds).then(function () { return out; });
   }
 
+  /* 合格线：用户的核心条件 —— 前 30 分钟两线不交叉 且 价格上行。
+     上证「大市共振」是最理想的信号，但并不常出现（如 09-18 上证约 +1% 才有），
+     所以它只作为顶部环境提示，绝不作为出推荐的前提；行业扫描必须独立跑。
+     弱势日靠「往后排行业继续扫」补足，而不是放宽标准凑数。 */
+  function isGood(r) { return !!(r && r.noCross && r.priceUp); }
+
   /* ---------- 状态 ---------- */
   function setSt(phase, msg) {
     LV.st.phase = phase;
@@ -11075,87 +11081,118 @@ rzStart();
         arr.push(idx[k]);
       }
       arr.sort(function (a, b) { return num(b.flow, 0) - num(a.flow, 0); });
-      return arr.slice(0, 3);
+      return arr;
     }).catch(function () { return []; });
 
-    return Promise.all([pMkt, pBk]).then(function (r) {
-      var mktR = r[0], bks = r[1];
-      LV._mktRaw = mktR;
-      setSt('load', '行业榜 ' + bks.length + ' 个，取成分股…');
-      render();
-      return pool(bks, 3, function (bk) {
-        return getMembers(bk.code).then(function (list) { return { bk: bk, list: list }; });
+    /* 动态扩展扫描：从资金净流入第 1 名的行业起，一批批往后取，
+       直到「不交叉＋价格上行」的合格标的凑够 NEED 只，或行业用完／触顶。 */
+    var acc = [], seenSid = {}, scanned = 0, bidx = 0, allBk = [];
+    var NEED = 10, BATCH = 3, MAX_BK = 12, PER_BK = 5;
+
+    function goodCount() {
+      var n = 0;
+      for (var i = 0; i < acc.length; i++) if (isGood(acc[i])) n++;
+      return n;
+    }
+
+    function judgeOne(x) {
+      return Promise.all([getPrice(x.secid), getFlow(x.secid)]).then(function (r) {
+        var pr = r[0], fl = r[1];
+        if (pr.day && pr.day !== todayKey()) {
+          var an = buildAnchor(pr.pre, pr.pts, fl, pr.day, x.name);
+          if (an) { LV.anchors[x.secid] = an; LV._dirty = true; }
+          return null;
+        }
+        var anc = LV.anchors[x.secid];
+        if (!anc || !(anc.hi > anc.lo) || !anchorFresh(anc)) return null;
+        var j = judge(x.secid, x.name, x.bk, pr.pre, pr.pts, fl, endTM, anc);
+        if (j) { j.winEndHM = hmOf(endTM + 570); j.good = isGood(j); }
+        return j;
       });
-    }).then(function (mem) {
-      var cand = [], seen = {};
-      (mem || []).forEach(function (x) {
-        if (!x || !x.list) return;
-        x.list.forEach(function (s) {
-          if (!tradable(s.code, s.name)) return;
-          if (s.pct < -2 || s.pct > 8) return;
-          var sid = s.mk + '.' + s.code;
-          if (seen[sid]) return;
-          seen[sid] = 1;
-          cand.push({ secid: sid, name: s.name, bk: x.bk.name, pct: s.pct, flow: s.flow });
+    }
+
+    function nextBatch() {
+      if (bidx >= allBk.length || scanned >= MAX_BK) return Promise.resolve();
+      var batch = allBk.slice(bidx, bidx + BATCH);
+      var first = bidx + 1;
+      bidx += batch.length;
+      scanned += batch.length;
+
+      setSt('load', '扫描行业第 ' + first + '–' + scanned + ' 名…');
+      render();
+
+      return pool(batch, 3, function (bk) {
+        return getMembers(bk.code).then(function (list) { return { bk: bk, list: list }; });
+      }).then(function (mem) {
+        var cand = [];
+        (mem || []).forEach(function (x) {
+          if (!x || !x.list) return;
+          var picked = 0;
+          x.list.forEach(function (sp) {
+            if (picked >= PER_BK) return;
+            if (!tradable(sp.code, sp.name)) return;
+            if (sp.pct < -2 || sp.pct > 8) return;
+            var sid = sp.mk + '.' + sp.code;
+            if (seenSid[sid]) return;
+            seenSid[sid] = 1;
+            picked++;
+            cand.push({ secid: sid, name: sp.name, bk: x.bk.name, pct: sp.pct, flow: sp.flow });
+          });
+        });
+        cand.sort(function (p, q) { return p.flow - q.flow; });
+        if (!cand.length) return nextBatch();
+
+        return pool(cand, 6, judgeOne).then(function (res) {
+          (res || []).forEach(function (rr) { if (rr && rr.name && !rr.err) acc.push(rr); });
+          if (goodCount() >= NEED) return;
+          return nextBatch();
         });
       });
-      cand.sort(function (a, b) { return a.flow - b.flow; });
-      cand = cand.slice(0, 12);
+    }
 
-      var list = cand.slice();
+    return Promise.all([pMkt, pBk]).then(function (r) {
+      LV._mktRaw = r[0];
+      allBk = r[1] || [];
 
-      // 早上（盘前）缓存过锚的标的，盘中即使不在当前热门行业里也继续判定，
-      // 否则「盘前建的锚」和「盘中的候选池」对不上，会出现有候选却无尺子的空列表。
+      // ETF 池与「盘前已建锚」的标的不占行业额度，第一批一并判掉
+      var head = [];
+      ETF_POOL.forEach(function (e) {
+        if (seenSid[e[0]]) return;
+        seenSid[e[0]] = 1;
+        head.push({ secid: e[0], name: e[1], bk: 'ETF', pct: null, flow: null });
+      });
       var extra = 0;
       Object.keys(LV.anchors).forEach(function (sid) {
-        if (extra >= 20 || seen[sid]) return;
-        var a = LV.anchors[sid];
-        if (!anchorFresh(a)) return;
-        seen[sid] = 1;
+        if (extra >= 20 || seenSid[sid]) return;
+        var an = LV.anchors[sid];
+        if (!anchorFresh(an)) return;
+        seenSid[sid] = 1;
         extra++;
-        list.push({ secid: sid, name: a.nm || sid, bk: '\u76d8\u524d\u5019\u9009', pct: null, flow: null });
+        head.push({ secid: sid, name: an.nm || sid, bk: '盘前候选', pct: null, flow: null });
       });
 
-      ETF_POOL.forEach(function (e) {
-        if (seen[e[0]]) return;
-        seen[e[0]] = 1;
-        list.push({ secid: e[0], name: e[1], bk: 'ETF', pct: null, flow: null });
-      });
-
-      setSt('load', '判定 ' + list.length + ' 只，窗口至 ' + hmOf(endTM + 570) + '…');
+      setSt('load', '判定 ETF 池／盘前候选 ' + head.length + ' 只…');
       render();
 
-      return pool(list, 6, function (x) {
-        return Promise.all([getPrice(x.secid), getFlow(x.secid)]).then(function (r) {
-          var pr = r[0], fl = r[1];
-          if (pr.day && pr.day !== todayKey()) {
-            var a = buildAnchor(pr.pre, pr.pts, fl, pr.day, x.name);
-            if (a) { LV.anchors[x.secid] = a; LV._dirty = true; }
-            return null;
-          }
-          var anc = LV.anchors[x.secid];
-          if (!anc || !(anc.hi > anc.lo) || !anchorFresh(anc)) return null;
-          var j = judge(x.secid, x.name, x.bk, pr.pre, pr.pts, fl, endTM, anc);
-          if (j) j.winEndHM = hmOf(endTM + 570);
-          return j;
-        });
+      return pool(head, 6, judgeOne).then(function (res) {
+        (res || []).forEach(function (rr) { if (rr && rr.name && !rr.err) acc.push(rr); });
+        return nextBatch();
       });
-    }).then(function (res) {
-      var ok = [];
-      (res || []).forEach(function (r) { if (r && r.name && !r.err) ok.push(r); });
-      ok.sort(function (a, b) {
-        return b.score - a.score || a.chgWin - b.chgWin;
-      });
-      LV.rowsValid = ok.length;
-      LV.rows = ok.slice(0, 10);
+    }).then(function () {
+      var good = acc.filter(isGood);
+      good.sort(function (p, q) { return q.score - p.score || p.chgWin - q.chgWin; });
+      LV.rowsValid = good.length;
+      LV.accN = acc.length;
+      LV.scanned = scanned;
+      LV._accAll = acc;          /* 诊断用：本轮判定过的全部标的 */
+      LV._allBk = allBk;         /* 诊断用：行业排序快照 */
+      LV.rows = good.slice(0, 10);
 
       var mr = LV._mktRaw;
       if (mr) {
         var ma = LV.anchors['1.000001'];
-        var usable = ma && ma.d && ma.d !== todayKey();
-        var jm = null;
-        if (usable) jm = judge('1.000001', '上证指数', '', mr.pre, mr.pts, mr.flow, endTM, ma);
-        LV.mkt = jm;
+        var usable = ma && anchorFresh(ma) && ma.d !== todayKey();
+        LV.mkt = usable ? judge('1.000001', '上证指数', '', mr.pre, mr.pts, mr.flow, endTM, ma) : null;
         LV.mktAnchorOk = !!usable;
       } else {
         LV.mkt = null;
@@ -11217,27 +11254,32 @@ rzStart();
   function mktHTML() {
     var m = LV.mkt;
     if (!m) {
-      return '<span class="rzlvtg idle">\u5927\u76d8\uff1a\u672a\u5224\u5b9a</span>'
-        + '<span class="rzlvtxt">\u7b49\u5f85\u5f00\u76d8\u540e\u7684\u5206\u65f6\u6570\u636e</span>';
+      return '<span class="rzlvtg idle">\u5927\u76d8\uff1a\u5f85\u5224\u5b9a</span>'
+        + '<span class="rzlvtxt">\u4e0a\u8bc1\u5171\u632f\uff08\u6700\u7406\u60f3\u4fe1\u53f7\uff0c\u4e0d\u5e38\u51fa\u73b0\uff09</span>';
     }
     var ok = m.noCross && m.top && m.priceUp;
     var cls = ok ? 'ok' : (m.top && m.priceUp ? 'mid' : 'no');
-    var lbl = ok ? '\u8fdb\u653b' : (m.top && m.priceUp ? '\u504f\u5f3a' : '\u672a\u786e\u8ba4');
+    var lbl = ok ? '\u5171\u632f\u8fdb\u653b \u2605' : (m.top && m.priceUp ? '\u504f\u5f3a' : '\u672a\u5171\u632f');
     return '<span class="rzlvtg ' + cls + '">\u5927\u76d8\uff1a' + lbl + '</span>'
       + '<span class="rzlvtxt">\u4e0a\u8bc1 ' + fmtPct(m.chgPre)
       + ' \u00b7 \u8d44\u91d1 ' + (m.fundEnd >= 0 ? '+' : '') + m.fundEnd + '\u4ebf'
       + ' \u00b7 \u4ea4\u53c9 ' + m.crossN + ' \u6b21'
       + (m.top ? ' \u00b7 \u4ef7\u7ebf\u5728\u4e0a' : ' \u00b7 \u4ef7\u7ebf\u5728\u4e0b')
-      + '</span>';
+      + '</span>'
+      + '<span class="rzlvtxt">' + (ok
+        ? '\u6700\u7406\u60f3\u4fe1\u53f7\uff08\u4e0d\u5e38\u51fa\u73b0\uff09'
+        : '\u5171\u632f\u6700\u7406\u60f3\u4f46\u4e0d\u5e38\u51fa\u73b0\uff0c\u4ec5\u4f5c\u73af\u5883\u63d0\u793a') + '</span>';
   }
 
   function footHTML() {
     var s = LV.st;
     var parts = [];
-    if (s.phase === 'rest') parts.push('\u4f11\u5e02\u4e2d\uff0c\u4e0b\u4e00\u6b21\u5f00\u76d8\u540e\u81ea\u52a8\u5237\u65b0\u3002');
-    if (s.anchorDay) parts.push('\u951a\uff08\u5c3a\u5b50\uff09\u53d6\u81ea ' + esc(s.anchorDay) + ' \u5168\u5929\u533a\u95f4\u3002');
-    else parts.push('\u5c1a\u672a\u5efa\u7acb\u951a\uff1a\u8bf7\u5728\u5f00\u76d8\u524d\u6253\u5f00\u672c\u9875\uff0c\u8ba9\u5b83\u5148\u8bfb\u5230\u4e0a\u4e00\u4ea4\u6613\u65e5\u6570\u636e\u3002');
-    parts.push('\u5224\u5b9a\uff1a\u524d 30 \u5206\u949f\u4e24\u7ebf\u4e0d\u4ea4\u53c9\uff0b\u4ef7\u683c\u4e0a\u884c\uff1b\u8d44\u91d1\u4e3a\u8d1f\u4ec5\u52a0\u5206\u3002\u7ea2\u8272\uff1d\u4e0a\u6da8\uff0f\u51c0\u6d41\u5165\u3002');
+    if (s.phase === 'rest') parts.push('休市中，下一次开盘后自动刷新。');
+    if (LV.scanned) parts.push('本轮扫到资金流入第 ' + LV.scanned + ' 名行业（判定 ' + (LV.accN || 0) + ' 只，合格 ' + (LV.rowsValid || 0) + ' 只）。');
+    if (s.anchorDay) parts.push('锚（尺子）取自 ' + esc(s.anchorDay) + ' 全天区间。');
+    else parts.push('尚未建立锚：请在开盘前打开本页，让它先读到上一交易日数据。');
+    parts.push('上证共振是最理想信号但不常出现，只作顶部环境提示，不作为出推荐的前提。');
+    parts.push('只收「前 30 分钟两线不交叉＋价格上行」的标的；凑不满 10 只就继续往后排行业扫（不放宽标准）。资金为负仅加分。红色＝上涨／净流入。');
     return parts.join(' ');
   }
 
@@ -11272,7 +11314,8 @@ rzStart();
     } else if (s.phase === 'err') {
       host.innerHTML = '<div class="rzlvempty">\u53d6\u6570\u5931\u8d25\uff1a' + esc(s.msg) + '</div>';
     } else {
-      host.innerHTML = '<div class="rzlvempty">\u6682\u65e0\u7b26\u5408\u6761\u4ef6\u7684\u6807\u7684\u3002</div>';
+      host.innerHTML = '<div class="rzlvempty">本轮无「不交叉＋价格上行」的标的'
+        + (LV.scanned ? '（已扫到资金流入第 ' + LV.scanned + ' 名行业、判定 ' + (LV.accN || 0) + ' 只，仍不足 10 只）' : '') + '。</div>';
     }
 
     var ft = $('rzLiveFt');
