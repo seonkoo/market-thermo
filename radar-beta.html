@@ -659,6 +659,28 @@ html[data-theme="dark"] svg polyline[stroke="#1f2937"]{stroke:#dfe6ee}
 html[data-theme="dark"] svg circle[fill="#1f2937"]{fill:#dfe6ee}
 html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
 
+/* 今日推荐列表（位于「添加个股」上方） */
+.rzrec{border:1px solid #dbe6f5;border-radius:10px;padding:8px 9px;margin:0 0 8px;background:linear-gradient(180deg,#f7fbff,#fff)}
+.rzrechd{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:6px}
+.rzrecT{font-weight:700;font-size:13px}
+.rzrecS{font-size:11px;color:var(--txt3)}
+.rzrecTg{margin-left:auto;font-size:11px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:2px 8px;color:var(--txt3)}
+.rzreclist{display:flex;flex-direction:column;gap:4px}
+.rzrecrow{display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:8px;background:#fff;border:1px solid #eef2f7}
+.rzrecno{flex:0 0 18px;height:18px;border-radius:5px;background:#eef4ff;color:#2563eb;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.rzrecmain{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+.rzrecline1{display:flex;align-items:baseline;gap:6px;min-width:0}
+.rzrecnm{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rzreccd{flex:0 0 auto;font-size:11px;color:var(--txt3);font-variant-numeric:tabular-nums}
+.rzrecsc{flex:0 0 auto;font-size:10.5px;color:#2563eb;font-weight:700}
+.rzrecsub{font-size:10.5px;color:var(--txt3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rzrecpct{font-weight:700}
+.rzrecpct.up{color:#c62828}
+.rzrecpct.down{color:#1b8a3a}
+.rzrecadd{flex:0 0 auto;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700}
+.rzrecadd:disabled{opacity:.55}
+.rzrecft{font-size:10.5px;color:var(--txt3);margin-top:6px;line-height:1.5}
+body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft{display:none}
 </style>
 
 <script>
@@ -846,6 +868,15 @@ html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
 
     <div class="hint" style="margin-bottom:6px">自选个股/ETF，自动判定所属行业板块并实时拉取该板块主力资金流，与上证指数量能、标的自身涨跌做三线共振判读。三条全绿 = 顺势跟主力；出现背离 = 警惕。</div>
 
+    <div class="rzrec" id="rzRec">
+      <div class="rzrechd">
+        <span class="rzrecT">📌 推荐 <b id="rzRecN">10</b> 只</span>
+        <span class="rzrecS">09-18 复盘 · 10:00 口径</span>
+        <button class="rzrecTg" id="rzRecTg" type="button">收起 ▴</button>
+      </div>
+      <div class="rzreclist" id="rzRecList"></div>
+      <div class="rzrecft">口径：行业主力资金 10:00 前三 → 成分股／ETF（已排除科创、创业、北交、ST）。判定用图表自身双轴口径（价格线自区间含昨收、资金线自区间含 0），前 30 分钟两线不相交即为进攻信号。红色＝上涨／净流入。数据为复盘快照，非实时。</div>
+    </div>
     <div class="rzadd">
 
       <span class="rzaddlbl">＋</span>
@@ -10737,6 +10768,56 @@ rzStart();
 
 </div>
 
+<script>
+(function(){
+  var REC = [{"code": "002296", "mk": "0", "name": "辉煌科技", "bk": "通信网络设备及器件", "score": 90, "tag": "不交·上行·距扩·资正", "cross": 0, "chgEnd": 0.87, "chgClose": 0.65, "fend": 0.049, "fclose": 0.131}, {"code": "603375", "mk": "1", "name": "盛景微", "bk": "半导体", "score": 85, "tag": "不交·上行·距扩·资正", "cross": 0, "chgEnd": 7.05, "chgClose": 0.72, "fend": 0.181, "fclose": 0.104}, {"code": "603068", "mk": "1", "name": "博通集成", "bk": "半导体", "score": 85, "tag": "不交·上行·距扩·资正", "cross": 0, "chgEnd": 8.47, "chgClose": 0, "fend": 1.491, "fclose": 1.926}, {"code": "159995", "mk": "0", "name": "芯片ETF华夏", "bk": "ETF", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 0.09, "chgClose": 1.05, "fend": 0.284, "fclose": 1.372}, {"code": "516350", "mk": "1", "name": "半导体设备ETF", "bk": "ETF", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 0.12, "chgClose": 1.55, "fend": 0.032, "fclose": 0.285}, {"code": "603893", "mk": "1", "name": "瑞芯微", "bk": "半导体", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 0.13, "chgClose": 2.2, "fend": 0.714, "fclose": 2.416}, {"code": "000063", "mk": "0", "name": "中兴通讯", "bk": "通信网络设备及器件", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 0.25, "chgClose": 0.9, "fend": 0.418, "fclose": 3.192}, {"code": "600171", "mk": "1", "name": "上海贝岭", "bk": "半导体", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 0.35, "chgClose": 1.44, "fend": 0.065, "fclose": 0.219}, {"code": "603501", "mk": "1", "name": "豪威集团", "bk": "半导体", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 1.09, "chgClose": 0.93, "fend": 0.756, "fclose": 1.771}, {"code": "002077", "mk": "0", "name": "大港股份", "bk": "半导体", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 1.57, "chgClose": 1.83, "fend": 0.281, "fclose": 0.608}];
+  var list = document.getElementById('rzRecList');
+  if(!list) return;
+  var N = document.getElementById('rzRecN');
+  if(N) N.textContent = REC.length;
+  var avg = REC.reduce(function(s,r){return s+r.chgClose;},0)/REC.length;
+  var fmt = function(v){ var n = Number(v).toFixed(2); return (v > 0 ? '+' : '') + n + '%'; };
+  list.innerHTML = REC.map(function(r, i){
+    var up = r.chgClose >= 0;
+    var ue = r.chgEnd >= 0;
+    return '<div class="rzrecrow">'
+      + '<span class="rzrecno">' + (i + 1) + '</span>'
+      + '<span class="rzrecmain">'
+      +   '<span class="rzrecline1">'
+      +     '<span class="rzrecnm">' + r.name + '</span>'
+      +     '<span class="rzreccd">' + r.code + '</span>'
+      +     '<span class="rzrecsc">' + r.score + '分</span>'
+      +   '</span>'
+      +   '<span class="rzrecsub">' + r.tag
+      +     ' · 10:00前 <b class="rzrecpct ' + (ue?'up':'down') + '">' + fmt(r.chgEnd) + '</b>'
+      +     ' → 收盘 <b class="rzrecpct ' + (up?'up':'down') + '">' + fmt(r.chgClose) + '</b>'
+      +   '</span>'
+      + '</span>'
+      + '<button class="rzrecadd" type="button" data-c="' + r.code + '">＋</button>'
+      + '</div>';
+  }).join('');
+  var ft = document.querySelector('#rzRec .rzrecft');
+  if(ft) ft.innerHTML += '<br>等权 10:00 买入 → 收盘：平均 <b>+' + avg.toFixed(2) + '%</b>，'
+    + '上涨 ' + REC.filter(function(r){return r.chgClose>0;}).length + '/' + REC.length + ' 只。';
+  list.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.rzrecadd') : null;
+    if(!b || b.disabled) return;
+    var inp = document.getElementById('rzInp');
+    var btn = document.getElementById('rzAdd');
+    if(!inp || !btn) return;
+    inp.value = b.getAttribute('data-c');
+    btn.click();
+    inp.value = '';
+    b.textContent = '✓';
+    b.disabled = true;
+  });
+  var tg = document.getElementById('rzRecTg');
+  if(tg) tg.addEventListener('click', function(){
+    document.body.classList.toggle('rzrec-hide');
+    tg.textContent = document.body.classList.contains('rzrec-hide') ? '展开 ▾' : '收起 ▴';
+  });
+})();
+</script>
 </body>
 
 </html>
