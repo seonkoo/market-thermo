@@ -799,6 +799,14 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
 .rzwtsvg{display:block;width:100%;max-width:460px;height:auto;margin:2px 0 0}
 .rzlg.fr{background:#e0392b;opacity:.75;height:2px}
 body.rzrec-hide .rzwttabs,body.rzrec-hide .rzwtpane{display:none}
+/* 穿线承托雷达（RZCX · 2026-09-20 新模块，替换已移除的自选股栏） */
+.rzcx{border:1px solid #dbe6f5;border-radius:10px;padding:8px 9px;margin:8px 0;background:#fff}
+.rzcx .rzrectabs{margin-bottom:6px}
+.rzcxsec{font-size:11px;font-weight:700;color:#334155;background:#f1f5f9;border-radius:6px;padding:3px 7px;margin:6px 0 5px}
+.rzcxsec2{margin-top:9px;background:#fdecec;color:#c62828}
+.rzcxbrk{color:#c62828;font-weight:700}
+.rzcxcxok{color:#1a56c4;font-weight:700}
+body.rzrec-hide .rzcx{display:none}
 </style>
 
 <script>
@@ -993,6 +1001,18 @@ body.rzrec-hide .rzwttabs,body.rzrec-hide .rzwtpane{display:none}
         <button class="rzrecTg" id="rzRecTg" type="button">收起 ▴</button>
       </div>
       <div class="rzlvbar" id="rzLiveMkt"></div>
+      <div class="rzcx" id="rzCross">
+        <div class="rzrechd">
+          <span class="rzrecT">&#129517; 穿线承托 <b id="rzCrossN">0</b> 只</span>
+          <span class="rzrecS" id="rzCrossTs">等待开盘</span>
+        </div>
+        <div class="rzrectabs" id="rzCrossTab">
+          <button class="rzrectab on" type="button" data-cxt="hold">&#9312; 承托</button>
+          <button class="rzrectab" type="button" data-cxt="cross">&#9313; 交叉</button>
+        </div>
+        <div class="rzreclist" id="rzCrossList"></div>
+        <div class="rzrecft" id="rzCrossFt"></div>
+      </div>
       <div class="rzreclist" id="rzRecList"></div>
       <div class="rzrecft" id="rzLiveFt"></div>
     </div>
@@ -12072,6 +12092,518 @@ rzStart();
     LV.start();
   }
 })();
+
+</script>
+<script>
+/* 穿线承托雷达（RZCX）
+   两个选股项，均用页面「板块资金双轴图」同一视觉坐标系：
+     页面像素 y = T + ph·(hi−v)/(hi−lo)  →  视觉高度 h = (v−lo)/(hi−lo)（自图底向上，越大越靠上）
+     蓝线(价)在资金线上方  <=>  hP > hFund   （等价像素偏移 yP < yF）
+   Mode A · 承托：09:30 蓝线在【两条】资金线(个股+板块)上方 → 进推荐名单；
+                  若中途跌破【板块资金线】＝破线事件 → 仍留推荐名单(标「已破板块线@HH:MM」)
+                  并同时并入「破线股名单」。
+   Mode B · 交叉：09:30 蓝线在个股资金线下方(压制) → 全天仅一次上穿 → 之后承托；
+                  买点＝交叉分钟 → 末价。
+   数据一律复用页面现成全局取数（apiTrends / rzStockFlow / rzBoardFlow / rzBoard / rzGet），
+   不新增任何外部依赖；每只股 try/catch 隔离，单只失败只跳过、绝不影响整体。 */
+(function () {
+  if (window.RZCX) return;
+
+  var REFRESH_MS = 3 * 60 * 1000;
+  var EPS = 0.035;            // 与页面 judge 一致的两线重合死区
+  var SLOPE_TOL = 0.0025;     // 资金线「平缓」容差（亿/分），肉眼走平也算过
+  var TOP_BK = 3, PER_BK = 12;
+  var CONC = 4;               // 并发上限（防限流）
+  var LOG_KEY = 'rz_cross_log_v1';
+  var LOG_KEEP = 30;          // 最多保留 30 个扫描快照
+  var SPAN = 240;
+
+  var CX = window.RZCX = {
+    tab: 'hold', busy: false, A: [], Abrk: [], B: [],
+    st: { phase: 'idle', msg: '等待开盘', ts: 0 },
+    boards: [], skipped: 0, lastRun: 0
+  };
+
+  /* ---------------- 工具（自包含，不依赖 _live.js 私有函数） ---------------- */
+  function $(id) { return document.getElementById(id); }
+  function num(v, d) { var n = parseFloat(v); return isFinite(n) ? n : d; }
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  var nowDate = function () { return new Date(); };
+  function todayKey() { var d = nowDate(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function nowMin() { var d = nowDate(); return d.getHours() * 60 + d.getMinutes(); }
+  function isWeekend() { var w = nowDate().getDay(); return w === 0 || w === 6; }
+  function hmOf(m) { return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60); }
+  function tmin(t) {
+    var a = String(t).split(':'), m = (+a[0]) * 60 + (+a[1]);
+    if (!isFinite(m)) return NaN;
+    if (m <= 690) return m - 570;
+    if (m <= 780) return 120;
+    return m - 660;
+  }
+  function isTrading() {
+    if (isWeekend()) return false;
+    var m = nowMin();
+    return (m >= 570 && m <= 690) || (m >= 780 && m <= 900);
+  }
+  function idxToClock(i) { return hmOf(i < 120 ? 570 + i : 660 + i); }
+
+  /* 序列 → 长度 241 的分钟数组（0..240 = 09:30..15:00，剔除午休）；T 段内前值填洞，T 后留 null */
+  function fillSer(series, T) {
+    var arr = new Array(SPAN + 1), i, last = null;
+    for (i = 0; i <= SPAN; i++) arr[i] = null;
+    if (series && series.length) {
+      for (i = 0; i < series.length; i++) {
+        var m = tmin(series[i][0]), v = series[i][1];
+        if (!isFinite(m) || m < 0 || m > SPAN) continue;
+        if (v === null || v === undefined || !isFinite(v)) continue;
+        arr[m] = v;
+      }
+    }
+    for (i = 0; i <= T; i++) { if (arr[i] === null) arr[i] = last; else last = arr[i]; }
+    for (i = T + 1; i <= SPAN; i++) arr[i] = null;
+    return arr;
+  }
+  function fillPts(pts, T) {
+    var arr = new Array(SPAN + 1), i, last = null;
+    for (i = 0; i <= SPAN; i++) arr[i] = null;
+    if (pts && pts.length) {
+      for (i = 0; i < pts.length; i++) {
+        var m = tmin(pts[i].t), p = pts[i].p;
+        if (!isFinite(m) || m < 0 || m > SPAN) continue;
+        if (p === null || p === undefined || !isFinite(p)) continue;
+        arr[m] = p;
+      }
+    }
+    for (i = 0; i <= T; i++) { if (arr[i] === null) arr[i] = last; else last = arr[i]; }
+    for (i = T + 1; i <= SPAN; i++) arr[i] = null;
+    return arr;
+  }
+  function span(vals, force0) {
+    var lo = Infinity, hi = -Infinity, i, v;
+    for (i = 0; i < vals.length; i++) {
+      v = vals[i];
+      if (v === null || v === undefined || !isFinite(v)) continue;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    if (!isFinite(lo)) return null;
+    if (force0) { if (lo > 0) lo = 0; if (hi < 0) hi = 0; }
+    if (!(hi > lo)) hi = lo + 1e-9;
+    var p = (hi - lo) * 0.1; lo -= p; hi += p;
+    return [lo, hi];
+  }
+  function olsSlope(y) {
+    var n = y.length;
+    if (n < 2) return 0;
+    var xm = (n - 1) / 2, ym = 0, k;
+    for (k = 0; k < n; k++) ym += y[k];
+    ym /= n;
+    var nu = 0, de = 0;
+    for (k = 0; k < n; k++) { nu += (k - xm) * (y[k] - ym); de += (k - xm) * (k - xm); }
+    return de ? nu / de : 0;
+  }
+
+  /* ---------------- 判定内核（与 Python 回测 rec918_scan.py 同口径） ---------------- */
+  function judgeCore(P, pre, FI, FB, T) {
+    var idx = [], i;
+    for (i = 0; i <= T; i++) {
+      if (P[i] === null || FI[i] === null || !FB || FB[i] === null) continue;
+      idx.push(i);
+    }
+    if (idx.length < 6) return null;
+    var ps = [], fs = [], bs = [];
+    for (i = 0; i < idx.length; i++) { ps.push(P[idx[i]]); fs.push(FI[idx[i]]); bs.push(FB[idx[i]]); }
+    if (pre > 0) ps.push(pre);
+    var rP = span(ps, false), rI = span(fs, true), rB = span(bs, true);
+    if (!rP || !rI || !rB) return null;
+
+    var hP = [], hI = [], hB = [];
+    for (i = 0; i < idx.length; i++) {
+      hP.push((P[idx[i]] - rP[0]) / (rP[1] - rP[0]));
+      hI.push((FI[idx[i]] - rI[0]) / (rI[1] - rI[0]));
+      hB.push((FB[idx[i]] - rB[0]) / (rB[1] - rB[0]));
+    }
+    var N = idx.length, gS = [], gB = [];
+    for (i = 0; i < N; i++) { gS.push(hP[i] - hI[i]); gB.push(hP[i] - hB[i]); }
+
+    /* Mode A · 承托：开盘蓝线在两条资金线上方；跌破板块资金线＝破线事件 */
+    var A = null;
+    if (gS[0] > 0 && gB[0] > 0) {
+      var brd = null, ind = null;
+      for (i = 1; i < N; i++) {
+        if (brd === null && gB[i] <= 0) brd = idx[i];
+        if (ind === null && gS[i] <= 0) ind = idx[i];
+      }
+      A = { brd: brd, ind: ind, minGapB: Math.min.apply(null, gB) };
+    }
+
+    /* Mode B · 交叉：资金线压制蓝线 → 全天仅一次上穿 → 之后承托 */
+    var B = null, signs = [];
+    for (i = 0; i < N; i++) signs.push(gS[i] < -EPS ? -1 : (gS[i] > EPS ? 1 : 0));
+    var first = 0, j;
+    for (j = 0; j < N; j++) { if (signs[j] !== 0) { first = signs[j]; break; } }
+    if (first === -1) {
+      var up = null, downAfter = false, prev = 0, multi = false;
+      for (j = 0; j < N; j++) {
+        var s = signs[j];
+        if (s === 0) continue;
+        if (prev !== 0 && prev !== s) {
+          if (prev === -1 && s === 1) { if (up !== null) { multi = true; break; } up = idx[j]; }
+          else if (prev === 1 && s === -1) { downAfter = true; }
+        }
+        prev = s;
+      }
+      if (!multi && up !== null && !downAfter && prev === 1) {
+        var post = [];
+        for (j = 0; j < N; j++) { if (idx[j] >= up) post.push(FI[idx[j]]); }
+        var slope = olsSlope(post);
+        if (slope >= -SLOPE_TOL) B = { crossIdx: up, slope: slope };
+      }
+    }
+    return { A: A, B: B, last: SPAN };
+  }
+
+  /* ---------------- 取数（复用页面全局） ---------------- */
+  function getPrice(secid) {
+    return apiTrends(secid).then(function (t) {
+      if (!t || !t.today || !t.today.length) throw new Error('NO_PRICE');
+      var pts = [], i;
+      for (i = 0; i < t.today.length; i++) pts.push({ t: t.today[i].t, p: t.today[i].close });
+      return { pre: t.preClose, pts: pts };
+    });
+  }
+  function getFlow(secid) {
+    return rzStockFlow(secid).then(function (s) {
+      if (!s || !s.length) throw new Error('NO_FLOW');
+      return s;
+    });
+  }
+  function getBoardFlow(bk) {
+    if (!bk || typeof rzBoardFlow !== 'function') return Promise.resolve(null);
+    return rzBoardFlow(bk).catch(function () { return null; });
+  }
+  function loadMembers(bkCode) {
+    if (!bkCode || typeof rzGet !== 'function') return Promise.resolve([]);
+    var path = '/api/qt/clist/get?fid=f62&po=1&pz=60&pn=1&np=1&fltt=2&invt=2&fs=b:'
+      + bkCode + '&fields=f12,f13,f14,f3,f62';
+    return rzGet(path, function (d) {
+      var diff = (d && d.data && d.data.diff) || [];
+      if (!diff.length) throw new Error('EMPTY');
+      var out = [], i;
+      for (i = 0; i < diff.length; i++) {
+        var x = diff[i];
+        out.push({ code: String(x.f12), mk: String(x.f13), name: String(x.f14),
+                   pct: num(x.f3, 0), flow: num(x.f62, 0) });
+      }
+      return out;
+    }, 9000).catch(function () { return []; });
+  }
+  function tradable(code, name) {
+    if (!/^(600|601|603|605|000|001|002|003)/.test(code)) return false;
+    if (/ST|退/.test(name)) return false;
+    return true;
+  }
+  function pool(items, n, fn) {
+    var out = new Array(items.length), i = 0;
+    function next() {
+      if (i >= items.length) return Promise.resolve();
+      var k = i++;
+      return fn(items[k], k).then(
+        function (r) { out[k] = r; },
+        function () { out[k] = null; }
+      ).then(next);
+    }
+    var seeds = [], j;
+    for (j = 0; j < Math.min(n, items.length); j++) seeds.push(next());
+    return Promise.all(seeds).then(function () { return out; });
+  }
+
+  /* ---------------- 状态 / 渲染 ---------------- */
+  function setSt(phase, msg) { CX.st = { phase: phase, msg: msg || '', ts: Date.now() }; }
+
+  function rowHTML(r, kind) {
+    var pctCls = r.pct > 0 ? 'up' : (r.pct < 0 ? 'down' : 'flat');
+    var sub = kind === 'brk'
+      ? '<span class="rzcxbrk">破板块线 ' + esc(r.brdClock) + '</span>'
+      : '<span class="rzcxcxok">承托中（全天未破两条资金线）</span>';
+    return '<div class="rzrecrow">'
+      + '<div class="rzrecmain">'
+      + '<div class="rzrecline1"><span class="rzrecnm">' + esc(r.name) + '</span>'
+      + '<span class="rzreccd">' + esc(r.code) + '</span>'
+      + '<span class="rzrecsc rzrecpct ' + pctCls + '">' + (r.pct > 0 ? '+' : '') + num(r.pct, 0).toFixed(2) + '%</span>'
+      + '</div>'
+      + '<div class="rzrecsub">' + sub + ' · ' + esc(r.bk || '') + '</div>'
+      + '</div></div>';
+  }
+  function crossRowHTML(r) {
+    var pctCls = r.pct > 0 ? 'up' : (r.pct < 0 ? 'down' : 'flat');
+    var cls = r.ret > 0 ? 'up' : (r.ret < 0 ? 'down' : 'flat');
+    return '<div class="rzrecrow">'
+      + '<div class="rzrecmain">'
+      + '<div class="rzrecline1"><span class="rzrecnm">' + esc(r.name) + '</span>'
+      + '<span class="rzreccd">' + esc(r.code) + '</span>'
+      + '<span class="rzrecsc rzrecpct ' + pctCls + '">' + (r.pct > 0 ? '+' : '') + num(r.pct, 0).toFixed(2) + '%</span>'
+      + '</div>'
+      + '<div class="rzrecsub">交叉 <b>' + esc(r.cross) + '</b> 买入→末价 '
+      + '<span class="rzrecpct ' + cls + '">' + (r.ret > 0 ? '+' : '') + num(r.ret, 0).toFixed(2) + '%</span>'
+      + ' · ' + esc(r.bk || '') + '</div>'
+      + '</div></div>';
+  }
+  function listHTML() {
+    if (CX.busy) return '<div class="rzlvempty">' + esc(CX.st.msg || '取数中…') + '</div>';
+    if (CX.st.phase === 'rest') return '<div class="rzlvempty">' + esc(CX.st.msg || '非交易时段') + '</div>';
+    if (CX.tab === 'hold') {
+      var hold = CX.A.filter(function (r) { return r.brd === null; });
+      var brk = CX.Abrk, h = '';
+      h += '<div class="rzcxsec">推荐名单（承托）· 共 ' + CX.A.length + ' 只（其中全天未破 ' + hold.length + ' 只）</div>';
+      if (!CX.A.length) h += '<div class="rzlvempty">暂无符合条件的承托个股</div>';
+      else {
+        h += hold.map(function (r) { return rowHTML(r, 'hold'); }).join('');
+        h += brk.map(function (r) { return rowHTML(r, 'brk'); }).join('');
+      }
+      h += '<div class="rzcxsec rzcxsec2">破线股名单 · ' + brk.length + ' 只</div>';
+      if (!brk.length) h += '<div class="rzlvempty">暂无破线个股</div>';
+      else h += brk.map(function (r) { return rowHTML(r, 'brk'); }).join('');
+      return h;
+    }
+    if (!CX.B.length) return '<div class="rzlvempty">暂无「一次上穿·资金线承托」个股</div>';
+    return CX.B.map(crossRowHTML).join('');
+  }
+
+  function render() {
+    try {
+      if (!$('rzCross')) return;
+      var n = CX.tab === 'hold' ? CX.A.length : CX.B.length;
+      var ts = $('rzCrossTs');
+      if (ts) {
+        ts.textContent = (CX.st.phase === 'rest' ? CX.st.msg
+          : (CX.st.phase === 'load' ? '取数中…' : '更新 ' + hmOf(nowMin())))
+          + (CX.skipped ? ' · 跳过' + CX.skipped : '');
+      }
+      var cnt = $('rzCrossN'); if (cnt) cnt.textContent = n;
+      var list = $('rzCrossList'); if (list) list.innerHTML = listHTML();
+      var tabs = $('rzCrossTab');
+      if (tabs) {
+        var bs = tabs.getElementsByTagName('button'), i;
+        for (i = 0; i < bs.length; i++) {
+          bs[i].className = (bs[i].getAttribute('data-cxt') === CX.tab) ? 'rzrectab on' : 'rzrectab';
+        }
+      }
+      var ft = $('rzCrossFt');
+      if (ft) {
+        var bs2 = CX.boards.map(function (b) { return b.name; }).join(' / ');
+        ft.innerHTML = '口径：双轴图视觉高度 h=(v−lo)/(hi−lo)，蓝线在资金线上方 ⟺ hP&gt;hFund。'
+          + '<br>来源板块（净流入前三）：' + esc(bs2 || '—')
+          + '<br>Mode A 承托＝开盘蓝线在两条资金线上方；跌破板块资金线即「破线」（仍留推荐名单，并归类破线股名单）。'
+          + '<br>Mode B 交叉＝开盘资金线压制蓝线 → 全天仅一次上穿 → 资金线平缓或向上承托。';
+      }
+    } catch (e) { /* 渲染异常绝不外溢 */ }
+  }
+
+  /* ---------------- 落盘（自录样本，攒真实数据） ---------------- */
+  function saveLog() {
+    try {
+      var arr = [];
+      try { arr = JSON.parse(localStorage.getItem(LOG_KEY) || '[]') || []; } catch (e2) { arr = []; }
+      var d = todayKey();
+      var snap = {
+        d: d, ts: Date.now(), boards: CX.boards.map(function (b) { return b.name; }),
+        A: CX.A.map(function (r) { return { code: r.code, name: r.name, bk: r.bk, status: r.brd === null ? 'hold' : 'brk', brd: r.brdClock }; }),
+        Abrk: CX.Abrk.map(function (r) { return { code: r.code, name: r.name, brd: r.brdClock }; }),
+        B: CX.B.map(function (r) { return { code: r.code, name: r.name, cross: r.cross, ret: Math.round(r.ret * 100) / 100 }; })
+      };
+      var last = arr.length ? arr[arr.length - 1] : null;
+      if (last && last.d === d) arr[arr.length - 1] = snap; else arr.push(snap);
+      while (arr.length > LOG_KEEP) arr.shift();
+      localStorage.setItem(LOG_KEY, JSON.stringify(arr));
+    } catch (e) { /* 落盘失败不影响主流程 */ }
+  }
+
+  /* 候选收集：前三板块各 PER_BK 只可交易标的，不足顺延后续板块 */
+  function collectCandidates(boards) {
+    var cands = [], seen = {}, bi = 0;
+    function nextBoard() {
+      if (bi >= boards.length || cands.length >= TOP_BK * PER_BK) return Promise.resolve(cands);
+      var b = boards[bi++];
+      return loadMembers(b.code).then(function (ms) {
+        var got = 0, k;
+        for (k = 0; k < ms.length; k++) {
+          var m = ms[k];
+          if (!tradable(m.code, m.name)) continue;
+          if (seen[m.code]) continue;
+          seen[m.code] = 1;
+          cands.push({ code: m.code, mk: m.mk, name: m.name, pct: m.pct, bk: b.name, bkCode: b.code });
+          got++;
+          if (got >= PER_BK || cands.length >= TOP_BK * PER_BK) break;
+        }
+        return nextBoard();
+      });
+    }
+    return nextBoard();
+  }
+
+  /* ---------------- 主流程 ---------------- */
+  CX.run = function (force) {
+    if (CX.busy) return Promise.resolve();
+    if (!isTrading() && !force) {
+      setSt('rest', isWeekend() ? '周末休市' : '休市');
+      render();
+      return Promise.resolve();
+    }
+    if (typeof apiTrends !== 'function' || typeof rzStockFlow !== 'function' || typeof rzBoard !== 'function') {
+      setSt('rest', '取数接口未就绪');
+      render();
+      return Promise.resolve();
+    }
+    CX.busy = true; CX.skipped = 0; CX.lastRun = Date.now();
+    setSt('load', '取数中…'); render();
+
+    var T;
+    if (force) T = SPAN;
+    else {
+      T = Math.min(tmin(hmOf(nowMin())), SPAN);
+      /* 开盘头几分钟样本点太少，拿 3 分钟数据冒充「全天窗口」是自欺 —— 直接跳过本轮，
+         下一轮（≥6 分钟）再算。判定内核同样要求 ≥6 点，两边一致。 */
+      if (T < 6) {
+        CX.busy = false;
+        setSt('rest', '开盘数据不足（' + T + ' 分钟），稍后自动重试');
+        render();
+        return Promise.resolve();
+      }
+    }
+
+    /* 同一板块的资金线每轮只取一次（3 只板块 → 3 次请求，替代最多 36 次） */
+    var bfc = {};
+    function boardFlowOf(bk) {
+      if (!bk) return Promise.resolve(null);
+      if (!Object.prototype.hasOwnProperty.call(bfc, bk)) bfc[bk] = getBoardFlow(bk);
+      return bfc[bk];
+    }
+
+    /* 本轮结果先攒在局部数组里，跑完再一次性替换 CX.A/Abrk/B。
+       这样：① 每轮刷新都是「重算」而不是「追加」（否则名单会无限膨胀）
+             ② 中途取数异常时保留上一轮的好名单，不会闪成空。 */
+    var A = [], Abrk = [], B = [];
+
+    return rzBoard(true).then(function (idx) {
+      var arr = [], k;
+      for (k in idx) { if (Object.prototype.hasOwnProperty.call(idx, k)) arr.push(idx[k]); }
+      arr.sort(function (a, b) { return num(b.flow, 0) - num(a.flow, 0); });
+      return arr;
+    }).catch(function () { return []; }).then(function (boards) {
+      CX.boards = boards.slice(0, TOP_BK);
+      if (!CX.boards.length) { CX.busy = false; setSt('rest', '板块榜取数失败'); render(); return; }
+      return collectCandidates(boards);
+    }).then(function (cands) {
+      if (!cands) return;
+      if (!cands.length) { CX.busy = false; setSt('rest', '候选为空'); render(); return; }
+      return pool(cands, CONC, function (x) {
+        return Promise.all([getPrice(x.mk + '.' + x.code), getFlow(x.mk + '.' + x.code), boardFlowOf(x.bkCode)])
+          .then(function (r) {
+            var pr = r[0], fl = r[1], bf = r[2];
+            if (!bf) { CX.skipped++; return null; }
+            var P = fillPts(pr.pts, T), FI = fillSer(fl, T), FB = fillSer(bf, T);
+            var res = judgeCore(P, pr.pre, FI, FB, T);
+            if (!res) { CX.skipped++; return null; }
+            var last = 0, i;
+            for (i = T; i >= 0; i--) { if (P[i] !== null) { last = i; break; } }
+            var px = P[last];
+            var row = { code: x.code, name: x.name, bk: x.bk, pct: x.pct, px: px };
+            if (res.A) {
+              row.brd = res.A.brd;
+              row.brdClock = res.A.brd === null ? '' : idxToClock(res.A.brd);
+              A.push(row);
+              if (res.A.brd !== null) Abrk.push(row);
+            }
+            if (res.B) {
+              B.push({ code: x.code, name: x.name, bk: x.bk, pct: x.pct,
+                       cross: idxToClock(res.B.crossIdx),
+                       ret: (px / P[res.B.crossIdx] - 1) * 100 });
+            }
+            return row;
+          });
+      });
+    }).then(function () {
+      if (CX.st.phase === 'rest' && !A.length && !B.length) return;
+      A.sort(function (a, b) {
+        if ((a.brd === null) !== (b.brd === null)) return a.brd === null ? -1 : 1;
+        return (a.brd || 0) - (b.brd || 0);
+      });
+      Abrk.sort(function (a, b) { return (a.brd || 0) - (b.brd || 0); });
+      B.sort(function (a, b) { return b.ret - a.ret; });
+      CX.A = A; CX.Abrk = Abrk; CX.B = B;
+      saveLog();
+      CX.busy = false;
+      setSt('live', '更新 ' + hmOf(nowMin()));
+      render();
+    }).catch(function () {
+      CX.busy = false; setSt('rest', '本轮取数异常，已跳过（保留上一轮名单）'); render();
+    });
+  };
+
+  /* ---------------- 事件 / 调度 ---------------- */
+  function bind() {
+    var tabs = $('rzCrossTab');
+    if (tabs) {
+      tabs.addEventListener('click', function (e) {
+        var t = e.target;
+        while (t && t !== tabs && !t.getAttribute('data-cxt')) t = t.parentNode;
+        if (!t || t === tabs) return;
+        CX.tab = t.getAttribute('data-cxt');
+        render();
+      });
+    }
+    var tg = $('rzCrossTg');
+    if (tg) {
+      tg.addEventListener('click', function () {
+        var box = $('rzCross');
+        if (!box) return;
+        var hid = box.className.indexOf('collapsed') >= 0;
+        box.className = hid ? 'rzrec' : 'rzrec collapsed';
+        tg.textContent = hid ? '收起 ▴' : '展开 ▾';
+      });
+    }
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') { lastVis = Date.now(); return; }
+      if (Date.now() - lastVis > 120000) { lastVis = Date.now(); try { CX.run(); } catch (e) {} }
+    });
+  }
+  var lastVis = Date.now();
+  function schedule() {
+    (function tick() {
+      var mins = nowMin();
+      var next = Math.ceil((mins + 1) / 3) * 3;      // 下一个 3 分钟整点
+      var dt = nowDate();
+      var target = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(),
+                            Math.floor(next / 60), next % 60, 40, 0);
+      var ms = target.getTime() - Date.now();
+      if (ms <= 0) ms += 3 * 60 * 1000;
+      if (ms > REFRESH_MS) ms = REFRESH_MS;
+      setTimeout(function () { try { CX.run(); } catch (e) {} tick(); }, ms);
+    })();
+  }
+
+  CX.init = function () {
+    bind();
+    render();
+    setTimeout(function () { try { CX.run(); } catch (e) {} }, 3000);
+    schedule();
+  };
+
+  /* 测试钩子（回归用） */
+  CX._t = { judgeCore: judgeCore, tmin: tmin, fillSer: fillSer, fillPts: fillPts,
+            span: span, idxToClock: idxToClock, loadMembers: loadMembers, tradable: tradable,
+            olsSlope: olsSlope, saveLog: saveLog, listHTML: listHTML, render: render };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { CX.init(); });
+  else CX.init();
+})();
+
 </script>
 </body>
 
