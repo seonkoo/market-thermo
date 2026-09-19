@@ -1,0 +1,29 @@
+name: 锚探针（临时测速，跑完即删）
+
+# 目的：测出 GitHub Actions runner（海外）访问东财 push2 的
+#       ① 成功率 ② 耗时 ③ 是否被限流
+# 据此决定「锚」的覆盖规模。仅在 workflow_dispatch 手动触发，不影响生产。
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 配置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 探测抓取速率
+        run: |
+          python3 anchor_build.py --force --probe 240 \
+            --top-bk 3 --per-bk 80 --workers 8 --max-seconds 480
