@@ -40,7 +40,7 @@ body{margin:0;background:var(--bg);color:var(--txt);
 
   padding:12px 12px 40px;}
 
-.wrap{max-width:1440px;margin:0 auto}
+.wrap{max-width:1880px;margin:0 auto}
 
 h1{font-size:19px;margin:0 0 2px}
 
@@ -659,15 +659,20 @@ html[data-theme="dark"] svg polyline[stroke="#1f2937"]{stroke:#dfe6ee}
 html[data-theme="dark"] svg circle[fill="#1f2937"]{fill:#dfe6ee}
 html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
 
-/* --- 电脑版宽屏适配（仅 radar-beta-pc.html，不影响手机端 beta） --- */
+/* --- 电脑版宽屏适配 v2（仅 radar-beta-pc.html，不影响手机端） --- */
 @media (min-width:1000px){
-  body{padding:16px 20px 48px;font-size:15px}
-  .wrap{max-width:1440px}
-  .card{padding:14px 16px;margin-bottom:12px}
-  h1{font-size:22px}
-  .sub{font-size:13px}
-  .rzcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(520px,1fr));gap:10px;align-items:start}
-  .rzcard{padding:10px 12px 9px}
+  body{padding:18px 26px 56px;font-size:15px}
+  .wrap{max-width:1880px}
+  .card{padding:16px 20px;margin-bottom:14px}
+  h1{font-size:23px}
+  .sub{font-size:13px;max-width:1500px}
+  .rzcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(610px,1fr));gap:12px;align-items:start}
+  .rzcard{padding:11px 14px 10px}
+  /* 宽屏下三格槽位/输入框等紧凑元素别被撑成巨框 */
+  .tbslots{flex:0 1 auto;max-width:660px}
+  .rzsb{max-width:210px}
+  .pzt-two>div{max-width:900px}
+  .rzadd input{max-width:560px}
 }
 </style>
 
