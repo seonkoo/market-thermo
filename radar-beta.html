@@ -11987,12 +11987,17 @@ rzStart();
                个股资金（实线，净流入段红 / 净流出段绿）
                板块资金（细虚线，同色规则）
      · 判读只看同一时刻的 Y 高低：蓝线在资金线「上方」⟺ yP < yF
-   三态（优先级 sell > lure > out > weak > attack > watch）：
-     attack 进攻中      蓝线在两资金线上方 ＋ 价 / 个股资金 / 板块资金三者都上行
-     weak   转弱预警    蓝线被资金线压制 3–4 分钟
-     sell   卖点        蓝线被资金线压制 ≥5 分钟
-     out    净流出清出  资金线在上 ＋ 资金为负 ＋ 10:00 前未曾改变
-     lure   诱多嫌疑    股价为红 ＋ 资金仍为正但在递减 ＋ 资金线在上压制蓝线
+   六态（优先级 sell > lure > out > weak > attack > watch；2026-09-19 用户补充口径）：
+     sell   卖点        蓝线被压制 ≥5 分钟 ＋ 蓝线/资金线两线均向下（近 5 分钟负增长）
+     lure   诱多嫌疑    股价为红 ＋ 个股资金仍为正但 5 分钟递减 ＋ 蓝线在资金线下方，且蓝线也向下
+     out    净流出清出  蓝线在下方 ＋ 资金为负 ＋ 仍在递减（窗口内即如此）
+     weak   转弱预警    蓝线被压制 3–4 分钟 ＋ 两线均向下
+     attack 进攻中      蓝线在两资金线上方 ＋ 价 / 个股资金 / 板块资金三者近 5 分钟都上行
+     watch  观察        其余（含「蓝线在上但未同步上行」「压制但两线未同步向下」）
+   判定原则（用户原话）：蓝线有资金线承托（蓝在上）且两线趋势向上 = 稳健信号；
+     蓝线被资金线压制（蓝在下）较难突破；两线皆向上 = 积极，皆向下 = 消极。
+   判定窗口（2026-09-19 用户拍板）：固定开市前 30 分钟（09:30–10:00），
+     10:00 后判读定格不再变化（之后的走势自行观察）；图仍画全天，10:00 有橙色虚线分界。
    刷新：小提示＝每分钟一次；大提示＝每 5 分钟一次（跟随主模块的 5 分钟节奏）。
          推荐名单仍由主模块每 5 分钟刷新，二者互不干扰。
 ======================================================================== */
@@ -12005,6 +12010,7 @@ rzStart();
   var TICK_S = 20;          /* 每分钟的第 20 秒刷新 */
   var DASH_MIN = 5;         /* 蓝线被压制 ≥5 分钟 → 卖点 */
   var WEAK_MIN = 3;         /* 被压制 ≥3 分钟 → 转弱预警 */
+  var WIN_MIN = 30;         /* 判定窗口固定 09:30–10:00（30 交易分钟），之后定格 */
   var SPAN = 240;           /* 全天交易分钟数 */
   var BK_CACHE_MS = 300000; /* 板块资金序列缓存 5 分钟 */
 
@@ -12200,16 +12206,52 @@ rzStart();
     function yI(x) { return (rI[1] - x) / (rI[1] - rI[0]); }
     function yS(x) { return rS ? (rS[1] - x) / (rS[1] - rS[0]) : null; }
 
-    /* 逐分钟 d = yP − yF；d < 0 ⟺ 蓝线在资金线「上方」 */
-    var dI = new Array(T + 1), dS = new Array(T + 1);
-    for (i = 0; i <= T; i++) {
-      dI[i] = (P[i] === null || FI[i] === null) ? null : (yP(P[i]) - yI(FI[i]));
-      dS[i] = (P[i] === null || FS === null || FS[i] === null || !rS) ? null : (yP(P[i]) - yS(FS[i]));
+    /* ===== 判定窗口：固定 09:30–10:00（Tj = min(T, WIN_MIN)），10:00 后定格 =====
+       判定用「窗口自身区间」归一化（与 10:00 那一刻的矩形一致，定格后不变）；
+       图（r.lo/hi/rI/rS）仍用全天区间画 0..T，供 10:00 后自行观察。 */
+    var Tj = Math.min(T, WIN_MIN);
+    var wlo = Infinity, whi = -Infinity;
+    for (i = 0; i <= Tj; i++) {
+      v = P[i];
+      if (v === null) continue;
+      if (v < wlo) wlo = v;
+      if (v > whi) whi = v;
+    }
+    if (pre > 0) { if (pre < wlo) wlo = pre; if (pre > whi) whi = pre; }
+    if (!(whi > wlo)) whi = wlo + Math.abs(wlo * 0.01) + 1e-6;
+    var wpad = (whi - wlo) * 0.1; wlo -= wpad; whi += wpad;
+    function wrng(arr) {
+      if (!arr) return null;
+      var a = Infinity, b = -Infinity, k, w;
+      for (k = 0; k <= Tj; k++) {
+        w = arr[k];
+        if (w === null) continue;
+        if (w < a) a = w;
+        if (w > b) b = w;
+      }
+      if (!isFinite(a)) return null;
+      if (a > 0) a = 0;
+      if (b < 0) b = 0;
+      if (!(b > a)) b = a + 1;
+      var p = (b - a) * 0.1;
+      return [a - p, b + p];
+    }
+    var wrI = wrng(FI), wrS = wrng(FS);
+    if (!wrI) return null;
+    function wyP(x) { return (whi - x) / (whi - wlo); }
+    function wyI(x) { return (wrI[1] - x) / (wrI[1] - wrI[0]); }
+    function wyS(x) { return wrS ? (wrS[1] - x) / (wrS[1] - wrS[0]) : null; }
+
+    /* 逐分钟 d = wyP − wyF；d < 0 ⟺ 蓝线在资金线「上方」（窗口矩形内比高度） */
+    var dI = new Array(Tj + 1), dS = new Array(Tj + 1);
+    for (i = 0; i <= Tj; i++) {
+      dI[i] = (P[i] === null || FI[i] === null) ? null : (wyP(P[i]) - wyI(FI[i]));
+      dS[i] = (P[i] === null || FS === null || FS[i] === null || !wrS) ? null : (wyP(P[i]) - wyS(FS[i]));
     }
 
     function belowRun(d) {
       var n = 0;
-      for (var m = T; m >= 0; m--) {
+      for (var m = Tj; m >= 0; m--) {
         if (d[m] === null) break;
         if (d[m] > 0) n++; else break;
       }
@@ -12219,48 +12261,58 @@ rzStart();
     var below = Math.max(belowI, belowS);
     var byWhich = (belowI >= belowS) ? '\u4e2a\u80a1\u8d44\u91d1\u7ebf' : '\u677f\u5757\u8d44\u91d1\u7ebf';
 
-    var k0 = Math.max(0, T - 5);
-    var pSlope = (P[T] !== null && P[k0] !== null) ? P[T] - P[k0] : 0;
-    var fSlope = (FI[T] !== null && FI[k0] !== null) ? FI[T] - FI[k0] : 0;
-    var sSlope = (FS && FS[T] !== null && FS[k0] !== null) ? FS[T] - FS[k0] : null;
+    var k0 = Math.max(0, Tj - 5);
+    var pSlope = (P[Tj] !== null && P[k0] !== null) ? P[Tj] - P[k0] : 0;
+    var fSlope = (FI[Tj] !== null && FI[k0] !== null) ? FI[Tj] - FI[k0] : 0;
+    var sSlope = (FS && FS[Tj] !== null && FS[k0] !== null) ? FS[Tj] - FS[k0] : null;
 
-    var aboveI = (dI[T] !== null && dI[T] < 0);
-    var aboveS = (dS[T] !== null && dS[T] < 0);
-    var bothAbove = aboveI && (rS ? aboveS : true);
-    var curBelow = (dI[T] !== null && dI[T] > 0);
+    var aboveI = (dI[Tj] !== null && dI[Tj] < 0);
+    var aboveS = (dS[Tj] !== null && dS[Tj] < 0);
+    var bothAbove = aboveI && (wrS ? aboveS : true);
+    var curBelow = (dI[Tj] !== null && dI[Tj] > 0);
 
-    var chgPre = pre > 0 ? (P[T] / pre - 1) * 100 : 0;
-    var fCur = FI[T], sCur = FS ? FS[T] : null;
+    /* 判定用「窗口末」读数（定格口径）；展示仍用实时读数（base.px / base.fCur） */
+    var chgPreW = pre > 0 ? (P[Tj] / pre - 1) * 100 : 0;
+    var wfCur = FI[Tj];
+    var frozen = T > WIN_MIN;
 
-    /* 10:00 前蓝线是否曾在资金线上方（情况二要求「10 点前都没有改变」） */
-    var cap = Math.min(T, 30), everAbove = false;
-    for (i = 0; i <= cap; i++) if (dI[i] !== null && dI[i] < 0) { everAbove = true; break; }
+    /* 窗口内蓝线是否曾在资金线上方（判定参考） */
+    var everAbove = false;
+    for (i = 0; i <= Tj; i++) if (dI[i] !== null && dI[i] < 0) { everAbove = true; break; }
 
     var st, why;
-    if (below >= DASH_MIN) {
+    /* 用户补充（2026-09-19）：卖/转弱需两线同步向下（负增长）才算确认；
+       诱多需蓝线也向下；两线皆向上=积极、皆向下=消极。 */
+    var down2 = (pSlope < 0 && fSlope < 0);
+    if (below >= DASH_MIN && down2) {
       st = 'sell';
-      why = '\u84dd\u7ebf\u88ab' + byWhich + '\u538b\u5236 ' + below + ' \u5206\u949f\uff08\u2265' + DASH_MIN + '\uff09';
-    } else if (chgPre > 0 && curBelow && fCur > 0 && fSlope < 0) {
+      why = '\u84dd\u7ebf\u88ab' + byWhich + '\u538b\u5236 ' + below + ' \u5206\u949f\uff0c\u4e24\u7ebf\u540c\u6b65\u5411\u4e0b\uff08\u8d1f\u589e\u957f\uff09';
+    } else if (chgPreW > 0 && curBelow && wfCur > 0 && fSlope < 0 && pSlope < 0) {
       st = 'lure';
-      why = '\u80a1\u4ef7\u4e3a\u7ea2\uff0c\u8d44\u91d1\u4ecd\u4e3a\u6b63\u4f46 5 \u5206\u949f\u9012\u51cf ' + fmtYi(fSlope) + '\uff0c\u8d44\u91d1\u7ebf\u5728\u4e0a';
-    } else if (curBelow && fCur < 0 && fSlope < 0) {
+      why = '\u80a1\u4ef7\u4e3a\u7ea2\uff0c\u8d44\u91d1\u4ecd\u6b63\u4f46 5 \u5206\u949f\u9012\u51cf ' + fmtYi(fSlope) + '\uff0c\u84dd\u7ebf\u5728\u8d44\u91d1\u7ebf\u4e0b\u4e14\u5411\u4e0b';
+    } else if (curBelow && wfCur < 0 && fSlope < 0) {
       st = 'out';
-      why = '\u8d44\u91d1 ' + fmtYi(fCur) + '\u4e14\u4ecd\u5728\u51cf\uff085 \u5206\u949f ' + fmtYi(fSlope)
-        + '\uff09\uff0c\u8d44\u91d1\u7ebf\u538b\u5236\u84dd\u7ebf' + (T <= 30 ? '\uff0c10:00 \u524d\u5373\u5982\u6b64' : '');
-    } else if (below >= WEAK_MIN) {
+      why = '\u8d44\u91d1 ' + fmtYi(wfCur) + '\u4e14\u4ecd\u5728\u51cf\uff085 \u5206\u949f ' + fmtYi(fSlope)
+        + '\uff09\uff0c\u8d44\u91d1\u7ebf\u538b\u5236\u84dd\u7ebf\uff0c\u7a97\u53e3\u5185\u5373\u5982\u6b64';
+    } else if (below >= WEAK_MIN && down2) {
       st = 'weak';
-      why = '\u84dd\u7ebf\u88ab' + byWhich + '\u538b\u5236 ' + below + ' \u5206\u949f';
+      why = '\u84dd\u7ebf\u88ab' + byWhich + '\u538b\u5236 ' + below + ' \u5206\u949f\uff0c\u4e24\u7ebf\u540c\u6b65\u5411\u4e0b';
     } else if (bothAbove && pSlope > 0 && fSlope > 0 && (sSlope === null || sSlope > 0)) {
       st = 'attack';
       why = '\u84dd\u7ebf\u5728\u4e24\u8d44\u91d1\u7ebf\u4e0a\u65b9\uff0c\u4e09\u8005\u5747\u4e0a\u884c';
     } else {
       st = 'watch';
-      why = bothAbove ? '\u84dd\u7ebf\u5728\u4e0a\u65b9\uff0c\u4f46\u672a\u540c\u6b65\u4e0a\u884c'
+      why = below >= WEAK_MIN ? '\u84dd\u7ebf\u88ab\u538b\u5236 ' + below + ' \u5206\u949f\uff0c\u4f46\u4e24\u7ebf\u672a\u540c\u6b65\u5411\u4e0b'
+        : bothAbove ? '\u84dd\u7ebf\u5728\u4e0a\u65b9\uff0c\u4f46\u672a\u540c\u6b65\u4e0a\u884c'
         : '\u4e24\u7ebf\u7ea0\u7f20\uff0c\u672a\u6210\u5f62\u6001';
     }
+    if (frozen) why += '\uff0809:30\u201310:00 \u7a97\u53e3\u5b9a\u683c\uff09';
 
     base.st = st; base.why = why;
-    base.fCur = fCur; base.sCur = sCur; base.fSlope = fSlope; base.sSlope = sSlope;
+    base.Tj = Tj; base.frozen = frozen;
+    /* 展示用实时读数（10:00 后判词定格，但现价/资金仍随行情刷新供观察） */
+    base.fCur = FI[T]; base.sCur = FS ? FS[T] : null;
+    base.fSlope = fSlope; base.sSlope = sSlope;
     base.below = below; base.belowI = belowI; base.belowS = belowS; base.byWhich = byWhich;
     base.aboveI = aboveI; base.aboveS = aboveS; base.everAbove = everAbove;
     base.P = P; base.FI = FI; base.FS = FS; base.lo = lo; base.hi = hi; base.rI = rI; base.rS = rS;
@@ -12409,13 +12461,16 @@ rzStart();
     });
     var now = nowDate();
     var ts = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
+    /* 10:00 后判定已按固定窗口定格（仅提示一次，位置固定不跳动） */
+    var frozenTip = (tminOf(nowMin()) > WIN_MIN)
+      ? '<span class="rzwtsumts">\u516d\u6001\u5df2\u6309 09:30\u201310:00 \u5b9a\u683c</span>' : '';
     var alert = [];
     if (c.sell) alert.push(c.sell + ' \u53ea\u5356\u70b9');
     if (c.lure) alert.push(c.lure + ' \u53ea\u8bf1\u591a\u5acc\u7591');
     if (c.out) alert.push(c.out + ' \u53ea\u8d44\u91d1\u51c0\u6d41\u51fa');
     return '<div class="rzwtsumbar"><span class="rzwtsumttl">\u81ea\u9009 ' + WT.list.length + ' \u53ea</span>'
       + parts.join('')
-      + '<span class="rzwtsumts">' + (big ? '\u5927\u63d0\u793a' : '\u5c0f\u63d0\u793a') + ' ' + ts + '</span></div>'
+      + '<span class="rzwtsumts">' + (big ? '\u5927\u63d0\u793a' : '\u5c0f\u63d0\u793a') + ' ' + ts + '</span>' + frozenTip + '</div>'
       + (alert.length ? '<div class="rzwtalert' + (big ? ' big' : '') + '">\u26A0\uFE0F '
         + alert.join('\uff0c') + '\uff0c\u5efa\u8bae\u5904\u7406\u3002</div>' : '');
   }
@@ -12660,6 +12715,7 @@ rzStart();
     judge: judge, run: run, render: render, bind: bind, setTab: setTab, chartSVG: chartSVG,
     sumHTML: sumHTML, rowHTML: rowHTML, serToArr: serToArr, tmin: tmin, tminOf: tminOf,
     isTrading: isTrading, addByInput: addByInput, delByCode: delByCode,
+    WIN_MIN: WIN_MIN, DASH_MIN: DASH_MIN, WEAK_MIN: WEAK_MIN,
     loadList: loadList, saveList: saveList, resolveBk: resolveBk, pick: pick,
     metaOf: metaOf, isWeekend: isWeekend,
     setClock: function (fn) { nowDate = fn || function () { return new Date(); }; },
