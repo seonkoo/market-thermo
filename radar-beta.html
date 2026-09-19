@@ -11481,6 +11481,15 @@ rzStart();
     }
     return { P: P, F: F };
   }
+  /* 原始价格序列 P 的最后一个有效值（收盘快照里＝当日收盘价；盘中＝到此刻的最新价） */
+  function pxLast(P) {
+    if (!P || !P.length) return null;
+    for (var m = P.length - 1; m >= 0; m--) {
+      var v = P[m];
+      if (v !== null && v !== undefined && isFinite(v)) return +v;
+    }
+    return null;
+  }
   /* 当前 tab 的名单（实时视图） */
   function curRows() {
     var gs = LV.groups || [];
@@ -11596,11 +11605,14 @@ rzStart();
   /* ---------- 复盘行 / 实时行的指标串 ---------- */
   function metricsHTML(r) {
     var a = [];
-    /* 现价（批量实时取），供「此刻是否还值得买入」参考 */
+    /* 价格最关心：实时显示现价；复盘/快照无现价则显示「收盘价」（P 序列最后一笔） */
     if (r.px !== undefined && r.px !== null) {
       a.push('\u73b0\u4ef7 <b>¥' + r.px + '</b>'
         + (r.pxPct !== undefined && r.pxPct !== null
           ? ' <b class="rzrecpct ' + (r.pxPct >= 0 ? 'up' : 'down') + '">' + fmtPct(r.pxPct) + '</b>' : ''));
+    } else {
+      var pxC = pxLast(r.P);
+      if (pxC !== null) a.push('\u6536\u76d8 <b>¥' + pxC + '</b>');
     }
     /* 复盘最关心的一项：10:00 买入 → 收盘 涨了几个点 */
     if (r.chgPost !== undefined && r.chgPost !== null) {
@@ -11940,6 +11952,7 @@ rzStart();
     setClock: function (fn) { nowDate = fn || function () { return new Date(); }; },
     loadSnap: loadSnap, saveSnap: saveSnap, snapOf: snapOf, fallbackSnap: fallbackSnap,
     serToArr: serToArr, minRow: minRow, chartSVG: chartSVG, renderSnap: renderSnap,
+    pxLast: pxLast,
     curList: curList, toggleChart: toggleChart, metricsHTML: metricsHTML,
     snapRowHTML: snapRowHTML, daysOld: daysOld, chartCtlHTML: chartCtlHTML,
     curRows: curRows, snapGroups: snapGroups, snapTotal: snapTotal,
