@@ -704,6 +704,46 @@ html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
 .rzlg.f{background:#e0392b}
 .rzlg.w{background:#fdf6e3;height:9px;border:1px solid #f0e0b8}
 body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,body.rzrec-hide .rzrecsum,body.rzrec-hide .rzrecsnapbar,body.rzrec-hide .rzrectabs{display:none}
+/* 我的自选股（纯视觉三态判读） */
+.rzwttabs{display:flex;gap:5px;margin:0 0 6px}
+.rzwttab{flex:1 1 auto;border:1px solid #dbe6f5;background:#fff;color:#475569;border-radius:8px;padding:5px 8px;font-size:12px;font-weight:600}
+.rzwttab.on{background:linear-gradient(180deg,#eef4ff,#e2ecff);border-color:#93b8f5;color:#1d4ed8}
+.rzwttab b{font-size:11px}
+.rzwtadd{display:flex;gap:6px;margin:0 0 6px}
+.rzwtinp{flex:1 1 auto;min-width:0;border:1px solid #cbd5e1;border-radius:8px;padding:6px 8px;font-size:12px}
+.rzwtaddb{flex:0 0 auto;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700}
+.rzwtmsg{font-size:11px;color:var(--txt3);margin:0 0 6px}
+.rzwtsum{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:11px;color:#374151;background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:6px 8px;margin-bottom:6px}
+.rzwtsumttl{font-weight:700;font-size:12px}
+.rzwtsumts{margin-left:auto;font-size:10px;color:var(--txt3);font-variant-numeric:tabular-nums}
+.rzwtcnt{border-radius:6px;padding:1px 6px;font-weight:600;border:1px solid transparent;white-space:nowrap}
+.rzwtcnt.sell,.rzwtcnt.attack{background:#fdecec;color:#c62828;border-color:#f3c4c4}
+.rzwtcnt.lure{background:#f3e8ff;color:#6d28d9;border-color:#ddd0f5}
+.rzwtcnt.out{background:#e9f7ee;color:#1b8a3a;border-color:#c8e6d3}
+.rzwtcnt.weak{background:#fff4e5;color:#b26a00;border-color:#f0d6ab}
+.rzwtcnt.watch,.rzwtcnt.wait{background:#eef1f5;color:#5b6472;border-color:#dde3ea}
+.rzwtalert{font-size:11.5px;color:#b3261e;background:#fff5f5;border:1px solid #f6d0cd;border-radius:8px;padding:6px 8px;margin-bottom:6px;font-weight:600;line-height:1.5}
+.rzwtalert.big{border-width:2px;font-size:12.5px}
+.rzwtlist{display:flex;flex-direction:column;gap:4px}
+.rzwtbox{display:flex;flex-direction:column;border:1px solid #eef2f7;border-radius:8px;background:#fff;padding:5px 6px}
+.rzwtrow{display:flex;align-items:center;gap:6px}
+.rzwtnm{flex:1 1 auto;min-width:0;font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rzwtnm em{font-style:normal;font-weight:400;font-size:11px;color:var(--txt3)}
+.rzwttag{flex:0 0 auto;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;border:1px solid transparent;white-space:nowrap}
+.rzwttag.attack{background:#fdecec;color:#c62828;border-color:#f3c4c4}
+.rzwttag.weak{background:#fff4e5;color:#b26a00;border-color:#f0d6ab}
+.rzwttag.sell{background:#c62828;color:#fff;border-color:#a91f1f}
+.rzwttag.out{background:#e9f7ee;color:#1b8a3a;border-color:#c8e6d3}
+.rzwttag.lure{background:#f3e8ff;color:#6d28d9;border-color:#ddd0f5}
+.rzwttag.watch{background:#eef1f5;color:#5b6472;border-color:#dde3ea}
+.rzwtdel{flex:0 0 auto;border:1px solid #e3e7ec;background:#fff;color:#94a3b8;border-radius:7px;padding:3px 8px;font-size:13px;line-height:1}
+.rzwtsub{font-size:10.5px;color:var(--txt3);line-height:1.5;margin-top:1px;word-break:break-word}
+.rzwtsub b.up{color:#c62828}
+.rzwtsub b.down{color:#1b8a3a}
+.rzwtchart{margin:4px 0 1px;padding:4px 6px 2px;background:#fbfcfe;border:1px solid #eef2f7;border-radius:8px}
+.rzwtsvg{display:block;width:100%;max-width:460px;height:auto;margin:2px 0 0}
+.rzlg.fr{background:#e0392b;opacity:.75;height:2px}
+body.rzrec-hide .rzwttabs,body.rzrec-hide .rzwtpane{display:none}
 </style>
 
 <script>
@@ -898,6 +938,20 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
         <button class="rzrecTg" id="rzRecTg" type="button">收起 ▴</button>
       </div>
       <div class="rzlvbar" id="rzLiveMkt"></div>
+      <div class="rzwttabs" id="rzWtTabs">
+        <button type="button" class="rzwttab on" data-w="0">📌 今日推荐</button>
+        <button type="button" class="rzwttab" data-w="1">★ 我的自选股 <b id="rzWtN">0</b></button>
+      </div>
+      <div class="rzwtpane" id="rzWtPane" hidden>
+        <div class="rzwtadd">
+          <input id="rzWtInp" class="rzwtinp" type="text" inputmode="numeric" maxlength="6"
+                 placeholder="输入 6 位代码，如 600667 / 515880">
+          <button type="button" class="rzwtaddb" id="rzWtAdd">＋ 加自选</button>
+        </div>
+        <div class="rzwtmsg" id="rzWtMsg" hidden></div>
+        <div class="rzwtsum" id="rzWtSum"></div>
+        <div class="rzwtlist" id="rzWtList"></div>
+      </div>
       <div class="rzreclist" id="rzRecList"></div>
       <div class="rzrecft" id="rzLiveFt"></div>
     </div>
@@ -11850,6 +11904,709 @@ rzStart();
     document.addEventListener('DOMContentLoaded', LV.start);
   } else {
     LV.start();
+  }
+})();
+</script>
+<script>
+/* ============ 我的自选股 · 纯视觉三态判读（2026-09-19 用户拍板口径） ============
+   口径（用户原话：「只需要视角上判断，不需要考虑逻辑」）：
+     · 不引入「锚」概念。把图看成一个矩形，左下角为原点 (0,0)：
+         高 Y ＝ 线在矩形内的高度；宽 X ＝ 开市时间（09:30→15:00，固定 240 分钟横轴）
+     · 归一化区间 ＝ 当日 09:30 → 此刻：
+         价格：当日 min/max 并入昨收，上下各留 10%
+         资金：当日 min/max 强制含 0，上下各留 10%（板块、个股各自独立）
+     · 三条线：蓝＝个股分时价（实线）
+               个股资金（实线，净流入段红 / 净流出段绿）
+               板块资金（细虚线，同色规则）
+     · 判读只看同一时刻的 Y 高低：蓝线在资金线「上方」⟺ yP < yF
+   三态（优先级 sell > lure > out > weak > attack > watch）：
+     attack 进攻中      蓝线在两资金线上方 ＋ 价 / 个股资金 / 板块资金三者都上行
+     weak   转弱预警    蓝线被资金线压制 3–4 分钟
+     sell   卖点        蓝线被资金线压制 ≥5 分钟
+     out    净流出清出  资金线在上 ＋ 资金为负 ＋ 10:00 前未曾改变
+     lure   诱多嫌疑    股价为红 ＋ 资金仍为正但在递减 ＋ 资金线在上压制蓝线
+   刷新：小提示＝每分钟一次；大提示＝每 5 分钟一次（跟随主模块的 5 分钟节奏）。
+         推荐名单仍由主模块每 5 分钟刷新，二者互不干扰。
+======================================================================== */
+(function () {
+  'use strict';
+  if (window.RZWT) return;
+
+  var WK = 'rz_mywatch_v1';
+  var MIN_MS = 60 * 1000;
+  var TICK_S = 20;          /* 每分钟的第 20 秒刷新 */
+  var DASH_MIN = 5;         /* 蓝线被压制 ≥5 分钟 → 卖点 */
+  var WEAK_MIN = 3;         /* 被压制 ≥3 分钟 → 转弱预警 */
+  var SPAN = 240;           /* 全天交易分钟数 */
+  var BK_CACHE_MS = 300000; /* 板块资金序列缓存 5 分钟 */
+
+  /* ETF 的参考板块（东财 f100 对 ETF 返回 '-'，需人工映射，页面标为「板块」） */
+  var ETF_BK = {
+    '588170': '半导体', '515880': '通信', '159995': '半导体', '516350': '半导体',
+    '512480': '半导体', '512760': '半导体', '516010': '游戏', '159997': '电子',
+    '512880': '证券', '512170': '医疗器械', '515030': '新能源', '159928': '食品饮料'
+  };
+
+  var WT = window.RZWT = {
+    list: [],               /* [{secid, code, name, bk, mk}] 用户自选 */
+    res: {},                /* secid -> 判读结果 */
+    tab: 0,                 /* 0 = 推荐, 1 = 自选 */
+    timer: null, busy: false, lastRun: 0, big: true, err: ''
+  };
+
+  var idxCache = {};        /* 板块名 -> {code,name,pct,flow} */
+  var bkSer = {};           /* 板块 code -> 分钟资金序列 */
+  var bkTs = {};            /* 板块 code -> 取数时间 */
+
+  /* ---------- 工具 ---------- */
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function nowDate() { return new Date(); }
+  function nowMin() { var d = nowDate(); return d.getHours() * 60 + d.getMinutes(); }
+  function dayKey() {
+    var d = nowDate();
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function isWeekend() { var w = nowDate().getDay(); return w === 0 || w === 6; }
+  /* 时钟分钟 → 交易分钟（09:30=0、11:30=120、13:00=120、15:00=240） */
+  function tminOf(m) {
+    if (m <= 690) return m - 570;
+    if (m <= 780) return 120;
+    return m - 660;
+  }
+  /* 'HH:MM' → 交易分钟（同上） */
+  function tmin(t) {
+    var a = String(t).split(':'), m = (+a[0]) * 60 + (+a[1]);
+    if (!isFinite(m)) return NaN;
+    return tminOf(m);
+  }
+  function isTrading() {
+    if (isWeekend()) return false;
+    var m = nowMin();
+    return (m >= 570 && m <= 690) || (m >= 780 && m <= 900);
+  }
+  function fmtPct(v) { var n = Number(v).toFixed(2); return (v > 0 ? '+' : '') + n + '%'; }
+  function fmtYi(v) {
+    if (v === null || v === undefined || !isFinite(v)) return '\u2014';
+    return (v > 0 ? '+' : '') + (Math.round(v * 100) / 100).toFixed(2) + '\u4ebf';
+  }
+
+  /* ---------- 自选股存储 ---------- */
+  function loadList() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(WK) || '[]');
+      WT.list = (raw && raw.length) ? raw : [];
+    } catch (e) { WT.list = []; }
+  }
+  function saveList() {
+    try { localStorage.setItem(WK, JSON.stringify(WT.list)); } catch (e) {}
+  }
+  function hasCode(code) {
+    for (var i = 0; i < WT.list.length; i++) if (WT.list[i].code === code) return true;
+    return false;
+  }
+
+  /* ---------- 取数（复用页面已有的全局函数） ---------- */
+  function getPrice(secid) {
+    return apiTrends(secid).then(function (t) {
+      if (!t || !t.today || !t.today.length) throw new Error('NO_PRICE');
+      var pts = [];
+      for (var i = 0; i < t.today.length; i++) {
+        pts.push({ t: t.today[i].t, p: t.today[i].close, d: t.today[i].d });
+      }
+      return { pre: t.preClose, day: (t.today[0] && t.today[0].d) || '', pts: pts };
+    });
+  }
+  function getFlow(secid) {
+    return rzStockFlow(secid).then(function (s) {
+      if (!s || !s.length) throw new Error('NO_FLOW');
+      return s;
+    });
+  }
+  function fetchInfo(secids) {
+    if (!secids || !secids.length) return Promise.resolve({});
+    var path = '/api/qt/ulist.np/get?fltt=2&invt=2&secids=' + secids.join(',')
+      + '&fields=f12,f13,f14,f100';
+    return rzGet(path, function (j) {
+      var out = {}, d = (j && j.data && j.data.diff) || [];
+      for (var i = 0; i < d.length; i++) {
+        out[String(d[i].f12)] = {
+          code: String(d[i].f12), mk: String(d[i].f13),
+          name: String(d[i].f14), bk: String(d[i].f100 || '')
+        };
+      }
+      return out;
+    }, 9000).catch(function () { return {}; });
+  }
+  /* 板块分钟资金序列（东财 90.<BKxxxx>），5 分钟缓存 */
+  function getBoardFlow(bkCode) {
+    if (!bkCode || !window.rzBoardFlow) return Promise.resolve(null);
+    if (bkSer[bkCode] && Date.now() - (bkTs[bkCode] || 0) < BK_CACHE_MS) {
+      return Promise.resolve(bkSer[bkCode]);
+    }
+    return rzBoardFlow(bkCode).then(function (s) {
+      bkSer[bkCode] = s; bkTs[bkCode] = Date.now();
+      return s;
+    }).catch(function () { return null; });
+  }
+
+  /* 序列 → 长度 241 的分钟数组（0..T 段内用前值填洞，T 之后留 null） */
+  function serToArr(pts, flow, T, mode) {
+    var arr = new Array(SPAN + 1), i, last = null;
+    for (i = 0; i <= SPAN; i++) arr[i] = null;
+    if (mode === 'price') {
+      for (i = 0; i < pts.length; i++) {
+        var m = tmin(pts[i].t), p = pts[i].p;
+        if (!isFinite(m) || m < 0 || m > SPAN) continue;
+        if (p === null || p === undefined || !isFinite(p)) continue;
+        arr[m] = p;
+      }
+    } else {
+      for (i = 0; i < flow.length; i++) {
+        var m2 = tmin(flow[i][0]);
+        if (!isFinite(m2) || m2 < 0 || m2 > SPAN) continue;
+        arr[m2] = flow[i][1];
+      }
+    }
+    for (i = 0; i <= T; i++) {
+      if (arr[i] === null) arr[i] = last; else last = arr[i];
+    }
+    for (i = T + 1; i <= SPAN; i++) arr[i] = null;
+    return arr;
+  }
+
+  /* ---------- 判读内核（纯视觉：同一时刻比 Y 高低） ---------- */
+  function judge(secid, name, bk, pre, pts, flow, fSec, T) {
+    var P = serToArr(pts, null, T, 'price');
+    var FI = serToArr(null, flow, T, 'flow');
+    var FS = (fSec && fSec.length) ? serToArr(null, fSec, T, 'flow') : null;
+    if (P[T] === null || FI[T] === null) return null;
+
+    var base = {
+      secid: secid, name: name, bk: bk, pre: pre, T: T, ts: Date.now(),
+      px: P[T], pxPct: pre > 0 ? (P[T] / pre - 1) * 100 : 0
+    };
+    if (T < 5) {
+      base.st = 'wait'; base.why = '\u521a\u5f00\u76d8\uff0c\u6570\u636e\u4e0d\u8db3 5 \u5206\u949f';
+      return base;
+    }
+
+    /* 价格区间：当日 0..T 的 min/max，并入昨收 */
+    var lo = Infinity, hi = -Infinity, i, v;
+    for (i = 0; i <= T; i++) {
+      v = P[i];
+      if (v === null) continue;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    if (pre > 0) { if (pre < lo) lo = pre; if (pre > hi) hi = pre; }
+    if (!(hi > lo)) hi = lo + Math.abs(lo * 0.01) + 1e-6;
+    var pad = (hi - lo) * 0.1; lo -= pad; hi += pad;
+
+    /* 资金区间：当日 0..T 的 min/max，强制含 0 */
+    function rng(arr) {
+      if (!arr) return null;
+      var a = Infinity, b = -Infinity, k, w;
+      for (k = 0; k <= T; k++) {
+        w = arr[k];
+        if (w === null) continue;
+        if (w < a) a = w;
+        if (w > b) b = w;
+      }
+      if (!isFinite(a)) return null;
+      if (a > 0) a = 0;
+      if (b < 0) b = 0;
+      if (!(b > a)) b = a + 1;
+      var p = (b - a) * 0.1;
+      return [a - p, b + p];
+    }
+    var rI = rng(FI), rS = rng(FS);
+    if (!rI) return null;
+
+    function yP(x) { return (hi - x) / (hi - lo); }
+    function yI(x) { return (rI[1] - x) / (rI[1] - rI[0]); }
+    function yS(x) { return rS ? (rS[1] - x) / (rS[1] - rS[0]) : null; }
+
+    /* 逐分钟 d = yP − yF；d < 0 ⟺ 蓝线在资金线「上方」 */
+    var dI = new Array(T + 1), dS = new Array(T + 1);
+    for (i = 0; i <= T; i++) {
+      dI[i] = (P[i] === null || FI[i] === null) ? null : (yP(P[i]) - yI(FI[i]));
+      dS[i] = (P[i] === null || FS === null || FS[i] === null || !rS) ? null : (yP(P[i]) - yS(FS[i]));
+    }
+
+    function belowRun(d) {
+      var n = 0;
+      for (var m = T; m >= 0; m--) {
+        if (d[m] === null) break;
+        if (d[m] > 0) n++; else break;
+      }
+      return n;
+    }
+    var belowI = belowRun(dI), belowS = belowRun(dS);
+    var below = Math.max(belowI, belowS);
+    var byWhich = (belowI >= belowS) ? '\u4e2a\u80a1\u8d44\u91d1\u7ebf' : '\u677f\u5757\u8d44\u91d1\u7ebf';
+
+    var k0 = Math.max(0, T - 5);
+    var pSlope = (P[T] !== null && P[k0] !== null) ? P[T] - P[k0] : 0;
+    var fSlope = (FI[T] !== null && FI[k0] !== null) ? FI[T] - FI[k0] : 0;
+    var sSlope = (FS && FS[T] !== null && FS[k0] !== null) ? FS[T] - FS[k0] : null;
+
+    var aboveI = (dI[T] !== null && dI[T] < 0);
+    var aboveS = (dS[T] !== null && dS[T] < 0);
+    var bothAbove = aboveI && (rS ? aboveS : true);
+    var curBelow = (dI[T] !== null && dI[T] > 0);
+
+    var chgPre = pre > 0 ? (P[T] / pre - 1) * 100 : 0;
+    var fCur = FI[T], sCur = FS ? FS[T] : null;
+
+    /* 10:00 前蓝线是否曾在资金线上方（情况二要求「10 点前都没有改变」） */
+    var cap = Math.min(T, 30), everAbove = false;
+    for (i = 0; i <= cap; i++) if (dI[i] !== null && dI[i] < 0) { everAbove = true; break; }
+
+    var st, why;
+    if (below >= DASH_MIN) {
+      st = 'sell';
+      why = '\u84dd\u7ebf\u88ab' + byWhich + '\u538b\u5236 ' + below + ' \u5206\u949f\uff08\u2265' + DASH_MIN + '\uff09';
+    } else if (chgPre > 0 && curBelow && fCur > 0 && fSlope < 0) {
+      st = 'lure';
+      why = '\u80a1\u4ef7\u4e3a\u7ea2\uff0c\u8d44\u91d1\u4ecd\u4e3a\u6b63\u4f46 5 \u5206\u949f\u9012\u51cf ' + fmtYi(fSlope) + '\uff0c\u8d44\u91d1\u7ebf\u5728\u4e0a';
+    } else if (curBelow && fCur < 0 && fSlope < 0) {
+      st = 'out';
+      why = '\u8d44\u91d1 ' + fmtYi(fCur) + '\u4e14\u4ecd\u5728\u51cf\uff085 \u5206\u949f ' + fmtYi(fSlope)
+        + '\uff09\uff0c\u8d44\u91d1\u7ebf\u538b\u5236\u84dd\u7ebf' + (T <= 30 ? '\uff0c10:00 \u524d\u5373\u5982\u6b64' : '');
+    } else if (below >= WEAK_MIN) {
+      st = 'weak';
+      why = '\u84dd\u7ebf\u88ab' + byWhich + '\u538b\u5236 ' + below + ' \u5206\u949f';
+    } else if (bothAbove && pSlope > 0 && fSlope > 0 && (sSlope === null || sSlope > 0)) {
+      st = 'attack';
+      why = '\u84dd\u7ebf\u5728\u4e24\u8d44\u91d1\u7ebf\u4e0a\u65b9\uff0c\u4e09\u8005\u5747\u4e0a\u884c';
+    } else {
+      st = 'watch';
+      why = bothAbove ? '\u84dd\u7ebf\u5728\u4e0a\u65b9\uff0c\u4f46\u672a\u540c\u6b65\u4e0a\u884c'
+        : '\u4e24\u7ebf\u7ea0\u7f20\uff0c\u672a\u6210\u5f62\u6001';
+    }
+
+    base.st = st; base.why = why;
+    base.fCur = fCur; base.sCur = sCur; base.fSlope = fSlope; base.sSlope = sSlope;
+    base.below = below; base.belowI = belowI; base.belowS = belowS; base.byWhich = byWhich;
+    base.aboveI = aboveI; base.aboveS = aboveS; base.everAbove = everAbove;
+    base.P = P; base.FI = FI; base.FS = FS; base.lo = lo; base.hi = hi; base.rI = rI; base.rS = rS;
+    return base;
+  }
+
+  /* ---------- 三线图 ---------- */
+  var CW = 340, CH = 124;
+  var RED = '#e0392b', GRN = '#1b8a3a', BLU = '#1a73e8';
+  function chartSVG(r) {
+    if (!r || !r.P || !r.FI || !r.rI) return '';
+    var T = r.T, PL = 4, PR = 6, PT = 6, PB = 14;
+    function xOf(m) { return PL + (m / SPAN) * (CW - PL - PR); }
+    function yOf(v) { return PT + v * (CH - PT - PB); }
+    var hi = r.hi, lo = r.lo, rI = r.rI, rS = r.rS;
+    function yP(x) { return (hi - x) / (hi - lo); }
+    function yI(x) { return (rI[1] - x) / (rI[1] - rI[0]); }
+    function yS(x) { return rS ? (rS[1] - x) / (rS[1] - rS[0]) : 0; }
+    function xy(m, yv) { return xOf(m).toFixed(1) + ' ' + yOf(yv).toFixed(1); }
+
+    /* 资金线按正负分段着色；段间共享端点，视觉连续 */
+    function segs(arr, yfn, wid, dashed) {
+      if (!arr) return '';
+      var out = [], seg = null, m, x;
+      function close() { if (seg && seg.idx.length > 1) out.push(seg); }
+      for (m = 0; m <= T; m++) {
+        x = arr[m];
+        if (x === null || x === undefined) { close(); seg = null; continue; }
+        var pos = x >= 0;
+        if (!seg || seg.pos !== pos) {
+          var carry = (seg && seg.idx.length) ? seg.idx[seg.idx.length - 1] : null;
+          close();   /* 必须先收尾上一段，否则切换符号时旧段会被直接丢弃 */
+          seg = { pos: pos, idx: (carry === null ? [] : [carry]) };
+        }
+        seg.idx.push(m);
+      }
+      close();
+      return out.map(function (s) {
+        var d = '';
+        for (var k = 0; k < s.idx.length; k++) {
+          d += (k ? 'L' : 'M') + xy(s.idx[k], yfn(arr[s.idx[k]])) + ' ';
+        }
+        return '<path d="' + d.replace(/\s+$/, '') + '" fill="none" stroke="' + (s.pos ? RED : GRN)
+          + '" stroke-width="' + wid + '"'
+          + (dashed ? ' stroke-dasharray="4 3" opacity=".8"' : '') + '/>';
+      }).join('');
+    }
+    function one(arr, yfn, col, wid) {
+      if (!arr) return '';
+      var d = '', m, open = false, x;
+      for (m = 0; m <= T; m++) {
+        x = arr[m];
+        if (x === null || x === undefined) { open = false; continue; }
+        d += (open ? 'L' : 'M') + xy(m, yfn(x)) + ' ';
+        open = true;
+      }
+      return d ? '<path d="' + d.replace(/\s+$/, '') + '" fill="none" stroke="' + col
+        + '" stroke-width="' + wid + '"/>' : '';
+    }
+
+    var s = '<svg class="rzwtsvg" viewBox="0 0 ' + CW + ' ' + CH + '" role="img">';
+    s += '<rect x="' + PL + '" y="' + PT + '" width="' + (CW - PL - PR).toFixed(1)
+      + '" height="' + (CH - PT - PB) + '" fill="#fdf6e3"/>';
+    s += '<line x1="' + PL + '" y1="' + (CH - PB) + '" x2="' + (CW - PR) + '" y2="' + (CH - PB)
+      + '" stroke="#e5e7eb" stroke-width="1"/>';
+    s += '<line x1="' + xOf(30).toFixed(1) + '" y1="' + PT + '" x2="' + xOf(30).toFixed(1)
+      + '" y2="' + (CH - PB) + '" stroke="#c2410c" stroke-width="1" stroke-dasharray="3 2" opacity=".55"/>';
+    s += '<line x1="' + xOf(120).toFixed(1) + '" y1="' + PT + '" x2="' + xOf(120).toFixed(1)
+      + '" y2="' + (CH - PB) + '" stroke="#dfe3e8" stroke-width="1" stroke-dasharray="3 3"/>';
+    /* 个股资金的 0 基准线 */
+    if (rI[0] < 0 && rI[1] > 0) {
+      s += '<line x1="' + PL + '" y1="' + yOf(yI(0)).toFixed(1) + '" x2="' + (CW - PR) + '" y2="'
+        + yOf(yI(0)).toFixed(1) + '" stroke="#cbd5e1" stroke-width="1" opacity=".85"/>';
+    }
+    s += segs(r.FS, yS, 1.2, true);      /* 板块资金：细虚线 */
+    s += segs(r.FI, yI, 1.5, false);     /* 个股资金：实线，净流入红 / 净流出绿 */
+    s += one(r.P, yP, BLU, 1.7);         /* 个股分时价：蓝 */
+    [[0, '09:30'], [30, '10:00'], [120, '11:30'], [240, '15:00']].forEach(function (tk) {
+      s += '<text x="' + xOf(tk[0]).toFixed(1) + '" y="' + (CH - 4)
+        + '" font-size="9" fill="#9aa1ab" text-anchor="'
+        + (tk[0] === 0 ? 'start' : (tk[0] === 240 ? 'end' : 'middle')) + '">' + tk[1] + '</text>';
+    });
+    return s + '</svg>';
+  }
+
+  /* ---------- 文案 ---------- */
+  var ST_META = {
+    attack: { cls: 'attack', icon: '\uD83D\uDD34', lbl: '\u8fdb\u653b\u4e2d \u00b7 \u53ef\u6b63T / \u7ee7\u7eed\u6301\u6709' },
+    weak: { cls: 'weak', icon: '\u26A0\uFE0F', lbl: '\u8f6c\u5f31\u9884\u8b66 \u00b7 \u51c6\u5907' },
+    sell: { cls: 'sell', icon: '\uD83D\uDD3B', lbl: '\u5356\u70b9 \u00b7 \u5efa\u8bae\u51cf\u6301' },
+    out: { cls: 'out', icon: '\uD83D\uDFE2', lbl: '\u51c0\u6d41\u51fa \u00b7 \u62e9\u673a\u6e05\u51fa' },
+    lure: { cls: 'lure', icon: '\uD83D\uDFE3', lbl: '\u8bf1\u591a\u5acc\u7591 \u00b7 \u5356\u51fa' },
+    watch: { cls: 'watch', icon: '\u26AA', lbl: '\u89c2\u5bdf \u00b7 \u5f85\u5f62\u6001' },
+    wait: { cls: 'watch', icon: '\u23F3', lbl: '\u7b49\u5f85\u5f00\u76d8' },
+    err: { cls: 'watch', icon: '\u26A0\uFE0F', lbl: '\u53d6\u6570\u5931\u8d25' }
+  };
+  function metaOf(r) { return ST_META[(r && r.st)] || ST_META.watch; }
+
+  /* ---------- 渲染 ---------- */
+  function rowHTML(r, i) {
+    var m = metaOf(r);
+    var w = WT.list[i] || {};
+    var nm = w.name || r.name || r.secid;
+    var cd = w.code || String(r.secid).split('.')[1] || '';
+    var del = '<button class="rzwtdel" type="button" data-c="' + esc(cd) + '" title="\u79fb\u9664">\u00D7</button>';
+    if (r.st === 'err' || r.st === 'wait') {
+      return '<div class="rzwtbox" data-i="' + i + '"><div class="rzwtrow">'
+        + '<span class="rzwtnm">' + esc(nm) + ' <em>' + esc(cd) + '</em></span>'
+        + '<span class="rzwttag ' + m.cls + '">' + m.icon + ' ' + m.lbl + '</span>' + del
+        + '</div><div class="rzwtsub">' + esc(r.why || '') + '</div></div>';
+    }
+    var bkHtml = r.bk
+      ? esc(r.bk) + ' <b class="' + (r.sCur >= 0 ? 'up' : 'down') + '">' + fmtYi(r.sCur) + '</b>'
+      : '\u2014\uff08\u672a\u5339\u914d\u677f\u5757\uff09';
+    return '<div class="rzwtbox" data-i="' + i + '">'
+      + '<div class="rzwtrow">'
+      + '<span class="rzwtnm">' + esc(nm) + ' <em>' + esc(cd) + '</em></span>'
+      + '<span class="rzwttag ' + m.cls + '">' + m.icon + ' ' + m.lbl + '</span>'
+      + '<button class="rzrecbtn" type="button" data-a="wtchart">\u66f2\u7ebf</button>'
+      + del
+      + '</div>'
+      + '<div class="rzwtsub">\u73b0\u4ef7 <b>\u00A5' + (r.px !== null ? r.px : '\u2014') + '</b>'
+      + ' <b class="' + (r.pxPct >= 0 ? 'up' : 'down') + '">' + fmtPct(r.pxPct) + '</b>'
+      + ' \u00b7 \u677f\u5757 ' + bkHtml
+      + ' \u00b7 \u4e2a\u80a1\u8d44\u91d1 <b class="' + (r.fCur >= 0 ? 'up' : 'down') + '">' + fmtYi(r.fCur) + '</b>'
+      + '</div>'
+      + '<div class="rzwtsub">' + esc(r.why) + '</div>'
+      + '<div class="rzwtchart" hidden></div>'
+      + '</div>';
+  }
+
+  function sumHTML(big) {
+    if (!WT.list.length) return '';
+    var c = { attack: 0, weak: 0, sell: 0, out: 0, lure: 0, watch: 0, wait: 0, err: 0 }, i;
+    for (i = 0; i < WT.list.length; i++) {
+      var r = WT.res[WT.list[i].secid];
+      var k = r ? r.st : 'err';
+      if (c[k] === undefined) k = 'watch';
+      c[k]++;
+    }
+    var order = [['sell', '\u5356\u70b9'], ['lure', '\u8bf1\u591a'], ['out', '\u51c0\u6d41\u51fa'],
+      ['weak', '\u8f6c\u5f31'], ['attack', '\u8fdb\u653b'], ['watch', '\u89c2\u5bdf'], ['wait', '\u5f85\u5f00\u76d8']];
+    var parts = [];
+    order.forEach(function (p) {
+      if (c[p[0]]) parts.push('<span class="rzwtcnt ' + p[0] + '">' + ST_META[p[0]].icon + ' ' + p[1] + ' <b>' + c[p[0]] + '</b></span>');
+    });
+    var now = nowDate();
+    var ts = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
+    var alert = [];
+    if (c.sell) alert.push(c.sell + ' \u53ea\u5356\u70b9');
+    if (c.lure) alert.push(c.lure + ' \u53ea\u8bf1\u591a\u5acc\u7591');
+    if (c.out) alert.push(c.out + ' \u53ea\u8d44\u91d1\u51c0\u6d41\u51fa');
+    return '<div class="rzwtsumbar"><span class="rzwtsumttl">\u81ea\u9009 ' + WT.list.length + ' \u53ea</span>'
+      + parts.join('')
+      + '<span class="rzwtsumts">' + (big ? '\u5927\u63d0\u793a' : '\u5c0f\u63d0\u793a') + ' ' + ts + '</span></div>'
+      + (alert.length ? '<div class="rzwtalert' + (big ? ' big' : '') + '">\u26A0\uFE0F '
+        + alert.join('\uff0c') + '\uff0c\u5efa\u8bae\u5904\u7406\u3002</div>' : '');
+  }
+
+  function render() {
+    var host = $('rzWtList');
+    if (!host) return;
+    var nEl = $('rzWtN');
+    if (nEl) nEl.textContent = WT.list.length;
+    var sEl = $('rzWtSum');
+    if (sEl) sEl.innerHTML = sumHTML(WT.big);
+    if (!WT.list.length) {
+      host.innerHTML = '<div class="rzlvempty">\u8fd8\u6ca1\u6709\u81ea\u9009\u80a1\u3002'
+        + '\u5728\u4e0a\u9762\u8f93\u5165 6 \u4f4d\u4ee3\u7801\uff08\u5982 600667\u3001515880\uff09'
+        + '\u70b9\u300c\uFF0B \u52a0\u81ea\u9009\u300d\uff0c\u5c31\u4f1a\u6bcf\u5206\u949f\u66f4\u65b0\u4e00\u6b21\u3002</div>';
+      return;
+    }
+    var h = '', i, w, r;
+    for (i = 0; i < WT.list.length; i++) {
+      w = WT.list[i];
+      r = WT.res[w.secid] || { secid: w.secid, name: w.name, bk: w.bk, st: 'wait', why: '\u7b49\u5f85\u53d6\u6570\u2026' };
+      h += rowHTML(r, i);
+    }
+    host.innerHTML = h;
+  }
+
+  /* ---------- 板块名解析（含 ETF 兜底） ---------- */
+  function pick(idx, name) {
+    if (!idx || !name) return null;
+    if (idx[name]) return idx[name];
+    var alt;
+    if (/[\u2160\u2161\u2162]$/.test(name)) {
+      alt = name.replace(/[\u2160\u2161\u2162]+$/, '');
+    } else {
+      alt = name + '\u2161';
+    }
+    return idx[alt] || null;
+  }
+  function resolveBk(idx) {
+    for (var i = 0; i < WT.list.length; i++) {
+      var w = WT.list[i];
+      var hit = w.bk ? pick(idx, w.bk) : null;
+      if (!hit && ETF_BK[w.code]) {
+        hit = pick(idx, ETF_BK[w.code]);
+        if (hit) w.bkRef = true;
+      }
+      if (hit) {
+        w.bk = hit.name;
+        w.bkCode = hit.code;
+      } else if (!w.bkCode) {
+        w.bk = w.bk || '';
+        w.bkCode = '';
+      }
+    }
+  }
+
+  /* ---------- 取数 → 判读 ---------- */
+  function run(big) {
+    if (WT.busy) return Promise.resolve();
+    if (!isTrading()) { WT.err = '\u4f11\u5e02'; WT.big = true; render(); return Promise.resolve(); }
+    if (!WT.list.length) { render(); return Promise.resolve(); }
+
+    WT.busy = true;
+    WT.lastRun = Date.now();
+    WT.big = true;
+
+    var T = Math.min(tminOf(nowMin()), SPAN);
+    if (T < 1) T = 1;
+
+    /* 板块索引：主模块 5 分钟内已拉过就直接复用（rzBoard 自带 300s 缓存） */
+    return rzBoard(false).then(function (idx) {
+      idxCache = idx || {};
+      resolveBk(idxCache);
+      /* 板块分钟资金序列：按板块 code 去重后并行拉，5 分钟缓存 */
+      var seen = {}, list = [], i;
+      for (i = 0; i < WT.list.length; i++) {
+        var c = WT.list[i].bkCode;
+        if (c && !seen[c]) { seen[c] = 1; list.push(c); }
+      }
+      return Promise.all(list.map(getBoardFlow));
+    }).catch(function () { return null; }).then(function () {
+      var jobs = WT.list.map(function (w) {
+        return Promise.all([getPrice(w.secid), getFlow(w.secid)]).then(function (rr) {
+          var pr = rr[0], fl = rr[1];
+          if (pr.day && pr.day !== dayKey()) {
+            WT.res[w.secid] = { secid: w.secid, name: w.name, bk: w.bk, st: 'wait', why: '\u62ff\u5230\u7684\u4e0d\u662f\u5f53\u65e5\u6570\u636e' };
+            return;
+          }
+          var fSec = w.bkCode ? (bkSer[w.bkCode] || null) : null;
+          WT.res[w.secid] = judge(w.secid, w.name, w.bk, pr.pre, pr.pts, fl, fSec, T);
+        }).catch(function (e) {
+          WT.res[w.secid] = {
+            secid: w.secid, name: w.name, bk: w.bk, st: 'err',
+            why: '\u53d6\u6570\u5931\u8d25\uff1a' + String((e && e.message) || e)
+          };
+        });
+      });
+      return Promise.all(jobs);
+    }).then(function () {
+      WT.busy = false;
+      render();
+    });
+  }
+
+  /* ---------- 添加 / 移除 ---------- */
+  function setMsg(t) {
+    var e = $('rzWtMsg');
+    if (e) { e.textContent = t || ''; e.hidden = !t; }
+  }
+  function addByInput() {
+    var inp = $('rzWtInp');
+    if (!inp) return;
+    var raw = String(inp.value || '').trim();
+    if (!/^\d{6}$/.test(raw)) { setMsg('\u8bf7\u8f93\u5165 6 \u4f4d\u4ee3\u7801\uff08\u5982 600667\uff09'); return; }
+    if (hasCode(raw)) { setMsg('\u5df2\u5728\u81ea\u9009\u91cc\u4e86'); return; }
+    var mk = /^(5|6|9)/.test(raw) ? '1' : '0';
+    var secid = mk + '.' + raw;
+    setMsg('\u67e5\u8be2\u4e2d\u2026');
+    fetchInfo([secid]).then(function (m) {
+      var it = m[raw];
+      if (!it) { setMsg('\u6ca1\u627e\u5230\u8fd9\u4e2a\u4ee3\u7801'); return; }
+      var bk = String(it.bk || '').trim();
+      if (!bk || bk === '-') bk = '';
+      WT.list.push({ secid: secid, code: raw, name: it.name, bk: bk, mk: it.mk });
+      saveList();
+      inp.value = '';
+      setMsg('\u5df2\u52a0\u5165 ' + it.name);
+      render();
+      run(false);
+    });
+  }
+  function delByCode(code) {
+    for (var i = 0; i < WT.list.length; i++) {
+      if (WT.list[i].code === code) {
+        delete WT.res[WT.list[i].secid];
+        WT.list.splice(i, 1);
+        break;
+      }
+    }
+    saveList();
+    if (WT.tab) run(false);
+    render();
+  }
+
+  /* ---------- tab 切换 ---------- */
+  function setTab(i) {
+    WT.tab = i ? 1 : 0;
+    var pane = $('rzWtPane'), rec = $('rzRecList');
+    if (pane) pane.hidden = !WT.tab;
+    if (rec) rec.hidden = !!WT.tab;
+    var bs = document.querySelectorAll('.rzwttab');
+    for (var k = 0; k < bs.length; k++) {
+      var on = (bs[k].getAttribute('data-w') === '1') === (WT.tab === 1);
+      bs[k].className = 'rzwttab' + (on ? ' on' : '');
+    }
+    if (WT.tab) { run(false); render(); }
+  }
+
+  /* ---------- 事件 ---------- */
+  function bind() {
+    var bar = $('rzWtTabs');
+    if (bar && !bar._wtBound) {
+      bar._wtBound = true;
+      bar.addEventListener('click', function (e) {
+        var b = (e.target && e.target.closest) ? e.target.closest('.rzwttab') : null;
+        if (!b) return;
+        setTab(b.getAttribute('data-w') === '1' ? 1 : 0);
+      });
+    }
+    var ab = $('rzWtAdd');
+    if (ab && !ab._wtBound) { ab._wtBound = true; ab.addEventListener('click', addByInput); }
+    var inp = $('rzWtInp');
+    if (inp && !inp._wtBound) {
+      inp._wtBound = true;
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') addByInput(); });
+    }
+    var host = $('rzWtList');
+    if (host && !host._wtBound) {
+      host._wtBound = true;
+      host.addEventListener('click', function (e) {
+        var tg = e.target;
+        var d = (tg && tg.closest) ? tg.closest('.rzwtdel') : null;
+        if (d) { delByCode(d.getAttribute('data-c')); return; }
+        var c = (tg && tg.closest) ? tg.closest('.rzrecbtn[data-a="wtchart"]') : null;
+        if (!c) return;
+        var box = c.closest('.rzwtbox');
+        var pane = box && box.querySelector('.rzwtchart');
+        if (!pane) return;
+        if (!pane.hidden) { pane.hidden = true; pane.innerHTML = ''; return; }
+        var w = WT.list[parseInt(box.getAttribute('data-i'), 10)];
+        var r = w && WT.res[w.secid];
+        var svg = chartSVG(r);
+        if (!svg) {
+          pane.innerHTML = '<div class="rzlvempty">\u6682\u65e0\u8db3\u591f\u6570\u636e\u753b\u56fe\u3002</div>';
+        } else {
+          pane.innerHTML = svg + '<div class="rzrecchartlg">'
+            + '<i class="rzlg p"></i>\u4e2a\u80a1\u5206\u65f6\u4ef7'
+            + '<i class="rzlg f"></i>\u4e2a\u80a1\u8d44\u91d1\uff08\u5b9e\uff09'
+            + '<i class="rzlg fr"></i>\u677f\u5757\u8d44\u91d1\uff08\u865a\uff09'
+            + '<i class="rzlg w"></i>10:00 \u7a97\u53e3</div>';
+        }
+        pane.hidden = false;
+      });
+    }
+  }
+
+  /* ---------- 调度：每分钟第 20 秒 ---------- */
+  function schedule() {
+    if (WT.timer) clearTimeout(WT.timer);
+    var now = new Date();
+    var next = new Date(now.getTime());
+    next.setSeconds(TICK_S, 0);
+    if (next.getTime() <= now.getTime()) next = new Date(next.getTime() + MIN_MS);
+    WT.timer = setTimeout(function () {
+      /* 大提示＝每 5 分钟那一轮；其余为小提示 */
+      var big = (nowDate().getMinutes() % 5 === 0);
+      if (WT.tab === 1 || !document.hidden) run(big);
+      else WT.big = big;
+      schedule();
+    }, next - now);
+  }
+
+  WT.start = function () {
+    loadList();
+    bind();
+    setTab(0);
+    render();
+    schedule();
+    var kick = function () {
+      if (!WT.list.length || !isTrading()) { render(); return; }
+      run(true);
+    };
+    kick();
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) return;
+      if (Date.now() - WT.lastRun > 90000) run(true);
+    });
+  };
+
+  /* 测试钩子 */
+  WT._t = {
+    judge: judge, run: run, render: render, bind: bind, setTab: setTab, chartSVG: chartSVG,
+    sumHTML: sumHTML, rowHTML: rowHTML, serToArr: serToArr, tmin: tmin, tminOf: tminOf,
+    isTrading: isTrading, addByInput: addByInput, delByCode: delByCode,
+    loadList: loadList, saveList: saveList, resolveBk: resolveBk, pick: pick,
+    metaOf: metaOf, isWeekend: isWeekend,
+    setClock: function (fn) { nowDate = fn || function () { return new Date(); }; },
+    getList: function () { return WT.list; },
+    setList: function (v) { WT.list = v || []; },
+    getRes: function () { return WT.res; },
+    setRes: function (v) { WT.res = v || {}; },
+    getBoardSer: function () { return bkSer; },
+    setBoardSer: function (v) { bkSer = v || {}; }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', WT.start);
+  } else {
+    WT.start();
   }
 })();
 </script>
