@@ -10853,8 +10853,34 @@ rzStart();
     LV.st.anchorDay = anchorDayOf();
   }
   function saveAnchors() {
+    pruneAnchors();
     try { localStorage.setItem(ANC_KEY, JSON.stringify(LV.anchors)); } catch (e) {}
     LV.st.anchorDay = anchorDayOf();
+  }
+
+  /* 只保留「最新基准日」的锚，避免跨天堆积 */
+  function pruneAnchors() {
+    var latest = '', k;
+    for (k in LV.anchors) {
+      if (!Object.prototype.hasOwnProperty.call(LV.anchors, k)) continue;
+      var d = LV.anchors[k] && LV.anchors[k].d;
+      if (d && d > latest) latest = d;
+    }
+    if (!latest) return;
+    for (k in LV.anchors) {
+      if (!Object.prototype.hasOwnProperty.call(LV.anchors, k)) continue;
+      if (!LV.anchors[k] || LV.anchors[k].d !== latest) delete LV.anchors[k];
+    }
+  }
+
+  /* 尺子新鲜度：超过 7 个自然日视为过期（跨周末 3 天属正常） */
+  function anchorFresh(a) {
+    if (!a || !a.d) return false;
+    var p = String(a.d).split('-');
+    if (p.length !== 3) return false;
+    var t = new Date(+p[0], +p[1] - 1, +p[2]).getTime();
+    if (!isFinite(t)) return false;
+    return (Date.now() - t) < 7 * 86400000;
   }
   function anchorDayOf() {
     var k, d = '', n = 0;
@@ -10868,7 +10894,7 @@ rzStart();
   }
 
   /* ---------- 锚构造：用「全天」序列 ---------- */
-  function buildAnchor(pre, pts, flow, day) {
+  function buildAnchor(pre, pts, flow, day, nm) {
     var fm = {}, i;
     for (i = 0; i < flow.length; i++) fm[flow[i][0]] = flow[i][1];
 
@@ -10894,7 +10920,7 @@ rzStart();
     if (!(fhi > flo)) fhi = flo + 1;
     pad = (fhi - flo) * 0.1; flo -= pad; fhi += pad;
 
-    return { d: day || '', lo: lo, hi: hi, flo: flo, fhi: fhi };
+    return { d: day || '', lo: lo, hi: hi, flo: flo, fhi: fhi, nm: nm || '' };
   }
 
   /* ---------- 判定内核（与 _scan3.js judge 同源） ---------- */
@@ -11077,6 +11103,19 @@ rzStart();
       cand = cand.slice(0, 12);
 
       var list = cand.slice();
+
+      // 早上（盘前）缓存过锚的标的，盘中即使不在当前热门行业里也继续判定，
+      // 否则「盘前建的锚」和「盘中的候选池」对不上，会出现有候选却无尺子的空列表。
+      var extra = 0;
+      Object.keys(LV.anchors).forEach(function (sid) {
+        if (extra >= 20 || seen[sid]) return;
+        var a = LV.anchors[sid];
+        if (!anchorFresh(a)) return;
+        seen[sid] = 1;
+        extra++;
+        list.push({ secid: sid, name: a.nm || sid, bk: '\u76d8\u524d\u5019\u9009', pct: null, flow: null });
+      });
+
       ETF_POOL.forEach(function (e) {
         if (seen[e[0]]) return;
         seen[e[0]] = 1;
@@ -11090,12 +11129,12 @@ rzStart();
         return Promise.all([getPrice(x.secid), getFlow(x.secid)]).then(function (r) {
           var pr = r[0], fl = r[1];
           if (pr.day && pr.day !== todayKey()) {
-            var a = buildAnchor(pr.pre, pr.pts, fl, pr.day);
+            var a = buildAnchor(pr.pre, pr.pts, fl, pr.day, x.name);
             if (a) { LV.anchors[x.secid] = a; LV._dirty = true; }
             return null;
           }
           var anc = LV.anchors[x.secid];
-          if (!anc || !(anc.hi > anc.lo)) return null;
+          if (!anc || !(anc.hi > anc.lo) || !anchorFresh(anc)) return null;
           var j = judge(x.secid, x.name, x.bk, pr.pre, pr.pts, fl, endTM, anc);
           if (j) j.winEndHM = hmOf(endTM + 570);
           return j;
@@ -11295,7 +11334,8 @@ rzStart();
   LV._t = {
     tmin: tmin, buildAnchor: buildAnchor, judge: judge, tagOf: tagOf,
     rowHTML: rowHTML, render: render, bindEvents: bindEvents,
-    footHTML: footHTML, alreadyAdded: alreadyAdded
+    footHTML: footHTML, alreadyAdded: alreadyAdded,
+    saveAnchors: saveAnchors, anchorFresh: anchorFresh, pruneAnchors: pruneAnchors
   };
 
   if (document.readyState === 'loading') {
