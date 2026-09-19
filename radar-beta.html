@@ -739,10 +739,15 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
 .rzwtfv{font-weight:700}
 .rzwtfv.up{color:#c62828}      /* 资金数值为正（净流入） */
 .rzwtfv.down{color:#1b8a3a}    /* 资金数值为负（净流出） */
+.rzwtcap{font-weight:400;font-size:9px;color:#94a3b8;display:block;margin-top:1px;line-height:1.2}
 .rzwtarrow{font-weight:700;margin-left:2px}
 .rzwtarrow.up{color:#1b8a3a}    /* 趋势：增多/改善 ↑ 绿 */
 .rzwtarrow.dn{color:#c62828}   /* 趋势：减少/恶化 ↓ 红 */
 .rzwtarrow.flat{color:#9aa1ab} /* 趋势：走平 → */
+.rzwtdelta{font-weight:700;font-size:11px}
+.rzwtdelta.up{color:#1b8a3a}   /* 升幅：改善 绿 */
+.rzwtdelta.dn{color:#c62828}   /* 降幅：恶化 红 */
+.rzwtdelta.flat{color:#9aa1ab}
 .rzwthint{text-align:left;font-size:11px;color:#334155}
 .rzwthint.warn{color:#c62828;font-weight:600}
 .rzwtop{white-space:nowrap}
@@ -12098,6 +12103,24 @@ rzStart();
 
   /* ---------- 趋势箭头 & 持有个股面板提示 ---------- */
   var TREND_EPS = 0.05;   /* 资金近段增减「走平」阈值（亿元），低于视为 → */
+  var TREND_WIN = 15;     /* 近 N 个交易分钟窗口 */
+  /* 近 N 分钟资金变化量 + 升/降幅%：相对更早值算百分比；更早值过小时 pct 为 null（避免除零爆表） */
+  function fundTrend(arr, Tj) {
+    if (!arr || Tj <= 0) return null;
+    var tW = Math.max(0, Tj - TREND_WIN);
+    var cur = arr[Tj], old = arr[tW];
+    if (cur === null || old === null) return null;
+    var dYi = cur - old;                                          /* 亿元增减 */
+    var pct = (Math.abs(old) >= 0.1) ? (dYi / Math.abs(old) * 100) : null;  /* 升/降幅% */
+    return { dYi: dYi, pct: pct };
+  }
+  /* 趋势方向：增多(↑,改善,绿) / 减少(↓,恶化,红) / 走平(→)；dn=红(恶化) up=绿(改善) flat=灰 */
+  function trendCls(d) {
+    if (d === null) return 'flat';
+    if (d > TREND_EPS) return 'up';
+    if (d < -TREND_EPS) return 'dn';
+    return 'flat';
+  }
   /* 近 15 分钟资金增减：arr[Tj]-arr[Tj-15]，反映「由大变小/由小变大」，不看当前正负 */
   function recentDelta(arr, Tj) {
     if (!arr || Tj <= 0) return null;
@@ -12112,11 +12135,32 @@ rzStart();
     if (delta < -TREND_EPS) return '<span class="rzwtarrow dn">\u2193</span>';
     return '<span class="rzwtarrow flat">\u2192</span>';
   }
-  /* 资金单元格：数值按正负配色（红=净流入/绿=净流出），再叠加趋势箭头（由大变小/由小变大） */
+  /* 资金单元格：第一行＝当前净值（红=净流入/绿=净流出）；第二行＝近 N 分钟变化量(亿)＋升/降幅% */
   function fundCell(v, arr, Tj) {
     if (v === null || v === undefined || !isFinite(v)) return '<span class="rzwtfv">\u2014</span>';
     var signCls = v >= 0 ? 'up' : 'down';
-    return '<span class="rzwtfv ' + signCls + '">' + fmtYi(v) + '</span>' + arrowOf(recentDelta(arr, Tj));
+    var tr = fundTrend(arr, Tj);
+    var sub = '';
+    if (tr) {
+      var c = trendCls(tr.dYi);
+      if (c === 'flat') {
+        sub = '<br><span class="rzwtarrow flat">\u2192</span>';
+      } else {
+        var dTxt = fmtYi(tr.dYi);                                     /* +X.XX亿 / -X.XX亿 */
+        var pTxt = (tr.pct !== null) ? '（' + fmtPct(tr.pct) + '）' : '';
+        sub = '<br><span class="rzwtarrow ' + c + '">' + (c === 'up' ? '\u2191' : '\u2193') + '</span>'
+            + '<span class="rzwtdelta ' + c + '">' + dTxt + pTxt + '</span>';
+      }
+    }
+    return '<span class="rzwtfv ' + signCls + '">' + fmtYi(v) + '</span>' + sub;
+  }
+  /* 资金近段变化量文案：仅在「恶化/减弱」（dYi<0）时给数字，改善则不额外强调；pct 为 null 时只给亿值 */
+  function trendMag(arr, Tj) {
+    var tr = fundTrend(arr, Tj);
+    if (!tr || tr.dYi >= 0) return '';
+    var s = ' ' + fmtYi(tr.dYi);
+    if (tr.pct !== null) s += '/' + fmtPct(tr.pct);
+    return s;
   }
   /* 持有个股面板「提示」：4 条规则 + 趋势守卫（净流入为正但随时间变小 → 资金减弱，不称强势） */
   function hintOf(r) {
@@ -12126,11 +12170,11 @@ rzStart();
     var fDelta = recentDelta(r.FI, r.Tj);          /* 个股资金近段增减 */
     var fWeaken = (fDelta !== null && fDelta < -TREND_EPS);
     if (fIn && priceUp) {
-      if (fWeaken) return '\u26a0 资金减弱（虽正但缩）';
+      if (fWeaken) return '\u26a0 资金减弱（虽正但缩' + trendMag(r.FI, r.Tj) + '）';
       return '资金跟进·强势';
     }
-    if (!fIn && priceUp) return '\u26a0 价涨资金出·背离(诱多?)';
-    if (!fIn && !priceUp) return (fDelta !== null && fDelta < -TREND_EPS) ? '资金出·加速' : '资金出·弱势';
+    if (!fIn && priceUp) return '\u26a0 价涨资金出·背离(诱多?)' + trendMag(r.FI, r.Tj);
+    if (!fIn && !priceUp) return (fDelta !== null && fDelta < -TREND_EPS) ? ('资金出·加速' + trendMag(r.FI, r.Tj)) : '资金出·弱势';
     return '资金进·吸筹?';
   }
 
@@ -12574,7 +12618,10 @@ rzStart();
       return;
     }
     var h = '<table class="rzwttable"><thead><tr>'
-      + '<th>名称/代码</th><th>现价(+%)</th><th>板块净流入</th><th>个股净流入</th><th>提示</th><th></th>'
+      + '<th>名称/代码</th><th>现价(+%)</th>'
+      + '<th>板块净流入<br><span class="rzwtcap">近' + TREND_WIN + '分变化</span></th>'
+      + '<th>个股净流入<br><span class="rzwtcap">近' + TREND_WIN + '分变化</span></th>'
+      + '<th>提示</th><th></th>'
       + '</tr></thead><tbody>';
     for (var i = 0; i < WT.list.length; i++) {
       var w = WT.list[i];
