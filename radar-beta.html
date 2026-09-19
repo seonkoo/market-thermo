@@ -766,6 +766,10 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
 .rzwtdelta.up{color:#c62828}   /* 升幅/改善 红 */
 .rzwtdelta.dn{color:#1b8a3a}   /* 降幅/恶化 绿 */
 .rzwtdelta.flat{color:#9aa1ab}
+/* ②行内「本段净额」单独按自身正负着色（红净流入/绿净流出），与箭头/环比%的跟趋势配色分离 —— 2026-09-19 晚用户拍板「拆」 */
+.rzwtseg{font-weight:700}
+.rzwtseg.up{color:#c62828}     /* 本段净额为正（净流入）→ 红 */
+.rzwtseg.down{color:#1b8a3a}   /* 本段净额为负（净流出）→ 绿 */
 .rzwtslope{font-size:10px;font-weight:600;color:#9aa1ab}
 .rzwtslope.up{color:#c62828}   /* 斜率>0：整段上行（资金在进）→ 红 */
 .rzwtslope.dn{color:#1b8a3a}   /* 斜率<0：整段下行（资金在出）→ 绿 */
@@ -12236,7 +12240,8 @@ rzStart();
   }
   /* 资金单元格三行：
      ① 当前累计净值（红=净流入/绿=净流出）
-     ② 本段净额 ＋ 环比%（满 N 分钟才出；箭头与配色跟「动能变化 mom」走）
+     ② 本段净额 ＋ 环比%（满 N 分钟才出）；**本段净额按自身正负着色**（红净流入/绿净流出），
+        **箭头 ↓↑ 与环比% 跟「动能变化 mom」着色**（红=增多/改善、绿=减少/恶化）——2026-09-19 晚用户拍板「拆」
      ③ 斜率（亿/分，整段方向与速度；本段未满 N 分钟时标注「较开盘」） */
   function fundCell(v, arr, Tj) {
     if (v === null || v === undefined || !isFinite(v)) return '<span class="rzwtfv">\u2014</span>';
@@ -12245,7 +12250,8 @@ rzStart();
     if (!tr) return out;
     var c = trendCls(tr.mom);
     if (tr.full) {
-      out += '<br><span class="rzwtdelta ' + c + '">' + arrowOf(tr.mom) + fmtYi(tr.curSeg)
+      out += '<br><span class="rzwtdelta ' + c + '">' + arrowOf(tr.mom)
+           + '<span class="rzwtseg ' + (tr.curSeg >= 0 ? 'up' : 'down') + '">' + fmtYi(tr.curSeg) + '</span>'
            + (tr.pct !== null ? '\u00b7\u73af\u6bd4 ' + fmtPct(tr.pct) : '')
            + '</span>';
     }
