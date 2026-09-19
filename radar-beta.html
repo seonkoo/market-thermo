@@ -659,28 +659,37 @@ html[data-theme="dark"] svg polyline[stroke="#1f2937"]{stroke:#dfe6ee}
 html[data-theme="dark"] svg circle[fill="#1f2937"]{fill:#dfe6ee}
 html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
 
-/* 今日推荐列表（位于「添加个股」上方） */
+/* 今日推荐 · 实时（位于「添加个股」上方） */
 .rzrec{border:1px solid #dbe6f5;border-radius:10px;padding:8px 9px;margin:0 0 8px;background:linear-gradient(180deg,#f7fbff,#fff)}
 .rzrechd{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:6px}
 .rzrecT{font-weight:700;font-size:13px}
-.rzrecS{font-size:11px;color:var(--txt3)}
+.rzrecS{font-size:11px;color:var(--txt3);font-variant-numeric:tabular-nums}
 .rzrecTg{margin-left:auto;font-size:11px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:2px 8px;color:var(--txt3)}
+.rzlvbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 6px}
+.rzlvtg{border-radius:6px;padding:2px 7px;font-weight:700;font-size:11px;border:1px solid transparent}
+.rzlvtg.ok{background:#fdecec;color:#c62828;border-color:#f3c4c4}
+.rzlvtg.mid{background:#fff4e5;color:#b26a00;border-color:#f0d6ab}
+.rzlvtg.no{background:#eef1f5;color:#5b6472;border-color:#dde3ea}
+.rzlvtg.idle{background:#f2f4f7;color:#8b93a1;border-color:#e6eaef}
+.rzlvtxt{font-size:11px;color:var(--txt3);font-variant-numeric:tabular-nums}
 .rzreclist{display:flex;flex-direction:column;gap:4px}
+.rzlvempty{font-size:11px;color:var(--txt3);padding:7px 2px;text-align:center}
 .rzrecrow{display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:8px;background:#fff;border:1px solid #eef2f7}
+.rzrecrow.added{background:#f8fbf8}
 .rzrecno{flex:0 0 18px;height:18px;border-radius:5px;background:#eef4ff;color:#2563eb;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .rzrecmain{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
 .rzrecline1{display:flex;align-items:baseline;gap:6px;min-width:0}
 .rzrecnm{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rzreccd{flex:0 0 auto;font-size:11px;color:var(--txt3);font-variant-numeric:tabular-nums}
 .rzrecsc{flex:0 0 auto;font-size:10.5px;color:#2563eb;font-weight:700}
-.rzrecsub{font-size:10.5px;color:var(--txt3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rzrecsub{font-size:10.5px;color:var(--txt3);line-height:1.45;word-break:break-word}
 .rzrecpct{font-weight:700}
 .rzrecpct.up{color:#c62828}
 .rzrecpct.down{color:#1b8a3a}
 .rzrecadd{flex:0 0 auto;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700}
-.rzrecadd:disabled{opacity:.55}
+.rzrecadd:disabled{opacity:.5;border-color:#c9d6e5;background:#f3f6fa;color:#7d8794}
 .rzrecft{font-size:10.5px;color:var(--txt3);margin-top:6px;line-height:1.5}
-body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft{display:none}
+body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft{display:none}
 </style>
 
 <script>
@@ -870,12 +879,13 @@ body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft{display:none}
 
     <div class="rzrec" id="rzRec">
       <div class="rzrechd">
-        <span class="rzrecT">📌 推荐 <b id="rzRecN">10</b> 只</span>
-        <span class="rzrecS">09-18 复盘 · 10:00 口径</span>
+        <span class="rzrecT">📌 今日推荐 <b id="rzRecN">0</b> 只</span>
+        <span class="rzrecS" id="rzLiveTs">等待开盘</span>
         <button class="rzrecTg" id="rzRecTg" type="button">收起 ▴</button>
       </div>
+      <div class="rzlvbar" id="rzLiveMkt"></div>
       <div class="rzreclist" id="rzRecList"></div>
-      <div class="rzrecft">口径：行业主力资金 10:00 前三 → 成分股／ETF（已排除科创、创业、北交、ST）。判定用图表自身双轴口径（价格线自区间含昨收、资金线自区间含 0），前 30 分钟两线不相交即为进攻信号。红色＝上涨／净流入。数据为复盘快照，非实时。</div>
+      <div class="rzrecft" id="rzLiveFt"></div>
     </div>
     <div class="rzadd">
 
@@ -10769,53 +10779,530 @@ rzStart();
 </div>
 
 <script>
-(function(){
-  var REC = [{"code": "002296", "mk": "0", "name": "辉煌科技", "bk": "通信网络设备及器件", "score": 90, "tag": "不交·上行·距扩·资正", "cross": 0, "chgEnd": 0.87, "chgClose": 0.65, "fend": 0.049, "fclose": 0.131}, {"code": "603375", "mk": "1", "name": "盛景微", "bk": "半导体", "score": 85, "tag": "不交·上行·距扩·资正", "cross": 0, "chgEnd": 7.05, "chgClose": 0.72, "fend": 0.181, "fclose": 0.104}, {"code": "603068", "mk": "1", "name": "博通集成", "bk": "半导体", "score": 85, "tag": "不交·上行·距扩·资正", "cross": 0, "chgEnd": 8.47, "chgClose": 0, "fend": 1.491, "fclose": 1.926}, {"code": "159995", "mk": "0", "name": "芯片ETF华夏", "bk": "ETF", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 0.09, "chgClose": 1.05, "fend": 0.284, "fclose": 1.372}, {"code": "516350", "mk": "1", "name": "半导体设备ETF", "bk": "ETF", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 0.12, "chgClose": 1.55, "fend": 0.032, "fclose": 0.285}, {"code": "603893", "mk": "1", "name": "瑞芯微", "bk": "半导体", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 0.13, "chgClose": 2.2, "fend": 0.714, "fclose": 2.416}, {"code": "000063", "mk": "0", "name": "中兴通讯", "bk": "通信网络设备及器件", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 0.25, "chgClose": 0.9, "fend": 0.418, "fclose": 3.192}, {"code": "600171", "mk": "1", "name": "上海贝岭", "bk": "半导体", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 0.35, "chgClose": 1.44, "fend": 0.065, "fclose": 0.219}, {"code": "603501", "mk": "1", "name": "豪威集团", "bk": "半导体", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 1.09, "chgClose": 0.93, "fend": 0.756, "fclose": 1.771}, {"code": "002077", "mk": "0", "name": "大港股份", "bk": "半导体", "score": 75, "tag": "不交·上行·资正", "cross": 0, "chgEnd": 1.57, "chgClose": 1.83, "fend": 0.281, "fclose": 0.608}];
-  var list = document.getElementById('rzRecList');
-  if(!list) return;
-  var N = document.getElementById('rzRecN');
-  if(N) N.textContent = REC.length;
-  var avg = REC.reduce(function(s,r){return s+r.chgClose;},0)/REC.length;
-  var fmt = function(v){ var n = Number(v).toFixed(2); return (v > 0 ? '+' : '') + n + '%'; };
-  list.innerHTML = REC.map(function(r, i){
-    var up = r.chgClose >= 0;
-    var ue = r.chgEnd >= 0;
-    return '<div class="rzrecrow">'
+/* ============ 今日推荐 · 实时（锚 = 上一交易日全天区间） ============
+   口径说明（2026-09-19 实测确定）：
+     · 锚：上一「已收盘交易日」全天（09:30–15:00）的区间
+         价格锚 = 价格 min/max 且并入昨收，上下各留 10% 边距
+         资金锚 = 累计主力净流入 min/max 且强制并入 0，上下各留 10% 边距
+     · 判定窗口：今日 09:30 → 当前时刻与 10:00 的较早者，即「前 30 分钟」
+     · 蓝线(价格)在上方 ⟺ yP < yF；两线不交叉 = 进攻信号
+   实测：锚取自「判定窗口之外」时零交叉率 ~55%、蓝在上率 ~75%；
+         锚取自窗口自身（自指）时零交叉率仅 1.8%，等于无信息。
+   锚区间缩放不影响判定（价格与资金同倍缩放时 yP−yF 符号不变），故无需裁剪/扩展。
+======================================================================== */
+(function () {
+  'use strict';
+  if (window.RZLV) return;
+
+  var LV = window.RZLV = {
+    anchors: {},          // secid -> {d, lo, hi, flo, fhi}
+    rows: [], mkt: null,
+    st: { phase: 'idle', msg: '', ts: 0, anchorDay: '', n: 0 },
+    busy: false, timer: null, lastRun: 0
+  };
+
+  var ANC_KEY = 'rz_anchor_v1';
+  var REFRESH_MS = 5 * 60 * 1000;
+
+  var ETF_POOL = [
+    ['1.588170', '科创半导体ETF'],
+    ['1.515880', '通信ETF'],
+    ['0.159995', '芯片ETF华夏'],
+    ['1.516350', '半导体设备ETF'],
+    ['1.512480', '半导体ETF'],
+    ['1.512760', '芯片ETF国泰'],
+    ['1.516010', '游戏ETF'],
+    ['0.159997', '电子ETF']
+  ];
+
+  /* ---------- 工具 ---------- */
+  function $(id) { return document.getElementById(id); }
+  function round2(v) { return Math.round(v * 100) / 100; }
+  function round3(v) { return Math.round(v * 1000) / 1000; }
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function dayKeyOf(dt) { return dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate()); }
+  function todayKey() { return dayKeyOf(new Date()); }
+  function nowMin() { var d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+  function hmOf(m) { return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60); }
+  function tmin(t) {
+    var a = String(t).split(':'), m = (+a[0]) * 60 + (+a[1]);
+    if (m <= 690) return m - 570;
+    if (m <= 780) return 120;
+    return m - 660;
+  }
+  function isTrading() {
+    var m = nowMin();
+    return (m >= 570 && m <= 690) || (m >= 780 && m <= 900);
+  }
+  function fmtPct(v) {
+    var n = Number(v).toFixed(2);
+    return (v > 0 ? '+' : '') + n + '%';
+  }
+
+  /* ---------- 锚读写 ---------- */
+  function loadAnchors() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(ANC_KEY) || '{}');
+      if (raw && typeof raw === 'object') LV.anchors = raw;
+    } catch (e) { LV.anchors = {}; }
+    LV.st.anchorDay = anchorDayOf();
+  }
+  function saveAnchors() {
+    try { localStorage.setItem(ANC_KEY, JSON.stringify(LV.anchors)); } catch (e) {}
+    LV.st.anchorDay = anchorDayOf();
+  }
+  function anchorDayOf() {
+    var k, d = '', n = 0;
+    for (k in LV.anchors) {
+      if (!Object.prototype.hasOwnProperty.call(LV.anchors, k)) continue;
+      n++;
+      var dd = LV.anchors[k] && LV.anchors[k].d;
+      if (dd && dd > d) d = dd;
+    }
+    return n ? d : '';
+  }
+
+  /* ---------- 锚构造：用「全天」序列 ---------- */
+  function buildAnchor(pre, pts, flow, day) {
+    var fm = {}, i;
+    for (i = 0; i < flow.length; i++) fm[flow[i][0]] = flow[i][1];
+
+    var lo = Infinity, hi = -Infinity, flo = Infinity, fhi = -Infinity, n = 0;
+    for (i = 0; i < pts.length; i++) {
+      var t = pts[i].t, p = pts[i].p;
+      if (fm[t] === undefined) continue;
+      var f = fm[t];
+      if (p < lo) lo = p;
+      if (p > hi) hi = p;
+      if (f < flo) flo = f;
+      if (f > fhi) fhi = f;
+      n++;
+    }
+    if (n < 30) return null;
+
+    if (pre > 0) { if (pre < lo) lo = pre; if (pre > hi) hi = pre; }
+    if (!(hi > lo)) hi = lo + Math.abs(lo * 0.01) + 1e-6;
+    var pad = (hi - lo) * 0.1; lo -= pad; hi += pad;
+
+    if (flo > 0) flo = 0;
+    if (fhi < 0) fhi = 0;
+    if (!(fhi > flo)) fhi = flo + 1;
+    pad = (fhi - flo) * 0.1; flo -= pad; fhi += pad;
+
+    return { d: day || '', lo: lo, hi: hi, flo: flo, fhi: fhi };
+  }
+
+  /* ---------- 判定内核（与 _scan3.js judge 同源） ---------- */
+  function judge(secid, name, bk, pre, pts, flow, endTM, anc) {
+    var fm = {}, i;
+    for (i = 0; i < flow.length; i++) fm[flow[i][0]] = flow[i][1];
+
+    var ser = [];
+    for (i = 0; i < pts.length; i++) {
+      var t = pts[i].t;
+      if (fm[t] === undefined) continue;
+      ser.push({ t: t, p: pts[i].p, f: fm[t] });
+    }
+    if (ser.length < 5) return null;
+
+    var yP = function (v) { return (anc.hi - v) / (anc.hi - anc.lo); };
+    var yF = function (v) { return (anc.fhi - v) / (anc.fhi - anc.flo); };
+
+    var win = [];
+    for (i = 0; i < ser.length; i++) {
+      if (tmin(ser[i].t) <= endTM) win.push(ser[i]);
+    }
+    if (win.length < 4) return null;
+
+    var cross = 0, prev = null, g0 = null, g1 = null;
+    for (i = 0; i < win.length; i++) {
+      var dv = yP(win[i].p) - yF(win[i].f);
+      if (g0 === null) g0 = dv;
+      g1 = dv;
+      var sg = dv < 0 ? -1 : 1;
+      if (prev !== null && sg !== prev) cross++;
+      prev = sg;
+    }
+
+    var A = win[0], B = win[win.length - 1];
+    var priceUp = B.p > A.p;
+    var top = g1 < 0;
+    var widen = top && Math.abs(g1) > Math.abs(g0) + 0.02;
+    var fundNeg = B.f < 0;
+    var chgWin = A.p > 0 ? (B.p / A.p - 1) * 100 : 0;
+    var chgPre = pre > 0 ? (B.p / pre - 1) * 100 : 0;
+
+    var score = 0;
+    if (cross === 0) score += 30;
+    if (top) score += 20;
+    if (priceUp) score += 20;
+    if (fundNeg) score += 15;
+    if (widen) score += 15;
+    if (chgWin > 0 && chgWin < 3) score += 10;
+
+    return {
+      secid: secid, code: String(secid).split('.')[1], name: name, bk: bk,
+      n: win.length, crossN: cross, noCross: cross === 0,
+      top: top, priceUp: priceUp, widen: widen, fundNeg: fundNeg,
+      chgWin: round2(chgWin), chgPre: round2(chgPre),
+      fundEnd: round3(B.f), score: score, tEnd: B.t, anchorDay: anc.d || ''
+    };
+  }
+
+  /* ---------- 取数 ---------- */
+  function getPrice(secid) {
+    return apiTrends(secid).then(function (t) {
+      if (!t || !t.today || !t.today.length) throw new Error('NO_PRICE');
+      var pts = [];
+      for (var i = 0; i < t.today.length; i++) {
+        pts.push({ t: t.today[i].t, p: t.today[i].close });
+      }
+      return { pre: t.preClose, day: (t.today[0] && t.today[0].d) || '', pts: pts };
+    });
+  }
+
+  function getFlow(secid) {
+    return rzStockFlow(secid).then(function (s) {
+      if (!s || !s.length) throw new Error('NO_FLOW');
+      return s;
+    });
+  }
+
+  function getMembers(bkCode) {
+    var path = '/api/qt/clist/get?fid=f62&po=1&pz=60&pn=1&np=1&fltt=2&invt=2&fs=b:'
+      + bkCode + '&fields=f12,f13,f14,f3,f62';
+    return rzGet(path, function (d) {
+      var diff = (d && d.data && d.data.diff) || [];
+      if (!diff.length) throw new Error('EMPTY');
+      var out = [];
+      for (var i = 0; i < diff.length; i++) {
+        var x = diff[i];
+        out.push({
+          code: String(x.f12), mk: String(x.f13), name: String(x.f14),
+          pct: num(x.f3, 0), flow: num(x.f62, 0)
+        });
+      }
+      return out;
+    }, 9000).catch(function () { return []; });
+  }
+
+  function tradable(code, name) {
+    if (!/^(600|601|603|605|000|001|002|003)/.test(code)) return false;
+    if (/ST|退/.test(name)) return false;
+    return true;
+  }
+
+  function pool(items, n, fn) {
+    var out = new Array(items.length), i = 0;
+    function next() {
+      if (i >= items.length) return Promise.resolve();
+      var k = i++;
+      return fn(items[k], k).then(
+        function (r) { out[k] = r; },
+        function (e) { out[k] = { err: String((e && e.message) || e) }; }
+      ).then(next);
+    }
+    var seeds = [];
+    for (var j = 0; j < Math.min(n, items.length); j++) seeds.push(next());
+    return Promise.all(seeds).then(function () { return out; });
+  }
+
+  /* ---------- 状态 ---------- */
+  function setSt(phase, msg) {
+    LV.st.phase = phase;
+    LV.st.msg = msg || '';
+    LV.st.ts = Date.now();
+  }
+
+  /* ---------- 主流程 ---------- */
+  LV.run = function (force) {
+    if (LV.busy) return Promise.resolve();
+    var trading = isTrading();
+    if (!trading && !force) {
+      setSt('rest', '休市');
+      render();
+      return Promise.resolve();
+    }
+
+    LV.busy = true;
+    LV.lastRun = Date.now();
+    setSt('load', '取数中…');
+    render();
+
+    var endTM = force ? 30 : Math.min(tmin(hmOf(nowMin())), 30);
+    if (endTM < 5) endTM = 30;
+
+    var pMkt = Promise.all([getPrice('1.000001'), getFlow('1.000001')])
+      .then(function (r) {
+        return { pre: r[0].pre, day: r[0].day, pts: r[0].pts, flow: r[1] };
+      }).catch(function () { return null; });
+
+    var pBk = rzBoard(true).then(function (idx) {
+      var arr = [], k;
+      for (k in idx) {
+        if (!Object.prototype.hasOwnProperty.call(idx, k)) continue;
+        arr.push(idx[k]);
+      }
+      arr.sort(function (a, b) { return num(b.flow, 0) - num(a.flow, 0); });
+      return arr.slice(0, 3);
+    }).catch(function () { return []; });
+
+    return Promise.all([pMkt, pBk]).then(function (r) {
+      var mktR = r[0], bks = r[1];
+      LV._mktRaw = mktR;
+      setSt('load', '行业榜 ' + bks.length + ' 个，取成分股…');
+      render();
+      return pool(bks, 3, function (bk) {
+        return getMembers(bk.code).then(function (list) { return { bk: bk, list: list }; });
+      });
+    }).then(function (mem) {
+      var cand = [], seen = {};
+      (mem || []).forEach(function (x) {
+        if (!x || !x.list) return;
+        x.list.forEach(function (s) {
+          if (!tradable(s.code, s.name)) return;
+          if (s.pct < -2 || s.pct > 8) return;
+          var sid = s.mk + '.' + s.code;
+          if (seen[sid]) return;
+          seen[sid] = 1;
+          cand.push({ secid: sid, name: s.name, bk: x.bk.name, pct: s.pct, flow: s.flow });
+        });
+      });
+      cand.sort(function (a, b) { return a.flow - b.flow; });
+      cand = cand.slice(0, 12);
+
+      var list = cand.slice();
+      ETF_POOL.forEach(function (e) {
+        if (seen[e[0]]) return;
+        seen[e[0]] = 1;
+        list.push({ secid: e[0], name: e[1], bk: 'ETF', pct: null, flow: null });
+      });
+
+      setSt('load', '判定 ' + list.length + ' 只，窗口至 ' + hmOf(endTM + 570) + '…');
+      render();
+
+      return pool(list, 6, function (x) {
+        return Promise.all([getPrice(x.secid), getFlow(x.secid)]).then(function (r) {
+          var pr = r[0], fl = r[1];
+          if (pr.day && pr.day !== todayKey()) {
+            var a = buildAnchor(pr.pre, pr.pts, fl, pr.day);
+            if (a) { LV.anchors[x.secid] = a; LV._dirty = true; }
+            return null;
+          }
+          var anc = LV.anchors[x.secid];
+          if (!anc || !(anc.hi > anc.lo)) return null;
+          var j = judge(x.secid, x.name, x.bk, pr.pre, pr.pts, fl, endTM, anc);
+          if (j) j.winEndHM = hmOf(endTM + 570);
+          return j;
+        });
+      });
+    }).then(function (res) {
+      var ok = [];
+      (res || []).forEach(function (r) { if (r && r.name && !r.err) ok.push(r); });
+      ok.sort(function (a, b) {
+        return b.score - a.score || a.chgWin - b.chgWin;
+      });
+      LV.rowsValid = ok.length;
+      LV.rows = ok.slice(0, 10);
+
+      var mr = LV._mktRaw;
+      if (mr) {
+        var ma = LV.anchors['1.000001'];
+        var usable = ma && ma.d && ma.d !== todayKey();
+        var jm = null;
+        if (usable) jm = judge('1.000001', '上证指数', '', mr.pre, mr.pts, mr.flow, endTM, ma);
+        LV.mkt = jm;
+        LV.mktAnchorOk = !!usable;
+      } else {
+        LV.mkt = null;
+        LV.mktAnchorOk = false;
+      }
+
+      if (LV._dirty) { saveAnchors(); LV._dirty = false; }
+      setSt('done', '');
+      LV.busy = false;
+      render();
+    }).catch(function (e) {
+      LV.busy = false;
+      setSt('err', String((e && e.message) || e));
+      render();
+    });
+  };
+
+  /* ---------- 渲染 ---------- */
+  function tagOf(r) {
+    var a = [];
+    if (r.noCross) a.push('不交叉');
+    if (r.top) a.push('价线在上');
+    if (r.priceUp) a.push('价格上行');
+    if (r.widen) a.push('间距拉大');
+    if (r.fundNeg) a.push('资金滞后');
+    if (!a.length) a.push('观察');
+    return a.join('·');
+  }
+
+  function alreadyAdded(code) {
+    var L = (window.RZ && window.RZ.list) || [];
+    for (var i = 0; i < L.length; i++) {
+      if (L[i] && L[i].c === code) return true;
+    }
+    return false;
+  }
+
+  function rowHTML(r, i) {
+    var has = alreadyAdded(r.code);
+    return '<div class="rzrecrow' + (has ? ' added' : '') + '">'
       + '<span class="rzrecno">' + (i + 1) + '</span>'
       + '<span class="rzrecmain">'
       +   '<span class="rzrecline1">'
-      +     '<span class="rzrecnm">' + r.name + '</span>'
-      +     '<span class="rzreccd">' + r.code + '</span>'
-      +     '<span class="rzrecsc">' + r.score + '分</span>'
+      +     '<span class="rzrecnm">' + esc(r.name) + '</span>'
+      +     '<span class="rzreccd">' + esc(r.code) + '</span>'
+      +     '<span class="rzrecsc">' + r.score + '\u5206</span>'
       +   '</span>'
-      +   '<span class="rzrecsub">' + r.tag
-      +     ' · 10:00前 <b class="rzrecpct ' + (ue?'up':'down') + '">' + fmt(r.chgEnd) + '</b>'
-      +     ' → 收盘 <b class="rzrecpct ' + (up?'up':'down') + '">' + fmt(r.chgClose) + '</b>'
+      +   '<span class="rzrecsub">' + esc(r.bk) + ' \u00b7 ' + esc(tagOf(r))
+      +     ' \u00b7 \u7a97\u53e3 <b class="rzrecpct ' + (r.chgWin >= 0 ? 'up' : 'down') + '">' + fmtPct(r.chgWin) + '</b>'
+      +     ' \u2192 \u73b0 <b class="rzrecpct ' + (r.chgPre >= 0 ? 'up' : 'down') + '">' + fmtPct(r.chgPre) + '</b>'
       +   '</span>'
       + '</span>'
-      + '<button class="rzrecadd" type="button" data-c="' + r.code + '">＋</button>'
+      + '<button class="rzrecadd" type="button" data-c="' + esc(r.code) + '"'
+      + (has ? ' disabled>\u2713' : '>\uFF0B')
+      + '</button>'
       + '</div>';
-  }).join('');
-  var ft = document.querySelector('#rzRec .rzrecft');
-  if(ft) ft.innerHTML += '<br>等权 10:00 买入 → 收盘：平均 <b>+' + avg.toFixed(2) + '%</b>，'
-    + '上涨 ' + REC.filter(function(r){return r.chgClose>0;}).length + '/' + REC.length + ' 只。';
-  list.addEventListener('click', function(e){
-    var b = e.target.closest ? e.target.closest('.rzrecadd') : null;
-    if(!b || b.disabled) return;
-    var inp = document.getElementById('rzInp');
-    var btn = document.getElementById('rzAdd');
-    if(!inp || !btn) return;
-    inp.value = b.getAttribute('data-c');
-    btn.click();
-    inp.value = '';
-    b.textContent = '✓';
-    b.disabled = true;
-  });
-  var tg = document.getElementById('rzRecTg');
-  if(tg) tg.addEventListener('click', function(){
-    document.body.classList.toggle('rzrec-hide');
-    tg.textContent = document.body.classList.contains('rzrec-hide') ? '展开 ▾' : '收起 ▴';
-  });
+  }
+
+  function mktHTML() {
+    var m = LV.mkt;
+    if (!m) {
+      return '<span class="rzlvtg idle">\u5927\u76d8\uff1a\u672a\u5224\u5b9a</span>'
+        + '<span class="rzlvtxt">\u7b49\u5f85\u5f00\u76d8\u540e\u7684\u5206\u65f6\u6570\u636e</span>';
+    }
+    var ok = m.noCross && m.top && m.priceUp;
+    var cls = ok ? 'ok' : (m.top && m.priceUp ? 'mid' : 'no');
+    var lbl = ok ? '\u8fdb\u653b' : (m.top && m.priceUp ? '\u504f\u5f3a' : '\u672a\u786e\u8ba4');
+    return '<span class="rzlvtg ' + cls + '">\u5927\u76d8\uff1a' + lbl + '</span>'
+      + '<span class="rzlvtxt">\u4e0a\u8bc1 ' + fmtPct(m.chgPre)
+      + ' \u00b7 \u8d44\u91d1 ' + (m.fundEnd >= 0 ? '+' : '') + m.fundEnd + '\u4ebf'
+      + ' \u00b7 \u4ea4\u53c9 ' + m.crossN + ' \u6b21'
+      + (m.top ? ' \u00b7 \u4ef7\u7ebf\u5728\u4e0a' : ' \u00b7 \u4ef7\u7ebf\u5728\u4e0b')
+      + '</span>';
+  }
+
+  function footHTML() {
+    var s = LV.st;
+    var parts = [];
+    if (s.phase === 'rest') parts.push('\u4f11\u5e02\u4e2d\uff0c\u4e0b\u4e00\u6b21\u5f00\u76d8\u540e\u81ea\u52a8\u5237\u65b0\u3002');
+    if (s.anchorDay) parts.push('\u951a\uff08\u5c3a\u5b50\uff09\u53d6\u81ea ' + esc(s.anchorDay) + ' \u5168\u5929\u533a\u95f4\u3002');
+    else parts.push('\u5c1a\u672a\u5efa\u7acb\u951a\uff1a\u8bf7\u5728\u5f00\u76d8\u524d\u6253\u5f00\u672c\u9875\uff0c\u8ba9\u5b83\u5148\u8bfb\u5230\u4e0a\u4e00\u4ea4\u6613\u65e5\u6570\u636e\u3002');
+    parts.push('\u5224\u5b9a\uff1a\u524d 30 \u5206\u949f\u4e24\u7ebf\u4e0d\u4ea4\u53c9\uff0b\u4ef7\u683c\u4e0a\u884c\uff1b\u8d44\u91d1\u4e3a\u8d1f\u4ec5\u52a0\u5206\u3002\u7ea2\u8272\uff1d\u4e0a\u6da8\uff0f\u51c0\u6d41\u5165\u3002');
+    return parts.join(' ');
+  }
+
+  function render() {
+    var host = $('rzRecList');
+    if (!host) return;
+    var s = LV.st;
+
+    var tsEl = $('rzLiveTs');
+    if (tsEl) {
+      if (s.phase === 'load') tsEl.textContent = s.msg || '\u53d6\u6570\u4e2d\u2026';
+      else if (s.phase === 'rest') tsEl.textContent = '\u4f11\u5e02\uff08\u5f85\u5f00\u76d8\uff09';
+      else if (s.phase === 'err') tsEl.textContent = '\u53d6\u6570\u5931\u8d25';
+      else if (s.ts) {
+        var d = new Date(s.ts);
+        tsEl.textContent = '\u622a\u81f3 ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+      } else tsEl.textContent = '\u7b49\u5f85\u5f00\u76d8';
+    }
+
+    var mk = $('rzLiveMkt');
+    if (mk) mk.innerHTML = mktHTML();
+
+    var nEl = $('rzRecN');
+    if (nEl) nEl.textContent = LV.rows.length;
+
+    if (LV.rows.length) {
+      host.innerHTML = LV.rows.map(rowHTML).join('');
+    } else if (s.phase === 'load') {
+      host.innerHTML = '<div class="rzlvempty">\u6b63\u5728\u8ba1\u7b97\u2026' + esc(s.msg || '') + '</div>';
+    } else if (s.phase === 'rest') {
+      host.innerHTML = '<div class="rzlvempty">\u4f11\u5e02\u4e2d\u3002\u5f00\u76d8\u540e\u6bcf 5 \u5206\u949f\u81ea\u52a8\u5237\u65b0\u63a8\u8350\u3002</div>';
+    } else if (s.phase === 'err') {
+      host.innerHTML = '<div class="rzlvempty">\u53d6\u6570\u5931\u8d25\uff1a' + esc(s.msg) + '</div>';
+    } else {
+      host.innerHTML = '<div class="rzlvempty">\u6682\u65e0\u7b26\u5408\u6761\u4ef6\u7684\u6807\u7684\u3002</div>';
+    }
+
+    var ft = $('rzLiveFt');
+    if (ft) ft.innerHTML = footHTML();
+  }
+
+  LV.render = render;
+
+  /* ---------- 事件 ---------- */
+  function bindEvents() {
+    var host = $('rzRecList');
+    if (host && !host._rzBound) {
+      host._rzBound = true;
+      host.addEventListener('click', function (e) {
+        var b = e.target && e.target.closest ? e.target.closest('.rzrecadd') : null;
+        if (!b || b.disabled) return;
+        var inp = $('rzInp'), btn = $('rzAdd');
+        if (!inp || !btn) return;
+        inp.value = b.getAttribute('data-c');
+        btn.click();
+        inp.value = '';
+        b.textContent = '\u2713';
+        b.disabled = true;
+      });
+    }
+    var tg = $('rzRecTg');
+    if (tg && !tg._rzBound) {
+      tg._rzBound = true;
+      tg.addEventListener('click', function () {
+        document.body.classList.toggle('rzrec-hide');
+        tg.textContent = document.body.classList.contains('rzrec-hide') ? '\u5c55\u5f00 \u25be' : '\u6536\u8d77 \u25b4';
+      });
+    }
+  }
+
+  /* ---------- 调度 ---------- */
+  function schedule() {
+    if (LV.timer) clearTimeout(LV.timer);
+    var now = new Date();
+    var next = new Date(now.getTime());
+    next.setMinutes(Math.ceil((now.getMinutes() + 1) / 5) * 5, 12, 0);
+    if (next <= now) next = new Date(next.getTime() + REFRESH_MS);
+    LV.timer = setTimeout(function () { LV.run(false); schedule(); }, next - now);
+  }
+
+  LV.start = function () {
+    loadAnchors();
+    bindEvents();
+    render();
+    LV.run(true);
+    schedule();
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) return;
+      if (Date.now() - LV.lastRun > 120000) LV.run(false);
+    });
+  };
+
+  /* 测试钩子 */
+  LV._t = {
+    tmin: tmin, buildAnchor: buildAnchor, judge: judge, tagOf: tagOf,
+    rowHTML: rowHTML, render: render, bindEvents: bindEvents,
+    footHTML: footHTML, alreadyAdded: alreadyAdded
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', LV.start);
+  } else {
+    LV.start();
+  }
 })();
 </script>
 </body>
