@@ -11612,7 +11612,11 @@ rzStart();
           ? ' <b class="rzrecpct ' + (r.pxPct >= 0 ? 'up' : 'down') + '">' + fmtPct(r.pxPct) + '</b>' : ''));
     } else {
       var pxC = pxLast(r.P);
-      if (pxC !== null) a.push('\u6536\u76d8 <b>¥' + pxC + '</b>');
+      if (pxC !== null) {
+        /* 收盘价按「当日涨跌」着色：涨红跌绿（基准 chgClose＝昨收→收盘） */
+        var up = (r.chgClose !== undefined && r.chgClose !== null) ? (r.chgClose >= 0) : true;
+        a.push('\u6536\u76d8 <b class="rzrecpct ' + (up ? 'up' : 'down') + '">¥' + pxC + '</b>');
+      }
     }
     /* 复盘最关心的一项：10:00 买入 → 收盘 涨了几个点 */
     if (r.chgPost !== undefined && r.chgPost !== null) {
