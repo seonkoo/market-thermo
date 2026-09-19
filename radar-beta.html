@@ -765,6 +765,10 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
 .rzwtdelta.up{color:#1b8a3a}   /* 升幅：改善 绿 */
 .rzwtdelta.dn{color:#c62828}   /* 降幅：恶化 红 */
 .rzwtdelta.flat{color:#9aa1ab}
+.rzwtslope{font-size:10px;font-weight:600;color:#9aa1ab}
+.rzwtslope.up{color:#1b8a3a}   /* 斜率>0：整段上行（资金在进） */
+.rzwtslope.dn{color:#c62828}   /* 斜率<0：整段下行（资金在出） */
+.rzwtslope.flat{color:#9aa1ab}
 .rzwthint{text-align:left;font-size:11px;color:#334155}
 .rzwthint.warn{color:#c62828;font-weight:600}
 .rzwtop{white-space:nowrap}
@@ -12174,16 +12178,44 @@ rzStart();
 
   /* ---------- 趋势箭头 & 持有个股面板提示 ---------- */
   var TREND_EPS = 0.05;   /* 资金近段增减「走平」阈值（亿元），低于视为 → */
-  var TREND_WIN = 15;     /* 近 N 个交易分钟窗口 */
-  /* 近 N 分钟资金变化量 + 升/降幅%：相对更早值算百分比；更早值过小时 pct 为 null（避免除零爆表） */
+  var TREND_WIN = 15;     /* 段长：近 N 个交易分钟为「本段」，再往前 N 分钟为「上段」 */
+  var SEG_MIN = 0.1;      /* 环比护栏：上段净额绝对值低于此则不给百分比（亿元），避免除零爆表 */
+  /* 线性回归斜率（亿/分）：对窗口 [tMid, Tj] 的累计值序列拟合直线，答「整段方向与速度」 */
+  function slopeOf(arr, tMid, Tj) {
+    var n = Tj - tMid + 1, i, x;
+    if (n < 3) return null;
+    var sx = 0, sy = 0;
+    for (i = 0; i < n; i++) { x = tMid + i; if (arr[x] === null) return null; sx += x; sy += arr[x]; }
+    var mx = sx / n, my = sy / n, num = 0, den = 0, dx;
+    for (i = 0; i < n; i++) { x = tMid + i; dx = x - mx; num += dx * (arr[x] - my); den += dx * dx; }
+    return den ? (num / den) : null;
+  }
+  /* 斜率文案（亿/分，3 位小数；0.000 表示基本持平） */
+  function fmtSlope(v) {
+    if (v === null || v === undefined || !isFinite(v)) return '\u2014';
+    var a = (Math.abs(v) < 0.0005) ? 0 : v;
+    return (a > 0 ? '+' : '') + a.toFixed(3) + '\u4ebf/\u5206';
+  }
+  /* 趋势三件套（2026-09-19 晚 A+B 口径，用户拍板）：
+     curSeg ＝ 本段净额 ＝ arr[Tj] − arr[Tj−N]（亿）
+     prevSeg＝ 上段净额 ＝ arr[Tj−N] − arr[Tj−2N]（亿）
+     mom    ＝ 动能变化 ＝ 本段 − 上段（亿）；上段不足 N 分钟时退回本段净额
+     pct    ＝ 环比％ ＝ mom ÷ |上段净额| × 100（|上段净额| < SEG_MIN 时为 null，不给数）
+     slope  ＝ 本段窗口线性回归斜率（亿/分）＝ 整段方向与速度
+     full   ＝ 本段是否已满 N 分钟（未满＝退化为「较开盘」口径） */
   function fundTrend(arr, Tj) {
     if (!arr || Tj <= 0) return null;
-    var tW = Math.max(0, Tj - TREND_WIN);
-    var cur = arr[Tj], old = arr[tW];
-    if (cur === null || old === null) return null;
-    var dYi = cur - old;                                          /* 亿元增减 */
-    var pct = (Math.abs(old) >= 0.1) ? (dYi / Math.abs(old) * 100) : null;  /* 升/降幅% */
-    return { dYi: dYi, pct: pct };
+    var tMid = Math.max(0, Tj - TREND_WIN), tOld = Math.max(0, Tj - 2 * TREND_WIN);
+    if (arr[Tj] === null || arr[tMid] === null) return null;
+    var curSeg = arr[Tj] - arr[tMid];
+    var prevSeg = null, pct = null;
+    if (Tj >= 2 * TREND_WIN && arr[tOld] !== null) {
+      prevSeg = arr[tMid] - arr[tOld];
+      if (Math.abs(prevSeg) >= SEG_MIN) pct = (curSeg - prevSeg) / Math.abs(prevSeg) * 100;
+    }
+    var mom = (prevSeg === null) ? curSeg : (curSeg - prevSeg);
+    return { curSeg: curSeg, prevSeg: prevSeg, pct: pct, mom: mom,
+             full: (Tj >= TREND_WIN), slope: slopeOf(arr, tMid, Tj) };
   }
   /* 趋势方向：增多(↑,改善,绿) / 减少(↓,恶化,红) / 走平(→)；dn=红(恶化) up=绿(改善) flat=灰 */
   function trendCls(d) {
@@ -12192,13 +12224,7 @@ rzStart();
     if (d < -TREND_EPS) return 'dn';
     return 'flat';
   }
-  /* 近 15 分钟资金增减：arr[Tj]-arr[Tj-15]，反映「由大变小/由小变大」，不看当前正负 */
-  function recentDelta(arr, Tj) {
-    if (!arr || Tj <= 0) return null;
-    var tW = Math.max(0, Tj - 15);
-    if (arr[Tj] === null || arr[tW] === null) return null;
-    return arr[Tj] - arr[tW];
-  }
+  /* ⚠️ 原 recentDelta 已合并进 fundTrend（2026-09-19 晚）：同一份滑动窗口逻辑只保留一份，勿再镜像 */
   /* 趋势箭头：增多(↑,改善,绿) / 减少(↓,恶化,红) / 走平(→) —— 仅看数值随时间变化，不看正负 */
   function arrowOf(delta) {
     if (delta === null) return '';
@@ -12206,30 +12232,32 @@ rzStart();
     if (delta < -TREND_EPS) return '<span class="rzwtarrow dn">\u2193</span>';
     return '<span class="rzwtarrow flat">\u2192</span>';
   }
-  /* 资金单元格：第一行＝当前净值（红=净流入/绿=净流出）；第二行＝近 N 分钟变化量(亿)＋升/降幅% */
+  /* 资金单元格三行：
+     ① 当前累计净值（红=净流入/绿=净流出）
+     ② 本段净额 ＋ 环比%（满 N 分钟才出；箭头与配色跟「动能变化 mom」走）
+     ③ 斜率（亿/分，整段方向与速度；本段未满 N 分钟时标注「较开盘」） */
   function fundCell(v, arr, Tj) {
     if (v === null || v === undefined || !isFinite(v)) return '<span class="rzwtfv">\u2014</span>';
-    var signCls = v >= 0 ? 'up' : 'down';
+    var out = '<span class="rzwtfv ' + (v >= 0 ? 'up' : 'down') + '">' + fmtYi(v) + '</span>';
     var tr = fundTrend(arr, Tj);
-    var sub = '';
-    if (tr) {
-      var c = trendCls(tr.dYi);
-      if (c === 'flat') {
-        sub = '<br><span class="rzwtarrow flat">\u2192</span>';
-      } else {
-        var dTxt = fmtYi(tr.dYi);                                     /* +X.XX亿 / -X.XX亿 */
-        var pTxt = (tr.pct !== null) ? '（' + fmtPct(tr.pct) + '）' : '';
-        sub = '<br><span class="rzwtarrow ' + c + '">' + (c === 'up' ? '\u2191' : '\u2193') + '</span>'
-            + '<span class="rzwtdelta ' + c + '">' + dTxt + pTxt + '</span>';
-      }
+    if (!tr) return out;
+    var c = trendCls(tr.mom);
+    if (tr.full) {
+      out += '<br><span class="rzwtdelta ' + c + '">' + arrowOf(tr.mom) + fmtYi(tr.curSeg)
+           + (tr.pct !== null ? '\u00b7\u73af\u6bd4 ' + fmtPct(tr.pct) : '')
+           + '</span>';
     }
-    return '<span class="rzwtfv ' + signCls + '">' + fmtYi(v) + '</span>' + sub;
+    if (tr.slope !== null) {
+      out += '<br><span class="rzwtslope ' + trendCls(tr.slope) + '">\u659c\u7387 ' + fmtSlope(tr.slope)
+           + (tr.full ? '' : '\uff08\u8f83\u5f00\u76d8\uff09') + '</span>';
+    }
+    return out;
   }
-  /* 资金近段变化量文案：仅在「恶化/减弱」（dYi<0）时给数字，改善则不额外强调；pct 为 null 时只给亿值 */
+  /* 动能文案（提示列用）：仅在「恶化」（mom<0）时给数字，改善则不额外强调；pct 为 null 时只给亿值 */
   function trendMag(arr, Tj) {
     var tr = fundTrend(arr, Tj);
-    if (!tr || tr.dYi >= 0) return '';
-    var s = ' ' + fmtYi(tr.dYi);
+    if (!tr || tr.mom >= 0) return '';
+    var s = ' ' + fmtYi(tr.mom);
     if (tr.pct !== null) s += '/' + fmtPct(tr.pct);
     return s;
   }
@@ -12238,7 +12266,8 @@ rzStart();
     if (!r || r.st === 'err' || r.st === 'wait') return r ? (r.why || '') : '';
     var priceUp = r.pxPct >= 0;
     var fIn = r.fCur >= 0;                       /* 个股资金当前净流为正？ */
-    var fDelta = recentDelta(r.FI, r.Tj);          /* 个股资金近段增减 */
+    var fTr = fundTrend(r.FI, r.Tj);
+    var fDelta = fTr ? fTr.mom : null;             /* 个股资金动能变化（本段−上段，亿） */
     var fWeaken = (fDelta !== null && fDelta < -TREND_EPS);
     if (fIn && priceUp) {
       if (fWeaken) return '\u26a0 资金减弱（虽正但缩' + trendMag(r.FI, r.Tj) + '）';
@@ -12690,8 +12719,8 @@ rzStart();
     }
     var h = '<table class="rzwttable"><thead><tr>'
       + '<th>名称/代码</th><th>现价(+%)</th>'
-      + '<th>板块净流入<br><span class="rzwtcap">近' + TREND_WIN + '分变化</span></th>'
-      + '<th>个股净流入<br><span class="rzwtcap">近' + TREND_WIN + '分变化</span></th>'
+      + '<th>板块净流入<br><span class="rzwtcap">\u8fd1' + TREND_WIN + '\u5206\uff1a\u51c0\u989d\u00b7\u73af\u6bd4\u00b7\u659c\u7387</span></th>'
+      + '<th>个股净流入<br><span class="rzwtcap">\u8fd1' + TREND_WIN + '\u5206\uff1a\u51c0\u989d\u00b7\u73af\u6bd4\u00b7\u659c\u7387</span></th>'
       + '<th>提示</th><th></th>'
       + '</tr></thead><tbody>';
     for (var i = 0; i < WT.list.length; i++) {
@@ -12938,6 +12967,8 @@ rzStart();
   WT._t = {
     judge: judge, run: run, render: render, bind: bind, setTab: setTab, chartSVG: chartSVG,
     sumHTML: sumHTML, rowHTML: rowHTML, hintOf: hintOf, serToArr: serToArr, tmin: tmin, tminOf: tminOf,
+    fundTrend: fundTrend, fundCell: fundCell, slopeOf: slopeOf, fmtSlope: fmtSlope,
+    trendCls: trendCls, trendMag: trendMag, TREND_WIN: TREND_WIN, SEG_MIN: SEG_MIN,
     isTrading: isTrading, addByInput: addByInput, delByCode: delByCode,
     WIN_MIN: WIN_MIN, DASH_MIN: DASH_MIN, WEAK_MIN: WEAK_MIN, CFG: CFG,
     loadList: loadList, saveList: saveList, resolveBk: resolveBk, pick: pick,
