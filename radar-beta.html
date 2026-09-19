@@ -723,21 +723,31 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
 .rzwtcnt.wait,.rzwtcnt.err{background:#eef1f5;color:#8b93a1;border-color:#e6eaef}
 .rzwtalert{font-size:11.5px;color:#b3261e;background:#fff5f5;border:1px solid #f6d0cd;border-radius:8px;padding:6px 8px;margin-bottom:6px;font-weight:600;line-height:1.5}
 .rzwtalert.big{border-width:2px;font-size:12.5px}
-.rzwtlist{display:flex;flex-direction:column;gap:4px}
-.rzwtbox{display:flex;flex-direction:column;border:1px solid #eef2f7;border-radius:8px;background:#fff;padding:5px 6px}
-.rzwtrow{display:flex;align-items:center;gap:6px}
-.rzwtnm{flex:1 1 auto;min-width:0;font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rzwtnm em{font-style:normal;font-weight:400;font-size:11px;color:var(--txt3)}
-.rzwttag{flex:0 0 auto;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;border:1px solid transparent;white-space:nowrap}
-.rzwttag.hold{background:#e8f0fe;color:#1a56c4;border-color:#bcd0f7}
-.rzwttag.press{background:#fdecec;color:#c62828;border-color:#f3c4c4}
-.rzwttlbox{margin-top:3px}
-.rzwttl{display:block;width:100%;max-width:460px;height:auto}
+/* 旧逐张徽章卡 / 时间轴已废弃（2026-09-19 改为集中表格），以下仅保留在用的表格样式 */
 .rzwtdel{flex:0 0 auto;border:1px solid #e3e7ec;background:#fff;color:#94a3b8;border-radius:7px;padding:3px 8px;font-size:13px;line-height:1}
 .rzwtsub{font-size:10.5px;color:var(--txt3);line-height:1.5;margin-top:1px;word-break:break-word}
-.rzwtsub b.up{color:#c62828}
-.rzwtsub b.down{color:#1b8a3a}
 .rzwtchart{margin:4px 0 1px;padding:4px 6px 2px;background:#fbfcfe;border:1px solid #eef2f7;border-radius:8px}
+/* 持有个股面板：集中表格（替代原逐张徽章卡 + 时间轴） */
+.rzwttable{width:100%;border-collapse:collapse;font-size:12px;margin-top:2px}
+.rzwttable th{background:#f3f6fa;color:#5b6472;font-weight:600;font-size:11px;text-align:right;padding:4px 6px;border-bottom:1px solid #e5e9ef}
+.rzwttable th:first-child,.rzwttable td:first-child{text-align:left}
+.rzwttable td{padding:5px 6px;text-align:right;border-bottom:1px solid #f0f3f7;vertical-align:top;line-height:1.45}
+.rzwttable tr.rzwtrow:hover{background:#fafbfd}
+.rzwttable tr.rzwtrow:nth-child(8n+1){background:#fcfdff}
+.rzwtname{font-weight:700;white-space:nowrap}
+.rzwtname em{font-style:normal;font-weight:400;font-size:11px;color:var(--txt3)}
+.rzwtfv{font-weight:700}
+.rzwtfv.up{color:#c62828}      /* 资金数值为正（净流入） */
+.rzwtfv.down{color:#1b8a3a}    /* 资金数值为负（净流出） */
+.rzwtarrow{font-weight:700;margin-left:2px}
+.rzwtarrow.up{color:#1b8a3a}    /* 趋势：增多/改善 ↑ 绿 */
+.rzwtarrow.dn{color:#c62828}   /* 趋势：减少/恶化 ↓ 红 */
+.rzwtarrow.flat{color:#9aa1ab} /* 趋势：走平 → */
+.rzwthint{text-align:left;font-size:11px;color:#334155}
+.rzwthint.warn{color:#c62828;font-weight:600}
+.rzwtop{white-space:nowrap}
+.rzwtchartrow td{padding:0 6px 6px}
+.rzwtsub{font-size:10.5px;color:var(--txt3);line-height:1.5}
 .rzwtsvg{display:block;width:100%;max-width:460px;height:auto;margin:2px 0 0}
 .rzlg.fr{background:#e0392b;opacity:.75;height:2px}
 body.rzrec-hide .rzwttabs,body.rzrec-hide .rzwtpane{display:none}
@@ -12086,6 +12096,44 @@ rzStart();
     return (v > 0 ? '+' : '') + (Math.round(v * 100) / 100).toFixed(2) + '\u4ebf';
   }
 
+  /* ---------- 趋势箭头 & 持有个股面板提示 ---------- */
+  var TREND_EPS = 0.05;   /* 资金近段增减「走平」阈值（亿元），低于视为 → */
+  /* 近 15 分钟资金增减：arr[Tj]-arr[Tj-15]，反映「由大变小/由小变大」，不看当前正负 */
+  function recentDelta(arr, Tj) {
+    if (!arr || Tj <= 0) return null;
+    var tW = Math.max(0, Tj - 15);
+    if (arr[Tj] === null || arr[tW] === null) return null;
+    return arr[Tj] - arr[tW];
+  }
+  /* 趋势箭头：增多(↑,改善,绿) / 减少(↓,恶化,红) / 走平(→) —— 仅看数值随时间变化，不看正负 */
+  function arrowOf(delta) {
+    if (delta === null) return '';
+    if (delta > TREND_EPS) return '<span class="rzwtarrow up">\u2191</span>';
+    if (delta < -TREND_EPS) return '<span class="rzwtarrow dn">\u2193</span>';
+    return '<span class="rzwtarrow flat">\u2192</span>';
+  }
+  /* 资金单元格：数值按正负配色（红=净流入/绿=净流出），再叠加趋势箭头（由大变小/由小变大） */
+  function fundCell(v, arr, Tj) {
+    if (v === null || v === undefined || !isFinite(v)) return '<span class="rzwtfv">\u2014</span>';
+    var signCls = v >= 0 ? 'up' : 'down';
+    return '<span class="rzwtfv ' + signCls + '">' + fmtYi(v) + '</span>' + arrowOf(recentDelta(arr, Tj));
+  }
+  /* 持有个股面板「提示」：4 条规则 + 趋势守卫（净流入为正但随时间变小 → 资金减弱，不称强势） */
+  function hintOf(r) {
+    if (!r || r.st === 'err' || r.st === 'wait') return r ? (r.why || '') : '';
+    var priceUp = r.pxPct >= 0;
+    var fIn = r.fCur >= 0;                       /* 个股资金当前净流为正？ */
+    var fDelta = recentDelta(r.FI, r.Tj);          /* 个股资金近段增减 */
+    var fWeaken = (fDelta !== null && fDelta < -TREND_EPS);
+    if (fIn && priceUp) {
+      if (fWeaken) return '\u26a0 资金减弱（虽正但缩）';
+      return '资金跟进·强势';
+    }
+    if (!fIn && priceUp) return '\u26a0 价涨资金出·背离(诱多?)';
+    if (!fIn && !priceUp) return (fDelta !== null && fDelta < -TREND_EPS) ? '资金出·加速' : '资金出·弱势';
+    return '资金进·吸筹?';
+  }
+
   /* ---------- 自选股存储 ---------- */
   function loadList() {
     try {
@@ -12423,36 +12471,32 @@ rzStart();
 
   /* ---------- 渲染 ---------- */
   function rowHTML(r, i) {
-    var m = metaOf(r);
     var w = WT.list[i] || {};
     var nm = w.name || r.name || r.secid;
     var cd = w.code || String(r.secid).split('.')[1] || '';
     var del = '<button class="rzwtdel" type="button" data-c="' + esc(cd) + '" title="移除">×</button>';
     if (r.st === 'err' || r.st === 'wait') {
-      return '<div class="rzwtbox" data-i="' + i + '"><div class="rzwtrow">'
-        + '<span class="rzwtnm">' + esc(nm) + ' <em>' + esc(cd) + '</em></span>'
-        + '<span class="rzwttag ' + m.cls + '">' + m.lbl + '</span>' + del
-        + '</div><div class="rzwtsub">' + esc(r.why || '') + '</div></div>';
+      return '<tr class="rzwtrow" data-i="' + i + '"><td class="rzwtname">' + esc(nm) + ' <em>' + esc(cd) + '</em></td>'
+        + '<td colspan="4" class="rzwtsub">' + esc(r.why || '') + '</td><td>' + del + '</td></tr>';
     }
-    var bkHtml = r.bk
-      ? esc(r.bk) + ' <b class="' + (r.sCur >= 0 ? 'up' : 'down') + '">' + fmtYi(r.sCur) + '</b>'
+    var pxCls = r.pxPct >= 0 ? 'up' : 'down';
+    var pxHtml = '<b class="rzwtfv ' + pxCls + '">¥' + (r.px !== null ? r.px : '—') + '</b> '
+      + '<b class="' + pxCls + '">' + fmtPct(r.pxPct) + '</b>';
+    var bkCell = r.bk
+      ? esc(r.bk) + '<br>' + fundCell(r.sCur, r.FS, r.Tj)
       : '—（未匹配板块）';
-    return '<div class="rzwtbox" data-i="' + i + '">'
-      + '<div class="rzwtrow">'
-      + '<span class="rzwtnm">' + esc(nm) + ' <em>' + esc(cd) + '</em></span>'
-      + '<span class="rzwttag ' + m.cls + '">' + m.lbl + '</span>'
-      + '<button class="rzrecbtn" type="button" data-a="wtchart">曲线</button>'
-      + del
-      + '</div>'
-      + '<div class="rzwtsub">现价 <b>¥' + (r.px !== null ? r.px : '—') + '</b>'
-      + ' <b class="' + (r.pxPct >= 0 ? 'up' : 'down') + '">' + fmtPct(r.pxPct) + '</b>'
-      + ' · 板块 ' + bkHtml
-      + ' · 个股资金 <b class="' + (r.fCur >= 0 ? 'up' : 'down') + '">' + fmtYi(r.fCur) + '</b>'
-      + '</div>'
-      + '<div class="rzwtsub">' + esc(r.why) + '</div>'
-      + '<div class="rzwttlbox">' + tlSVG(r.secid) + '</div>'
-      + '<div class="rzwtchart" hidden></div>'
-      + '</div>';
+    var hint = hintOf(r);
+    var hintCls = (/背离|减弱|加速/.test(hint)) ? 'warn' : '';
+    return '<tr class="rzwtrow" data-i="' + i + '">'
+      + '<td class="rzwtname">' + esc(nm) + ' <em>' + esc(cd) + '</em></td>'
+      + '<td>' + pxHtml + '</td>'
+      + '<td>' + bkCell + '</td>'
+      + '<td>' + fundCell(r.fCur, r.FI, r.Tj) + '</td>'
+      + '<td class="rzwthint ' + hintCls + '">' + esc(hint) + '</td>'
+      + '<td class="rzwtop">' + del
+      + ' <button class="rzrecbtn" type="button" data-a="wtchart">曲线</button></td>'
+      + '</tr>'
+      + '<tr class="rzwtchartrow" hidden><td colspan="6"><div class="rzwtchart"></div></td></tr>';
   }
 
   /* ---------- 状态切换时间轴（开市→收市为轴，一条线记录承托/压制切换） ---------- */
@@ -12497,26 +12541,23 @@ rzStart();
 
   function sumHTML(big) {
     if (!WT.list.length) return '';
-    var c = { hold: 0, press: 0, flat: 0, wait: 0, err: 0 }, i;
-    for (i = 0; i < WT.list.length; i++) {
-      var r = WT.res[WT.list[i].secid];
-      var k = r ? r.st : 'err';
-      if (c[k] === undefined) k = 'err';
-      c[k]++;
+    var n = WT.list.length, diverge = 0, weak = 0, i, r;
+    for (i = 0; i < n; i++) {
+      r = WT.res[WT.list[i].secid];
+      if (!r) continue;
+      var hh = hintOf(r);
+      if (/背离/.test(hh)) diverge++;
+      else if (/弱势|加速|减弱/.test(hh)) weak++;
     }
-    var order = [['press', '压制'], ['hold', '承托'], ['flat', '重合'], ['wait', '待开盘']];
-    var parts = [];
-    order.forEach(function (p) {
-      if (c[p[0]]) parts.push('<span class="rzwtcnt ' + p[0] + '">' + ST_META[p[0]].lbl + ' <b>' + c[p[0]] + '</b></span>');
-    });
     var now = nowDate();
     var ts = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
-    var alert = [];
-    if (c.press) alert.push(c.press + ' 只压制（资金压价）');
-    return '<div class="rzwtsumbar"><span class="rzwtsumttl">自选 ' + WT.list.length + ' 只</span>'
+    var parts = [];
+    if (diverge) parts.push('<span class="rzwtcnt press">⚠ ' + diverge + ' 只价涨资金出</span>');
+    if (weak) parts.push('<span class="rzwtcnt flat">' + weak + ' 只资金出</span>');
+    return '<div class="rzwtsumbar"><span class="rzwtsumttl">自选 ' + n + ' 只</span>'
       + parts.join('')
       + '<span class="rzwtsumts">' + (big ? '大提示' : '小提示') + ' ' + ts + '</span></div>'
-      + (alert.length ? '<div class="rzwtalert' + (big ? ' big' : '') + '">资金压价，注意减仓风险。</div>' : '');
+      + (diverge ? '<div class="rzwtalert big">⚠ ' + diverge + ' 只价涨但个股资金净流出（诱多?），注意减仓风险。</div>' : '');
   }
 
   function render() {
@@ -12532,12 +12573,15 @@ rzStart();
         + '点「＋ 加自选」，就会每分钟更新一次。</div>';
       return;
     }
-    var h = '', i, w, r;
-    for (i = 0; i < WT.list.length; i++) {
-      w = WT.list[i];
-      r = WT.res[w.secid] || { secid: w.secid, name: w.name, bk: w.bk, st: 'wait', why: '等待取数…' };
+    var h = '<table class="rzwttable"><thead><tr>'
+      + '<th>名称/代码</th><th>现价(+%)</th><th>板块净流入</th><th>个股净流入</th><th>提示</th><th></th>'
+      + '</tr></thead><tbody>';
+    for (var i = 0; i < WT.list.length; i++) {
+      var w = WT.list[i];
+      var r = WT.res[w.secid] || { secid: w.secid, name: w.name, bk: w.bk, st: 'wait', why: '等待取数…' };
       h += rowHTML(r, i);
     }
+    h += '</tbody></table>';
     host.innerHTML = h;
   }
 
@@ -12605,7 +12649,6 @@ rzStart();
           }
           var fSec = w.bkCode ? (bkSer[w.bkCode] || null) : null;
           var r = judge(w.secid, w.name, w.bk, pr.pre, pr.pts, fl, fSec, T);
-          recordTl(w.secid, r ? r.st : null, T);
           WT.res[w.secid] = r;
         }).catch(function (e) {
           WT.res[w.secid] = {
@@ -12708,11 +12751,11 @@ rzStart();
         if (d) { delByCode(d.getAttribute('data-c')); return; }
         var c = (tg && tg.closest) ? tg.closest('.rzrecbtn[data-a="wtchart"]') : null;
         if (!c) return;
-        var box = c.closest('.rzwtbox');
-        var pane = box && box.querySelector('.rzwtchart');
+        var row = c.closest('.rzwtrow');
+        var pane = row && row.nextElementSibling && row.nextElementSibling.querySelector('.rzwtchart');
         if (!pane) return;
         if (!pane.hidden) { pane.hidden = true; pane.innerHTML = ''; return; }
-        var w = WT.list[parseInt(box.getAttribute('data-i'), 10)];
+        var w = WT.list[parseInt(row.getAttribute('data-i'), 10)];
         var r = w && WT.res[w.secid];
         var svg = chartSVG(r);
         if (!svg) {
@@ -12765,7 +12808,7 @@ rzStart();
   /* 测试钩子 */
   WT._t = {
     judge: judge, run: run, render: render, bind: bind, setTab: setTab, chartSVG: chartSVG,
-    sumHTML: sumHTML, rowHTML: rowHTML, serToArr: serToArr, tmin: tmin, tminOf: tminOf,
+    sumHTML: sumHTML, rowHTML: rowHTML, hintOf: hintOf, serToArr: serToArr, tmin: tmin, tminOf: tminOf,
     isTrading: isTrading, addByInput: addByInput, delByCode: delByCode,
     WIN_MIN: WIN_MIN, DASH_MIN: DASH_MIN, WEAK_MIN: WEAK_MIN, CFG: CFG,
     loadList: loadList, saveList: saveList, resolveBk: resolveBk, pick: pick,
