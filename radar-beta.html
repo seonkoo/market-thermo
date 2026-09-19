@@ -687,6 +687,7 @@ html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
 .rzrecpct{font-weight:700}
 .rzrecpct.up{color:#c62828}
 .rzrecpct.down{color:#1b8a3a}
+.rzrecpct.flat{color:#9aa1ab}
 .rzrecadd{flex:0 0 auto;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700}
 .rzrecadd:disabled{opacity:.5;border-color:#c9d6e5;background:#f3f6fa;color:#7d8794}
 .rzrecbtn{flex:0 0 auto;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:7px;padding:4px 8px;font-size:11px}
@@ -695,6 +696,22 @@ html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
 .rzrecsnaptag{font-size:10px;font-weight:400;background:#f1f5f9;color:#64748b;border-radius:5px;padding:1px 6px}
 .rzrecsum{font-size:11.5px;color:#374151;background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:6px 8px;margin-bottom:6px;line-height:1.6}
 .rzrecsum b{font-size:12.5px}
+/* 行业分组 tab 条 */
+.rzrectabs{display:flex;gap:5px;flex-wrap:wrap;margin:0 0 5px}
+.rzrectab{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;border:1px solid #dbe6f5;background:#fff;color:#334155;border-radius:8px;padding:3px 8px;font-size:11px;font-weight:600;line-height:1.4}
+.rzrectab.on{border-color:#93c5fd;background:#eff6ff;color:#1d4ed8}
+.rzrectabr{font-size:11px;color:#64748b}
+.rzrectab.on .rzrectabr{color:#1d4ed8}
+.rzrectabnm{max-width:7em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rzrectabcnt{font-size:10px;color:#94a3b8}
+/* 买点选择条（5/10/…/30 分买入→末价） */
+.rzrecbuybar{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin:0 0 6px}
+.rzrecbuylbl{font-size:10.5px;color:#94a3b8;margin-right:1px}
+.rzrecbuy{flex:0 0 auto;display:inline-flex;flex-direction:column;align-items:center;line-height:1.25;border:1px solid #dbe6f5;background:#fff;color:#334155;border-radius:8px;padding:3px 7px;font-size:11px}
+.rzrecbuy.on{border-color:#93c5fd;background:#eff6ff}
+.rzrecbuym{font-size:10px;color:#64748b}
+.rzrecbuy.on .rzrecbuym{color:#1d4ed8;font-weight:700}
+.rzrecbuy b{font-size:11.5px}
 .rzrecchart{margin:5px 0 2px;padding:4px 6px 2px;background:#fbfcfe;border:1px solid #eef2f7;border-radius:8px}
 .rzrecsvg{display:block;width:100%;max-width:460px;height:auto;margin:2px 0 0}
 .rzrecchartctl{display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap}
@@ -703,7 +720,7 @@ html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
 .rzlg.p{background:#1a73e8}
 .rzlg.f{background:#e0392b}
 .rzlg.w{background:#fdf6e3;height:9px;border:1px solid #f0e0b8}
-body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,body.rzrec-hide .rzrecsum,body.rzrec-hide .rzrecsnapbar,body.rzrec-hide .rzrectabs{display:none}
+body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,body.rzrec-hide .rzrecsum,body.rzrec-hide .rzrecsnapbar,body.rzrec-hide .rzrectabs,body.rzrec-hide .rzrecbuybar{display:none}
 /* 我的自选股（纯视觉三态判读） */
 .rzwttabs{display:flex;gap:5px;margin:0 0 6px}
 .rzwttab{flex:1 1 auto;border:1px solid #dbe6f5;background:#fff;color:#475569;border-radius:8px;padding:5px 8px;font-size:12px;font-weight:600}
@@ -10883,7 +10900,7 @@ rzStart();
     anchors: {},          // secid -> {d, lo, hi, flo, fhi}（页面自建，盘前打开时写入）
     srv: null,            // 服务端预生成的锚 {d, n, items}（收盘后由 update.yml 构建）
     srvTs: 0,             // srv 拉取时刻（失败重试节流）
-    rows: [], mkt: null,
+    rows: [], mkt: null, buyM: 30,   // buyM＝选定买点（开盘后 M 分钟，默认 30＝10:00）
     groups: [], tab: 0,   // 行业分组（资金流入前三各自一份名单）
     st: { phase: 'idle', msg: '', ts: 0, anchorDay: '', n: 0 },
     busy: false, timer: null, lastRun: 0
@@ -10893,6 +10910,7 @@ rzStart();
   var SRV_URL = 'snap/anchor.json';   // 服务端锚（同源，收盘后构建）
   var SRV_RETRY_MS = 10 * 60 * 1000;  // 拉失败后的重试间隔
   var REFRESH_MS = 3 * 60 * 1000;
+  var BUY_MINS = [5, 10, 15, 20, 25, 30];   /* 买点：开盘后 M 分钟（09:35…10:00） */
 
   var ETF_POOL = [
     ['1.588170', '科创半导体ETF'],
@@ -11502,6 +11520,25 @@ rzStart();
     }
     return null;
   }
+  /* 买点收益：开盘后 M 分钟买入 → 末价（盘后＝收盘价；盘中＝现价）涨跌幅%。P 为该票当日原始价格序列 */
+  function chgFromBuy(r, M) {
+    if (!r || !r.P) return null;
+    var bp = r.P[M];
+    if (bp === null || bp === undefined || !isFinite(bp) || bp <= 0) return null;
+    var cp = pxLast(r.P);
+    if (cp === null || cp === undefined || !isFinite(cp) || cp <= 0) return null;
+    return (cp / bp - 1) * 100;
+  }
+  /* 某买点在当前名单上的等权平均收益%（全无有效则 null）——「各时间段到收盘获利情况」 */
+  function avgChgFromBuy(rows, M) {
+    if (!rows || !rows.length) return null;
+    var s = 0, n = 0, i;
+    for (i = 0; i < rows.length; i++) {
+      var v = chgFromBuy(rows[i], M);
+      if (v !== null && isFinite(v)) { s += v; n++; }
+    }
+    return n ? round2(s / n) : null;
+  }
   /* 当前 tab 的名单（实时视图） */
   function curRows() {
     var gs = LV.groups || [];
@@ -11633,8 +11670,14 @@ rzStart();
           + ' <b class="rzrecpct ' + (up ? 'up' : 'down') + '">¥' + pxC + '</b>');
       }
     }
-    /* 复盘最关心的一项：10:00 买入 → 收盘 涨了几个点 */
-    if (r.chgPost !== undefined && r.chgPost !== null) {
+    /* 复盘最关心的一项：选定买点（M 分钟）买入 → 末价 涨了几个点；无可算时回退旧 10:00 口径 */
+    var bm = LV.buyM || 30;
+    var cb = chgFromBuy(r, bm);
+    if (cb !== null) {
+      var rClosed = (r.chgClose !== undefined && r.chgClose !== null);
+      a.push(bm + '\u5206\u4e70\u5165\u2192' + (rClosed ? '\u6536\u76d8' : '\u73b0\u4ef7')
+        + ' <b class="rzrecpct ' + (cb >= 0 ? 'up' : 'down') + '">' + fmtPct(cb) + '</b>');
+    } else if (r.chgPost !== undefined && r.chgPost !== null) {
       a.push('10:00\u4e70\u5165\u2192\u6536\u76d8 <b class="rzrecpct ' + (r.chgPost >= 0 ? 'up' : 'down') + '">' + fmtPct(r.chgPost) + '</b>');
     }
     if (r.chgWin !== undefined && r.chgWin !== null) {
@@ -11720,6 +11763,25 @@ rzStart();
     return h + '</div>';
   }
 
+  /* 买点选择条：每个买点显示「该点买入→末价」的等权平均收益%（兼作「各时间段获利情况」一览）
+     —— 选中某买点后，每只股票的指标行改显示该点买入的收益 */
+  function buyBarHTML(rows) {
+    var h = '<div class="rzrecbuybar"><span class="rzrecbuylbl">\u4e70\u70b9</span>';
+    var hasRow = !!(rows && rows.length);
+    for (var i = 0; i < BUY_MINS.length; i++) {
+      var M = BUY_MINS[i];
+      var avg = hasRow ? avgChgFromBuy(rows, M) : null;
+      var on = (LV.buyM === M);
+      h += '<button type="button" class="rzrecbuy' + (on ? ' on' : '') + '" data-b="' + M + '">'
+        + '<span class="rzrecbuym">' + M + '\u5206</span>'
+        + (avg !== null
+          ? '<b class="rzrecpct ' + (avg >= 0 ? 'up' : 'down') + '">' + fmtPct(avg) + '</b>'
+          : '<b class="rzrecpct flat">\u2014</b>')
+        + '</button>';
+    }
+    return h + '</div>';
+  }
+
   function renderSnap(sn) {
     var host = $('rzRecList');
     if (!host) return;
@@ -11736,6 +11798,7 @@ rzStart();
       + '<span class="rzrecsnaptag">' + (sn.mode === 'review' ? '\u76d8\u540e\u56de\u6d4b\u53e3\u5f84' : '\u76d8\u4e2d\u5feb\u7167\u53e3\u5f84')
       + '</span><span class="rzrecsnaptag">\u975e\u5b9e\u65f6</span></div>';
     h += tabsHTML(gs);
+    h += buyBarHTML(cur);
     h += snapSumHTML({ rows: cur });
     h += cur.map(snapRowHTML).join('');
     if (!cur.length) h += '<div class="rzlvempty">\u8be5\u5206\u7ec4\u65e0\u5408\u683c\u6807\u7684\u3002</div>';
@@ -11873,7 +11936,7 @@ rzStart();
       renderSnap(snap);
     } else if (gs.length) {
       var gN = gs[LV.tab] || {};
-      host.innerHTML = tabsHTML(gs) + (cur.length
+      host.innerHTML = tabsHTML(gs) + buyBarHTML(cur) + (cur.length
         ? cur.map(rowHTML).join('')
         : '<div class="rzlvempty">' + (gN.rank > 0
             ? '\u8be5\u884c\u4e1a\u672c\u8f6e\u65e0\u300c\u4e0d\u4ea4\u53c9\uff0b\u4ef7\u683c\u4e0a\u884c\u300d\u7684\u6807\u7684'
@@ -11904,6 +11967,12 @@ rzStart();
         if (tb) {
           var ti = parseInt(tb.getAttribute('data-t'), 10);
           if (isFinite(ti)) { LV.tab = ti; render(); }
+          return;
+        }
+        var bb = tg && tg.closest ? tg.closest('.rzrecbuy') : null;
+        if (bb) {
+          var bi = parseInt(bb.getAttribute('data-b'), 10);
+          if (isFinite(bi)) { LV.buyM = bi; render(); }
           return;
         }
         var z = tg && tg.closest ? tg.closest('.rzrecbtn[data-a="zoom"]') : null;
@@ -11972,6 +12041,8 @@ rzStart();
     loadSnap: loadSnap, saveSnap: saveSnap, snapOf: snapOf, fallbackSnap: fallbackSnap,
     serToArr: serToArr, minRow: minRow, chartSVG: chartSVG, renderSnap: renderSnap,
     pxLast: pxLast,
+    chgFromBuy: chgFromBuy, avgChgFromBuy: avgChgFromBuy, buyBarHTML: buyBarHTML,
+    BUY_MINS: BUY_MINS, setBuyM: function (v) { LV.buyM = v; },
     curList: curList, toggleChart: toggleChart, metricsHTML: metricsHTML,
     snapRowHTML: snapRowHTML, daysOld: daysOld, chartCtlHTML: chartCtlHTML,
     curRows: curRows, snapGroups: snapGroups, snapTotal: snapTotal,
@@ -12795,7 +12866,18 @@ rzStart();
       host.addEventListener('click', function (e) {
         var tg = e.target;
         var d = (tg && tg.closest) ? tg.closest('.rzwtdel') : null;
-        if (d) { delByCode(d.getAttribute('data-c')); return; }
+        if (d) {
+          var dc = d.getAttribute('data-c');
+          var dn = '';
+          for (var wi = 0; wi < WT.list.length; wi++) {
+            if (WT.list[wi].code === dc) { dn = WT.list[wi].name || ''; break; }
+          }
+          var ask = '\u786e\u8ba4\u4ece\u81ea\u9009\u79fb\u9664 ' + (dn ? dn + '\uff08' + dc + '\uff09' : dc) + ' \uff1f';
+          /* 二次确认：无 confirm 环境（如无头测试）默认放行，避免阻断 */
+          if (typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.confirm(ask)) return;
+          delByCode(dc);
+          return;
+        }
         var c = (tg && tg.closest) ? tg.closest('.rzrecbtn[data-a="wtchart"]') : null;
         if (!c) return;
         var row = c.closest('.rzwtrow');
