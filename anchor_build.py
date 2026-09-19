@@ -43,9 +43,9 @@ from datetime import datetime, timedelta, timezone
 CST = timezone(timedelta(hours=8))
 
 # ---------- 参数（与页面保持一致） ----------
-TOP_BK = 20          # 覆盖资金净流入前 N 名行业（页面判定时只用前 3，这里放宽做后备）
-PER_BK = 100         # 每行业最多取多少只成员
-MAX_WORKERS = 8      # 并发（避免触发限流）
+TOP_BK = 60          # 最多展开多少个行业（按资金净流入排名，够了就提前停）
+PER_BK = 120         # 每行业最多取多少只成员
+MAX_WORKERS = 12     # 并发（避免触发限流）
 MIN_PAIRS = 30       # 有效配对分钟数下限（页面同为 30）
 CLOSE_GATE_HM = (15, 5)   # CST 15:05 之后才算「收盘后」
 
@@ -313,13 +313,15 @@ def build_one(item, want_day):
     return {
         "nm": item.get("name", ""),
         "lo": round(lo, 4), "hi": round(hi, 4),
-        "flo": round(flo, 5), "fhi": round(fhi, 5),
-        "n": n,
+        # 资金单位＝亿元（与页面实时曲线一致）；保留 8 位小数 ＝ 精确到 1 元
+        "flo": round(flo, 8), "fhi": round(fhi, 8),
+        "n": n, "_d": day,
     }
 
 
 # ---------- 主流程 ----------
-def collect_universe(top_bk, per_bk, limit=0):
+def collect_universe(top_bk, per_bk, target=0, limit=0):
+    """按资金净流入排名依次展开行业成员，直到去重后达到 target 只（或行业数用尽）。"""
     seen = set()
     uni = []
     for e in ETF_POOL:
@@ -328,8 +330,9 @@ def collect_universe(top_bk, per_bk, limit=0):
         seen.add(e[0])
         uni.append({"secid": e[0], "name": e[1], "bk": "ETF"})
     bks = top_industries(top_bk)
-    print("[universe] 资金净流入前 %d 行业：%s" % (len(bks), "、".join(b["name"] for b in bks)))
-    for b in bks:
+    print("[universe] 候选行业 %d 个：%s"
+          % (len(bks), "、".join(b["name"] for b in bks[:10]) + ("…" if len(bks) > 10 else "")))
+    for i, b in enumerate(bks, 1):
         ms = members(b["code"], per_bk)
         added = 0
         for m in ms:
@@ -339,7 +342,10 @@ def collect_universe(top_bk, per_bk, limit=0):
             m["bk"] = b["name"]
             uni.append(m)
             added += 1
-        print("   %-16s 成员可用 %3d 只" % (b["name"][:16], added))
+        print("   #%2d %-16s 新增 %3d 只  累计 %4d" % (i, b["name"][:16], added, len(uni)))
+        if target and len(uni) >= target:
+            print("[universe] 已达目标 %d 只，停止扩张" % target)
+            break
         if limit and len(uni) >= limit:
             break
     if limit:
@@ -350,12 +356,14 @@ def collect_universe(top_bk, per_bk, limit=0):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="snap/anchor.json")
-    ap.add_argument("--top-bk", type=int, default=TOP_BK)
+    ap.add_argument("--top-bk", type=int, default=TOP_BK, help="最多展开多少个行业")
     ap.add_argument("--per-bk", type=int, default=PER_BK)
+    ap.add_argument("--target", type=int, default=1200, help="去重后累计到多少只就停")
     ap.add_argument("--workers", type=int, default=MAX_WORKERS)
     ap.add_argument("--probe", type=int, default=0, help="只抓 N 只做探测，不写文件")
     ap.add_argument("--force", action="store_true", help="忽略 15:05 收盘门禁")
-    ap.add_argument("--max-seconds", type=int, default=420)
+    ap.add_argument("--rebuild", action="store_true", help="即使今天已构建过也重建")
+    ap.add_argument("--max-seconds", type=int, default=1500)
     args = ap.parse_args()
 
     now = datetime.now(CST)
@@ -369,10 +377,22 @@ def main():
             print("[skip] 未到 15:05，当日数据尚不完整 —— 保持上一版尺子不动"); return 0
 
     today = now.strftime("%Y-%m-%d")
+
+    # 幂等：同一天只构建一次（当天的 run 有多次，避免重复烧时间）
+    if not args.force and not args.rebuild and os.path.exists(args.out):
+        try:
+            with open(args.out, "r", encoding="utf-8") as f:
+                old = json.load(f)
+            if old.get("d") == today:
+                print("[skip] 今天的尺子已存在（d=%s，%d 只），无需重建" % (today, old.get("n", 0)))
+                return 0
+        except Exception:  # noqa: BLE001
+            pass
+
     want_day = today if not args.force else ""   # probe/force 时放宽日期校验
 
     t0 = time.time()
-    uni = collect_universe(args.top_bk, args.per_bk, limit=args.probe)
+    uni = collect_universe(args.top_bk, args.per_bk, target=args.target, limit=args.probe)
     print("[universe] 候选 %d 只" % len(uni))
     if not uni:
         print("[fatal] 候选池为空"); return 1
@@ -417,7 +437,21 @@ def main():
         print("[fatal] 成功数过少(%d)，判定为异常，保留上一版尺子" % len(items))
         return 1
 
-    out = {"d": today, "built": now.strftime("%Y-%m-%dT%H:%M:%S+08:00"),
+    # 锚的基准日 = 数据实际所属的交易日（主流值），而不是运行时的墙钟日期。
+    # 例：周六手动跑时拿到的是周五的数据，d 必须是周五。
+    day_vote = {}
+    for v in items.values():
+        dv = v.pop("_d", "") or ""
+        if dv:
+            day_vote[dv] = day_vote.get(dv, 0) + 1
+    data_day = max(day_vote, key=day_vote.get) if day_vote else today
+    agree = day_vote.get(data_day, 0)
+    print("[day] 数据所属交易日 = %s（%d/%d 一致）" % (data_day, agree, len(items)))
+    if not args.force and data_day != today:
+        print("[skip] 数据日(%s)不是今天(%s) —— 可能休市，保留上一版尺子" % (data_day, today))
+        return 0
+
+    out = {"d": data_day, "built": now.strftime("%Y-%m-%dT%H:%M:%S+08:00"),
            "n": len(items), "src": "close", "items": items}
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
