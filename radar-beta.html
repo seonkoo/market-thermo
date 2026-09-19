@@ -717,12 +717,10 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
 .rzwtsumttl{font-weight:700;font-size:12px}
 .rzwtsumts{margin-left:auto;font-size:10px;color:var(--txt3);font-variant-numeric:tabular-nums}
 .rzwtcnt{border-radius:6px;padding:1px 6px;font-weight:600;border:1px solid transparent;white-space:nowrap}
-.rzwtcnt.sell,.rzwtcnt.attack{background:#fdecec;color:#c62828;border-color:#f3c4c4}
-.rzwtcnt.wash{background:#e0f2f7;color:#0e7490;border-color:#b7e0ec}
-.rzwtcnt.lure{background:#f3e8ff;color:#6d28d9;border-color:#ddd0f5}
-.rzwtcnt.out{background:#e9f7ee;color:#1b8a3a;border-color:#c8e6d3}
-.rzwtcnt.weak{background:#fff4e5;color:#b26a00;border-color:#f0d6ab}
-.rzwtcnt.watch,.rzwtcnt.wait{background:#eef1f5;color:#5b6472;border-color:#dde3ea}
+.rzwtcnt.hold{background:#e8f0fe;color:#1a56c4;border-color:#bcd0f7}
+.rzwtcnt.press{background:#fdecec;color:#c62828;border-color:#f3c4c4}
+.rzwtcnt.flat{background:#eef1f5;color:#5b6472;border-color:#dde3ea}
+.rzwtcnt.wait,.rzwtcnt.err{background:#eef1f5;color:#8b93a1;border-color:#e6eaef}
 .rzwtalert{font-size:11.5px;color:#b3261e;background:#fff5f5;border:1px solid #f6d0cd;border-radius:8px;padding:6px 8px;margin-bottom:6px;font-weight:600;line-height:1.5}
 .rzwtalert.big{border-width:2px;font-size:12.5px}
 .rzwtlist{display:flex;flex-direction:column;gap:4px}
@@ -731,13 +729,10 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
 .rzwtnm{flex:1 1 auto;min-width:0;font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rzwtnm em{font-style:normal;font-weight:400;font-size:11px;color:var(--txt3)}
 .rzwttag{flex:0 0 auto;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;border:1px solid transparent;white-space:nowrap}
-.rzwttag.attack{background:#fdecec;color:#c62828;border-color:#f3c4c4}
-.rzwttag.wash{background:#e0f2f7;color:#0e7490;border-color:#b7e0ec}
-.rzwttag.weak{background:#fff4e5;color:#b26a00;border-color:#f0d6ab}
-.rzwttag.sell{background:#c62828;color:#fff;border-color:#a91f1f}
-.rzwttag.out{background:#e9f7ee;color:#1b8a3a;border-color:#c8e6d3}
-.rzwttag.lure{background:#f3e8ff;color:#6d28d9;border-color:#ddd0f5}
-.rzwttag.watch{background:#eef1f5;color:#5b6472;border-color:#dde3ea}
+.rzwttag.hold{background:#e8f0fe;color:#1a56c4;border-color:#bcd0f7}
+.rzwttag.press{background:#fdecec;color:#c62828;border-color:#f3c4c4}
+.rzwttlbox{margin-top:3px}
+.rzwttl{display:block;width:100%;max-width:460px;height:auto}
 .rzwtdel{flex:0 0 auto;border:1px solid #e3e7ec;background:#fff;color:#94a3b8;border-radius:7px;padding:3px 8px;font-size:13px;line-height:1}
 .rzwtsub{font-size:10.5px;color:var(--txt3);line-height:1.5;margin-top:1px;word-break:break-word}
 .rzwtsub b.up{color:#c62828}
@@ -11615,9 +11610,12 @@ rzStart();
     } else {
       var pxC = pxLast(r.P);
       if (pxC !== null) {
-        /* 收盘价按「当日涨跌」着色：涨红跌绿（基准 chgClose＝昨收→收盘） */
-        var up = (r.chgClose !== undefined && r.chgClose !== null) ? (r.chgClose >= 0) : true;
-        a.push('\u6536\u76d8 <b class="rzrecpct ' + (up ? 'up' : 'down') + '">¥' + pxC + '</b>');
+        /* 快照回看：真收盘（closed，row 带 chgClose）标「收盘」；盘中未收盘（无 chgClose）标「盘中末价」
+           —— 纯诚实性修正，不改变判定逻辑 */
+        var closed = (r.chgClose !== undefined && r.chgClose !== null);
+        var up = closed ? (r.chgClose >= 0) : true;
+        a.push((closed ? '\u6536\u76d8' : '\u76d8\u4e2d\u672b\u4ef7')
+          + ' <b class="rzrecpct ' + (up ? 'up' : 'down') + '">¥' + pxC + '</b>');
       }
     }
     /* 复盘最关心的一项：10:00 买入 → 收盘 涨了几个点 */
@@ -11989,7 +11987,9 @@ rzStart();
                个股资金（实线，净流入段红 / 净流出段绿）
                板块资金（细虚线，同色规则）
      · 判读只看同一时刻的 Y 高低：蓝线在资金线「上方」⟺ yP < yF
-   六态 + 洗盘（优先级 sell > lure > out > weak > wash > attack > watch；2026-09-19 用户补充口径）：
+   七态（独立形态判读；下列顺序是【冲突时的裁决顺序】而非重要性优先级；2026-09-19 用户口径）：
+     用户原话「卖>诱多>净流出>弱>洗盘>进攻>观察 这个没有优先级，就是让你去判断形态，我只是尽可能穷举」——
+     七态是并列的形态，单只标的在单时刻可能沾边多个，最终只展示一个 tag，下列顺序仅用于裁决谁先报。
      sell   卖点        蓝线被压制 ≥5 分钟 ＋ 蓝线/资金线两线均向下（近 5 分钟负增长）
      lure   诱多嫌疑    聚焦开盘 0–5 分钟冲高回落：价红 ＋ 资金仍正但 5 分钟递减 ＋ 蓝线在资金线下方且向下
      out    净流出清出  蓝线在下方 ＋ 资金为负 ＋ 仍在递减（窗口内即如此）
@@ -12011,11 +12011,24 @@ rzStart();
   var WK = 'rz_mywatch_v1';
   var MIN_MS = 60 * 1000;
   var TICK_S = 20;          /* 每分钟的第 20 秒刷新 */
-  var DASH_MIN = 5;         /* 蓝线被压制 ≥5 分钟 → 卖点 */
-  var WEAK_MIN = 3;         /* 被压制 ≥3 分钟 → 转弱预警 */
-  var WIN_MIN = 30;         /* 判定窗口固定 09:30–10:00（30 交易分钟），之后定格 */
   var SPAN = 240;           /* 全天交易分钟数 */
   var BK_CACHE_MS = 300000; /* 板块资金序列缓存 5 分钟 */
+
+  /* ============ 可调口径（配置化，不硬编码；改这里即可调形态阈值） ============
+     七态是「独立形态判读」，下列枚举顺序只是冲突时的裁决顺序，并非重要性优先级。
+     单只标的在单时刻可能同时沾边多个形态，最终只展示一个 tag；裁决顺序按
+     「最消极/最确认 → 最中性」排列（卖 > 诱多 > 净流出 > 弱 > 洗盘 > 进攻 > 观察）。 */
+  var CFG = {
+    winMin:   30,     /* 判定窗口固定 09:30–10:00（30 交易分钟），之后定格 */
+    dashMin:  5,      /* 蓝线被压制 ≥ 此分钟 → 卖点 */
+    weakMin:  3,      /* 被压制 ≥ 此分钟 → 转弱预警 */
+    lureWin:  5,      /* 诱多聚焦「开盘 0–lureWin 分钟」冲高回落 */
+    dipRatio: 0.003,  /* 洗盘：价格自早段高点回落 ≥ 此比例（如 0.3%）才算「砸下去」（绿开/红开下砸都认） */
+    washFlat: 0.0     /* 洗盘尾段资金线允许的最大下行（亿元）；0＝只要不下行即可（平缓/小涨都算「砸不动」企稳） */
+  };
+  var WIN_MIN  = CFG.winMin;
+  var DASH_MIN = CFG.dashMin;
+  var WEAK_MIN = CFG.weakMin;
 
   /* ETF 的参考板块（东财 f100 对 ETF 返回 '-'，需人工映射，页面标为「板块」） */
   var ETF_BK = {
@@ -12212,7 +12225,8 @@ rzStart();
     /* ===== 判定窗口：固定 09:30–10:00（Tj = min(T, WIN_MIN)），10:00 后定格 =====
        判定用「窗口自身区间」归一化（与 10:00 那一刻的矩形一致，定格后不变）；
        图（r.lo/hi/rI/rS）仍用全天区间画 0..T，供 10:00 后自行观察。 */
-    var Tj = Math.min(T, WIN_MIN);
+    var Tj = T;                       /* 自选股实时全时段：判定窗口＝当前交易分钟，不再定格 09:30–10:00 */
+    var EPS = 0.035;                  /* 两线重合死区：|dI|≤EPS 判「重合」，避免噪声在承托/压制间抖动刷屏 */
     var wlo = Infinity, whi = -Infinity;
     for (i = 0; i <= Tj; i++) {
       v = P[i];
@@ -12256,96 +12270,64 @@ rzStart();
       var n = 0;
       for (var m = Tj; m >= 0; m--) {
         if (d[m] === null) break;
-        if (d[m] > 0) n++; else break;
+        if (d[m] > EPS) n++; else break;
+      }
+      return n;
+    }
+    /* ===== 两态判读（用户 2026-09-19 拍板）：只报客观承托/压制 + 维持时长，形态由用户自判 =====
+       承托 hold ＝ 蓝线在资金线上方（资金在下方托价）；压制 press ＝ 蓝线在资金线下方（资金在上方压价）。
+       资金方向（↑/↓/→）单独提示、不作为状态门槛；其余形态用户自看。自选股实时全时段，不再定格。 */
+    function aboveRun(d) {
+      var n = 0;
+      for (var m = Tj; m >= 0; m--) {
+        if (d[m] === null) break;
+        if (d[m] < -EPS) n++; else break;
       }
       return n;
     }
     var belowI = belowRun(dI), belowS = belowRun(dS);
+    var aboveIrun = aboveRun(dI), aboveSrun = aboveRun(dS);
     var below = Math.max(belowI, belowS);
-    var byWhich = (belowI >= belowS) ? '\u4e2a\u80a1\u8d44\u91d1\u7ebf' : '\u677f\u5757\u8d44\u91d1\u7ebf';
+    var above = Math.max(aboveIrun, aboveSrun);
 
-    var k0 = Math.max(0, Tj - 5);
+    /* 斜率 = 全窗口首末趋势（开盘→当前），抗 1 分钟噪声，不再用 5 分钟尾窗 */
+    var k0 = 0;
     var pSlope = (P[Tj] !== null && P[k0] !== null) ? P[Tj] - P[k0] : 0;
     var fSlope = (FI[Tj] !== null && FI[k0] !== null) ? FI[Tj] - FI[k0] : 0;
     var sSlope = (FS && FS[Tj] !== null && FS[k0] !== null) ? FS[Tj] - FS[k0] : null;
 
-    var aboveI = (dI[Tj] !== null && dI[Tj] < 0);
-    var aboveS = (dS[Tj] !== null && dS[Tj] < 0);
-    var bothAbove = aboveI && (wrS ? aboveS : true);
-    var curBelow = (dI[Tj] !== null && dI[Tj] > 0);
+    var dEq = (dI[Tj] !== null && Math.abs(dI[Tj]) <= EPS);
+    var aboveI = (dI[Tj] !== null && dI[Tj] < -EPS);
+    var aboveS = (dS[Tj] !== null && dS[Tj] < -EPS);
+    var curBelow = (dI[Tj] !== null && dI[Tj] > EPS);
+    var frozen = false;   /* 自选股实时全时段，不再定格 09:30–10:00 */
 
-    /* 判定用「窗口末」读数（定格口径）；展示仍用实时读数（base.px / base.fCur） */
-    var chgPreW = pre > 0 ? (P[Tj] / pre - 1) * 100 : 0;
-    var wfCur = FI[Tj];
-    var frozen = T > WIN_MIN;
-
-    /* 窗口内蓝线是否曾在资金线上方（判定参考） */
-    var everAbove = false;
-    for (i = 0; i <= Tj; i++) if (dI[i] !== null && dI[i] < 0) { everAbove = true; break; }
-
-    /* 开盘冲高（全天高点出现在 0–5 分钟，且之后回落）——诱多的典型形态 */
-    var peak05 = null, hiWin = null;
-    for (i = 0; i <= Tj; i++) {
-      if (P[i] === null) continue;
-      if (hiWin === null || P[i] > hiWin) hiWin = P[i];
-      if (i <= 5 && (peak05 === null || P[i] > peak05)) peak05 = P[i];
+    function slpTxt(f) {
+      if (f > 0) return '\u2191\u4e0a\u884c';
+      if (f < 0) return '\u2193\u4e0b\u884c';
+      return '\u2192\u8d70\u5e73';
     }
-    var openSpike = (hiWin !== null && peak05 !== null && P[0] !== null && P[Tj] !== null
-      && (hiWin - peak05) < 1e-9          /* 全天高点出现在开盘 0–5 分钟 */
-      && hiWin > P[0]                     /* 相对开盘价冲高 */
-      && P[Tj] < hiWin);                  /* 已从高点回落 */
-    /* 绿开（低于昨收）＋ 蓝线上穿资金线事件（洗盘：早段被压 → 上穿 → 承托） */
-    var lowOpen = (P[0] !== null && pre > 0 && P[0] < pre);
-    var crossUp = false, crossAt = -1, everBelow = false, dipLow = false;
-    for (i = 1; i <= Tj; i++) {
-      if (P[i] !== null && crossAt < 0 && P[i] < P[0]) dipLow = true;   /* 上穿前价格先砸低过 */
-      if (dI[i] === null || dI[i - 1] === null) continue;
-      if (dI[i - 1] > 0) everBelow = true;
-      if (dI[i - 1] > 0 && dI[i] < 0) { crossUp = true; if (crossAt < 0) crossAt = i; }
-    }
-    var wash = lowOpen && dipLow && crossUp && aboveI && pSlope > 0 && fSlope > 0;
 
-    var st, why;
-    /* 用户补充（2026-09-19）：卖/转弱需两线同步向下（负增长）才算确认；
-       诱多聚焦开盘 0–5 分钟冲高回落；核心看资金线是承托还是压制。 */
-    var down2 = (pSlope < 0 && fSlope < 0);
-    if (below >= DASH_MIN && down2) {
-      st = 'sell';
-      why = '\u84dd\u7ebf\u88ab' + byWhich + '\u538b\u5236 ' + below + ' \u5206\u949f\uff0c\u4e24\u7ebf\u540c\u6b65\u5411\u4e0b\uff08\u8d1f\u589e\u957f\uff09';
-    } else if (openSpike && chgPreW > 0 && curBelow && wfCur > 0 && fSlope < 0 && pSlope < 0) {
-      st = 'lure';
-      why = '\u5f00\u76d8\u51b2\u9ad8\u8bf1\u591a\uff1a\u4ef7\u7ea2\u3001\u8d44\u91d1\u4ecd\u6b63\u4f46 5 \u5206\u949f\u9012\u51cf ' + fmtYi(fSlope) + '\uff0c\u84dd\u7ebf\u5728\u8d44\u91d1\u7ebf\u4e0b\u4e14\u5411\u4e0b';
-    } else if (curBelow && wfCur < 0 && fSlope < 0) {
-      st = 'out';
-      why = '\u8d44\u91d1 ' + fmtYi(wfCur) + '\u4e14\u4ecd\u5728\u51cf\uff085 \u5206\u949f ' + fmtYi(fSlope)
-        + '\uff09\uff0c\u8d44\u91d1\u7ebf\u538b\u5236\u84dd\u7ebf\uff0c\u7a97\u53e3\u5185\u5373\u5982\u6b64';
-    } else if (below >= WEAK_MIN && down2) {
-      st = 'weak';
-      why = '\u84dd\u7ebf\u88ab' + byWhich + '\u538b\u5236 ' + below + ' \u5206\u949f\uff0c\u4e24\u7ebf\u540c\u6b65\u5411\u4e0b';
-    } else if (wash) {
-      st = 'wash';
-      why = '\u7eff\u5f00\u4e0b\u7838\u540e\u84dd\u7ebf\u4e0a\u7a7f\u8d44\u91d1\u7ebf\uff0c\u8d44\u91d1\u7ebf\u5728\u4e0b\u627f\u6258\u3001\u4e24\u8005\u5171\u5411\u4e0a\uff08\u6d17\u76d8\u4f01\u7a33\uff09';
-    } else if (bothAbove && pSlope > 0 && fSlope > 0 && (sSlope === null || sSlope > 0)) {
-      st = 'attack';
-      why = '\u84dd\u7ebf\u5728\u4e24\u8d44\u91d1\u7ebf\u4e0a\u65b9\uff0c\u4e09\u8005\u5747\u4e0a\u884c';
+    var st, why, dur;
+    if (dI[Tj] === null) {
+      st = 'wait'; why = '\u6570\u636e\u4e0d\u8db3'; dur = 0;
+    } else if (aboveI) {
+      st = 'hold'; dur = aboveIrun;
+      why = '\u84dd\u7ebf\u5728\u8d44\u91d1\u7ebf\u4e0a\u65b9\uff08\u8d44\u91d1\u627f\u6258\uff09\uff0c\u5df2\u7ef4\u6301 ' + dur + ' \u5206\u949f\uff0c\u8d44\u91d1' + slpTxt(fSlope);
+    } else if (curBelow) {
+      st = 'press'; dur = belowI;
+      why = '\u84dd\u7ebf\u5728\u8d44\u91d1\u7ebf\u4e0b\u65b9\uff08\u8d44\u91d1\u538b\u5236\uff09\uff0c\u5df2\u7ef4\u6301 ' + dur + ' \u5206\u949f\uff0c\u8d44\u91d1' + slpTxt(fSlope);
     } else {
-      st = 'watch';
-      why = (pSlope > 0 && fSlope > 0 && everBelow && everAbove) ? '\u4e24\u7ebf\u7ea0\u7f20\u5411\u4e0a\uff0c\u5f85\u5206\u8fa8\u627f\u6258/\u538b\u5236'
-        : below >= WEAK_MIN ? '\u84dd\u7ebf\u88ab\u538b\u5236 ' + below + ' \u5206\u949f\uff0c\u4f46\u4e24\u7ebf\u672a\u540c\u6b65\u5411\u4e0b'
-        : bothAbove ? '\u84dd\u7ebf\u5728\u4e0a\u65b9\uff0c\u4f46\u672a\u540c\u6b65\u4e0a\u884c'
-        : '\u4e24\u7ebf\u7ea0\u7f20\uff0c\u672a\u6210\u5f62\u6001';
+      st = 'flat'; dur = 0;
+      why = '\u4e24\u7ebf\u91cd\u5408\uff08\u4ef7\u7ebf\u4e0e\u8d44\u91d1\u7ebf\u91cd\u53e0\uff09';
     }
-    if (frozen) why += '\uff0809:30\u201310:00 \u7a97\u53e3\u5b9a\u683c\uff09';
 
-    base.st = st; base.why = why;
+    base.st = st; base.why = why; base.dur = dur;
     base.Tj = Tj; base.frozen = frozen;
-    /* 展示用实时读数（10:00 后判词定格，但现价/资金仍随行情刷新供观察） */
     base.fCur = FI[T]; base.sCur = FS ? FS[T] : null;
     base.fSlope = fSlope; base.sSlope = sSlope;
-    base.below = below; base.belowI = belowI; base.belowS = belowS; base.byWhich = byWhich;
-    base.aboveI = aboveI; base.aboveS = aboveS; base.everAbove = everAbove;
-    base.everBelow = everBelow; base.crossUp = crossUp; base.crossAt = crossAt;
-    base.openSpike = openSpike; base.lowOpen = lowOpen; base.wash = wash;
+    base.below = below; base.above = above;
+    base.aboveI = aboveI; base.aboveS = aboveS; base.curBelow = curBelow;
     base.P = P; base.FI = FI; base.FS = FS; base.lo = lo; base.hi = hi; base.rI = rI; base.rS = rS;
     return base;
   }
@@ -12431,15 +12413,11 @@ rzStart();
 
   /* ---------- 文案 ---------- */
   var ST_META = {
-    wash: { cls: 'wash', icon: '\uD83D\uDD35', lbl: '\u6d17\u76d8 \u00b7 \u4f01\u7a33\u56de\u5347' },
-    attack: { cls: 'attack', icon: '\uD83D\uDD34', lbl: '\u8fdb\u653b\u4e2d \u00b7 \u53ef\u6b63T / \u7ee7\u7eed\u6301\u6709' },
-    weak: { cls: 'weak', icon: '\u26A0\uFE0F', lbl: '\u8f6c\u5f31\u9884\u8b66 \u00b7 \u51c6\u5907' },
-    sell: { cls: 'sell', icon: '\uD83D\uDD3B', lbl: '\u5356\u70b9 \u00b7 \u5efa\u8bae\u51cf\u6301' },
-    out: { cls: 'out', icon: '\uD83D\uDFE2', lbl: '\u51c0\u6d41\u51fa \u00b7 \u62e9\u673a\u6e05\u51fa' },
-    lure: { cls: 'lure', icon: '\uD83D\uDFE3', lbl: '\u8bf1\u591a\u5acc\u7591 \u00b7 \u5356\u51fa' },
-    watch: { cls: 'watch', icon: '\u26AA', lbl: '\u89c2\u5bdf \u00b7 \u5f85\u5f62\u6001' },
-    wait: { cls: 'watch', icon: '\u23F3', lbl: '\u7b49\u5f85\u5f00\u76d8' },
-    err: { cls: 'watch', icon: '\u26A0\uFE0F', lbl: '\u53d6\u6570\u5931\u8d25' }
+    hold:  { cls: 'hold',  lbl: '承托 · 资金托价' },
+    press: { cls: 'press', lbl: '压制 · 资金压价' },
+    flat:  { cls: 'watch', lbl: '两线重合' },
+    wait:  { cls: 'watch', lbl: '等待开盘' },
+    err:   { cls: 'watch', lbl: '取数失败' }
   };
   function metaOf(r) { return ST_META[(r && r.st)] || ST_META.watch; }
 
@@ -12449,62 +12427,96 @@ rzStart();
     var w = WT.list[i] || {};
     var nm = w.name || r.name || r.secid;
     var cd = w.code || String(r.secid).split('.')[1] || '';
-    var del = '<button class="rzwtdel" type="button" data-c="' + esc(cd) + '" title="\u79fb\u9664">\u00D7</button>';
+    var del = '<button class="rzwtdel" type="button" data-c="' + esc(cd) + '" title="移除">×</button>';
     if (r.st === 'err' || r.st === 'wait') {
       return '<div class="rzwtbox" data-i="' + i + '"><div class="rzwtrow">'
         + '<span class="rzwtnm">' + esc(nm) + ' <em>' + esc(cd) + '</em></span>'
-        + '<span class="rzwttag ' + m.cls + '">' + m.icon + ' ' + m.lbl + '</span>' + del
+        + '<span class="rzwttag ' + m.cls + '">' + m.lbl + '</span>' + del
         + '</div><div class="rzwtsub">' + esc(r.why || '') + '</div></div>';
     }
     var bkHtml = r.bk
       ? esc(r.bk) + ' <b class="' + (r.sCur >= 0 ? 'up' : 'down') + '">' + fmtYi(r.sCur) + '</b>'
-      : '\u2014\uff08\u672a\u5339\u914d\u677f\u5757\uff09';
+      : '—（未匹配板块）';
     return '<div class="rzwtbox" data-i="' + i + '">'
       + '<div class="rzwtrow">'
       + '<span class="rzwtnm">' + esc(nm) + ' <em>' + esc(cd) + '</em></span>'
-      + '<span class="rzwttag ' + m.cls + '">' + m.icon + ' ' + m.lbl + '</span>'
-      + '<button class="rzrecbtn" type="button" data-a="wtchart">\u66f2\u7ebf</button>'
+      + '<span class="rzwttag ' + m.cls + '">' + m.lbl + '</span>'
+      + '<button class="rzrecbtn" type="button" data-a="wtchart">曲线</button>'
       + del
       + '</div>'
-      + '<div class="rzwtsub">\u73b0\u4ef7 <b>\u00A5' + (r.px !== null ? r.px : '\u2014') + '</b>'
+      + '<div class="rzwtsub">现价 <b>¥' + (r.px !== null ? r.px : '—') + '</b>'
       + ' <b class="' + (r.pxPct >= 0 ? 'up' : 'down') + '">' + fmtPct(r.pxPct) + '</b>'
-      + ' \u00b7 \u677f\u5757 ' + bkHtml
-      + ' \u00b7 \u4e2a\u80a1\u8d44\u91d1 <b class="' + (r.fCur >= 0 ? 'up' : 'down') + '">' + fmtYi(r.fCur) + '</b>'
+      + ' · 板块 ' + bkHtml
+      + ' · 个股资金 <b class="' + (r.fCur >= 0 ? 'up' : 'down') + '">' + fmtYi(r.fCur) + '</b>'
       + '</div>'
       + '<div class="rzwtsub">' + esc(r.why) + '</div>'
+      + '<div class="rzwttlbox">' + tlSVG(r.secid) + '</div>'
       + '<div class="rzwtchart" hidden></div>'
       + '</div>';
   }
 
+  /* ---------- 状态切换时间轴（开市→收市为轴，一条线记录承托/压制切换） ---------- */
+  function tlSVG(code) {
+    var o = getTl(), e = o[code];
+    var Wd = 300, Hd = 20, y = 10;
+    var s = '<svg class="rzwttl" viewBox="0 0 ' + Wd + ' ' + Hd + '" preserveAspectRatio="none" role="img" aria-label="状态时间轴">';
+    s += '<line x1="0" y1="' + y + '" x2="' + Wd + '" y2="' + y + '" stroke="#e5e7eb" stroke-width="1"/>';
+    if (e && e.segs && e.segs.length) {
+      var col = { hold: '#1a73e8', press: '#e0392b' };
+      var segs = e.segs, curTm = Math.min(tminOf(nowMin()), SPAN), i, x0, x1;
+      for (i = 0; i < segs.length; i++) {
+        var a = segs[i];
+        var b = (i + 1 < segs.length) ? segs[i + 1] : { tm: curTm };
+        x0 = (a.tm / SPAN) * Wd;
+        x1 = (Math.max(a.tm, b.tm) / SPAN) * Wd;
+        if (x1 <= x0) continue;
+        s += '<line x1="' + x0.toFixed(1) + '" y1="' + y + '" x2="' + x1.toFixed(1) + '" y2="' + y + '" stroke="' + (col[a.st] || '#9aa1ab') + '" stroke-width="4"/>';
+        s += '<line x1="' + x0.toFixed(1) + '" y1="' + (y - 5) + '" x2="' + x0.toFixed(1) + '" y2="' + (y + 5) + '" stroke="#9aa1ab" stroke-width="1"/>';
+        s += '<text x="' + x0.toFixed(1) + '" y="' + (Hd - 1) + '" font-size="8" fill="#9aa1ab" text-anchor="middle">' + esc(a.t) + '</text>';
+      }
+    }
+    return s + '</svg>';
+  }
+  function getTl() {
+    try { return JSON.parse(localStorage.getItem('rz_watch_tl_v1') || '{}'); } catch (e) { return {}; }
+  }
+  function setTl(o) {
+    try { localStorage.setItem('rz_watch_tl_v1', JSON.stringify(o)); } catch (e) {}
+  }
+  function recordTl(code, st, T) {
+    if (!code || !st || st === 'wait' || st === 'err' || st === 'flat') return;
+    var dk = dayKey();
+    var o = getTl(), e = o[code];
+    if (!e || e.date !== dk) { e = { date: dk, segs: [] }; o[code] = e; }
+    var last = e.segs[e.segs.length - 1];
+    var cm = nowMin();
+    var tm = Math.min(tminOf(cm), SPAN);
+    var t = pad2(Math.floor(cm / 60)) + ':' + pad2(cm % 60);
+    if (!last || last.st !== st) { e.segs.push({ tm: tm, t: t, st: st }); setTl(o); }
+  }
+
   function sumHTML(big) {
     if (!WT.list.length) return '';
-    var c = { attack: 0, weak: 0, sell: 0, out: 0, lure: 0, wash: 0, watch: 0, wait: 0, err: 0 }, i;
+    var c = { hold: 0, press: 0, flat: 0, wait: 0, err: 0 }, i;
     for (i = 0; i < WT.list.length; i++) {
       var r = WT.res[WT.list[i].secid];
       var k = r ? r.st : 'err';
-      if (c[k] === undefined) k = 'watch';
+      if (c[k] === undefined) k = 'err';
       c[k]++;
     }
-    var order = [['sell', '\u5356\u70b9'], ['lure', '\u8bf1\u591a'], ['out', '\u51c0\u6d41\u51fa'],
-      ['weak', '\u8f6c\u5f31'], ['wash', '\u6d17\u76d8'], ['attack', '\u8fdb\u653b'], ['watch', '\u89c2\u5bdf'], ['wait', '\u5f85\u5f00\u76d8']];
+    var order = [['press', '压制'], ['hold', '承托'], ['flat', '重合'], ['wait', '待开盘']];
     var parts = [];
     order.forEach(function (p) {
-      if (c[p[0]]) parts.push('<span class="rzwtcnt ' + p[0] + '">' + ST_META[p[0]].icon + ' ' + p[1] + ' <b>' + c[p[0]] + '</b></span>');
+      if (c[p[0]]) parts.push('<span class="rzwtcnt ' + p[0] + '">' + ST_META[p[0]].lbl + ' <b>' + c[p[0]] + '</b></span>');
     });
     var now = nowDate();
     var ts = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
-    /* 10:00 后判定已按固定窗口定格（仅提示一次，位置固定不跳动） */
-    var frozenTip = (tminOf(nowMin()) > WIN_MIN)
-      ? '<span class="rzwtsumts">\u516d\u6001\u5df2\u6309 09:30\u201310:00 \u5b9a\u683c</span>' : '';
     var alert = [];
-    if (c.sell) alert.push(c.sell + ' \u53ea\u5356\u70b9');
-    if (c.lure) alert.push(c.lure + ' \u53ea\u8bf1\u591a\u5acc\u7591');
-    if (c.out) alert.push(c.out + ' \u53ea\u8d44\u91d1\u51c0\u6d41\u51fa');
-    return '<div class="rzwtsumbar"><span class="rzwtsumttl">\u81ea\u9009 ' + WT.list.length + ' \u53ea</span>'
+    if (c.press) alert.push(c.press + ' 只压制（资金压价）');
+    return '<div class="rzwtsumbar"><span class="rzwtsumttl">自选 ' + WT.list.length + ' 只</span>'
       + parts.join('')
-      + '<span class="rzwtsumts">' + (big ? '\u5927\u63d0\u793a' : '\u5c0f\u63d0\u793a') + ' ' + ts + '</span>' + frozenTip + '</div>'
-      + (alert.length ? '<div class="rzwtalert' + (big ? ' big' : '') + '">\u26A0\uFE0F '
-        + alert.join('\uff0c') + '\uff0c\u5efa\u8bae\u5904\u7406\u3002</div>' : '');
+      + '<span class="rzwtsumts">' + (big ? '大提示' : '小提示') + ' ' + ts + '</span></div>'
+      + (alert.length ? '<div class="rzwtalert' + (big ? ' big' : '') + '">资金压价，注意减仓风险。</div>' : '');
   }
 
   function render() {
@@ -12515,15 +12527,15 @@ rzStart();
     var sEl = $('rzWtSum');
     if (sEl) sEl.innerHTML = sumHTML(WT.big);
     if (!WT.list.length) {
-      host.innerHTML = '<div class="rzlvempty">\u8fd8\u6ca1\u6709\u81ea\u9009\u80a1\u3002'
-        + '\u5728\u4e0a\u9762\u8f93\u5165 6 \u4f4d\u4ee3\u7801\uff08\u5982 600667\u3001515880\uff09'
-        + '\u70b9\u300c\uFF0B \u52a0\u81ea\u9009\u300d\uff0c\u5c31\u4f1a\u6bcf\u5206\u949f\u66f4\u65b0\u4e00\u6b21\u3002</div>';
+      host.innerHTML = '<div class="rzlvempty">还没有自选股。'
+        + '在上面输入 6 位代码（如 600667、515880）'
+        + '点「＋ 加自选」，就会每分钟更新一次。</div>';
       return;
     }
     var h = '', i, w, r;
     for (i = 0; i < WT.list.length; i++) {
       w = WT.list[i];
-      r = WT.res[w.secid] || { secid: w.secid, name: w.name, bk: w.bk, st: 'wait', why: '\u7b49\u5f85\u53d6\u6570\u2026' };
+      r = WT.res[w.secid] || { secid: w.secid, name: w.name, bk: w.bk, st: 'wait', why: '等待取数…' };
       h += rowHTML(r, i);
     }
     host.innerHTML = h;
@@ -12534,10 +12546,10 @@ rzStart();
     if (!idx || !name) return null;
     if (idx[name]) return idx[name];
     var alt;
-    if (/[\u2160\u2161\u2162]$/.test(name)) {
-      alt = name.replace(/[\u2160\u2161\u2162]+$/, '');
+    if (/[ⅠⅡⅢ]$/.test(name)) {
+      alt = name.replace(/[ⅠⅡⅢ]+$/, '');
     } else {
-      alt = name + '\u2161';
+      alt = name + 'Ⅱ';
     }
     return idx[alt] || null;
   }
@@ -12592,7 +12604,9 @@ rzStart();
             return;
           }
           var fSec = w.bkCode ? (bkSer[w.bkCode] || null) : null;
-          WT.res[w.secid] = judge(w.secid, w.name, w.bk, pr.pre, pr.pts, fl, fSec, T);
+          var r = judge(w.secid, w.name, w.bk, pr.pre, pr.pts, fl, fSec, T);
+          recordTl(w.secid, r ? r.st : null, T);
+          WT.res[w.secid] = r;
         }).catch(function (e) {
           WT.res[w.secid] = {
             secid: w.secid, name: w.name, bk: w.bk, st: 'err',
@@ -12635,12 +12649,18 @@ rzStart();
     });
   }
   function delByCode(code) {
+    var rmSecid = null;
     for (var i = 0; i < WT.list.length; i++) {
       if (WT.list[i].code === code) {
+        rmSecid = WT.list[i].secid;
         delete WT.res[WT.list[i].secid];
         WT.list.splice(i, 1);
         break;
       }
+    }
+    if (rmSecid) {                       /* 同步清理该票的状态切换时间轴 */
+      var o = getTl();
+      if (o && o[rmSecid]) { delete o[rmSecid]; setTl(o); }
     }
     saveList();
     if (WT.tab) run(false);
@@ -12747,7 +12767,7 @@ rzStart();
     judge: judge, run: run, render: render, bind: bind, setTab: setTab, chartSVG: chartSVG,
     sumHTML: sumHTML, rowHTML: rowHTML, serToArr: serToArr, tmin: tmin, tminOf: tminOf,
     isTrading: isTrading, addByInput: addByInput, delByCode: delByCode,
-    WIN_MIN: WIN_MIN, DASH_MIN: DASH_MIN, WEAK_MIN: WEAK_MIN,
+    WIN_MIN: WIN_MIN, DASH_MIN: DASH_MIN, WEAK_MIN: WEAK_MIN, CFG: CFG,
     loadList: loadList, saveList: saveList, resolveBk: resolveBk, pick: pick,
     metaOf: metaOf, isWeekend: isWeekend,
     setClock: function (fn) { nowDate = fn || function () { return new Date(); }; },
@@ -12756,7 +12776,8 @@ rzStart();
     getRes: function () { return WT.res; },
     setRes: function (v) { WT.res = v || {}; },
     getBoardSer: function () { return bkSer; },
-    setBoardSer: function (v) { bkSer = v || {}; }
+    setBoardSer: function (v) { bkSer = v || {}; },
+    tlSVG: tlSVG, getTl: getTl, setTl: setTl, recordTl: recordTl, dayKey: dayKey
   };
 
   if (document.readyState === 'loading') {
