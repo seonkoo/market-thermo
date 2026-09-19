@@ -10858,13 +10858,19 @@ rzStart();
    实测：锚取自「判定窗口之外」时零交叉率 ~55%、蓝在上率 ~75%；
          锚取自窗口自身（自指）时零交叉率仅 1.8%，等于无信息。
    锚区间缩放不影响判定（价格与资金同倍缩放时 yP−yF 符号不变），故无需裁剪/扩展。
+   锚有两个来源，叠加使用、不改判定公式：
+     ① 页面自建（盘前打开时读到上一交易日数据 → buildAnchor）
+     ② 服务端预生成（snap/anchor.json，收盘后由 update.yml 跑 anchor_build.py 产出）
+   同 secid 取「基准日更新」的那份 → 从此不必每个交易日开盘前先打开页面。
 ======================================================================== */
 (function () {
   'use strict';
   if (window.RZLV) return;
 
   var LV = window.RZLV = {
-    anchors: {},          // secid -> {d, lo, flo, fhi}
+    anchors: {},          // secid -> {d, lo, hi, flo, fhi}（页面自建，盘前打开时写入）
+    srv: null,            // 服务端预生成的锚 {d, n, items}（收盘后由 update.yml 构建）
+    srvTs: 0,             // srv 拉取时刻（失败重试节流）
     rows: [], mkt: null,
     groups: [], tab: 0,   // 行业分组（资金流入前三各自一份名单）
     st: { phase: 'idle', msg: '', ts: 0, anchorDay: '', n: 0 },
@@ -10872,6 +10878,8 @@ rzStart();
   };
 
   var ANC_KEY = 'rz_anchor_v1';
+  var SRV_URL = 'snap/anchor.json';   // 服务端锚（同源，收盘后构建）
+  var SRV_RETRY_MS = 10 * 60 * 1000;  // 拉失败后的重试间隔
   var REFRESH_MS = 5 * 60 * 1000;
 
   var ETF_POOL = [
@@ -10964,7 +10972,43 @@ rzStart();
       var dd = LV.anchors[k] && LV.anchors[k].d;
       if (dd && dd > d) d = dd;
     }
-    return n ? d : '';
+    /* 服务端锚也计入展示（它是收盘后预生成的，通常比自建锚更新） */
+    if (LV.srv && LV.srv.d && LV.srv.d > d) d = LV.srv.d;
+    return (n || (LV.srv && LV.srv.d)) ? d : '';
+  }
+
+  /* ---------- 服务端锚（收盘后由 update.yml 预生成，页面同源直读） ----------
+     为什么要它：东财的分钟资金流只保留最近 1 个交易日，盘中再也拿不到昨天的
+     分钟资金；所以页面无法自行补建「上一交易日」的尺子，只能靠用户开盘前打开。
+     改由服务端在收盘后算好写进 snap/anchor.json，页面直接读 —— 前置条件消失。
+     口径与页面 buildAnchor() 完全一致，且【不改动任何判定公式】：
+     两份锚叠加，同 secid 取「基准日更新」的那份，任一份缺失/过期都不影响另一份。 */
+  function srvLoad() {
+    LV.srvTs = Date.now();
+    if (typeof fetch !== 'function') return Promise.resolve(null);
+    return fetch(SRV_URL + '?n=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r && r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (j && j.items && typeof j.items === 'object') LV.srv = j;
+        return LV.srv;
+      })
+      .catch(function () { return LV.srv; });
+  }
+  function srvAnchor(secid) {
+    var s = LV.srv;
+    if (!s || !s.items) return null;
+    var a = s.items[secid];
+    if (!a || !(a.hi > a.lo) || !(a.fhi > a.flo)) return null;
+    var o = { d: s.d || '', lo: a.lo, hi: a.hi, flo: a.flo, fhi: a.fhi, nm: a.nm || '' };
+    return anchorFresh(o) ? o : null;
+  }
+  /* 自建锚 与 服务端锚 取基准日更新的那份 */
+  function pickAnchor(secid) {
+    var a = LV.anchors[secid] || null;
+    if (a && (!(a.hi > a.lo) || !anchorFresh(a))) a = null;
+    var b = srvAnchor(secid);
+    if (a && b) return (String(b.d || '') > String(a.d || '')) ? b : a;
+    return a || b;
   }
 
   /* ---------- 锚构造：用「全天」序列 ---------- */
@@ -11155,6 +11199,8 @@ rzStart();
 
   LV.run = function (force) {
     if (LV.busy) return Promise.resolve();
+    /* 服务端锚缺失时定期重试（不阻塞本轮，下一轮就会用上） */
+    if (!LV.srv && Date.now() - LV.srvTs > SRV_RETRY_MS) srvLoad();
     var trading = isTrading();
     if (!trading && (isWeekend() || !force)) {
       setSt('rest', isWeekend() ? '周末休市' : '休市');
@@ -11204,7 +11250,7 @@ rzStart();
           if (an) { LV.anchors[x.secid] = an; LV._dirty = true; }
           return null;
         }
-        var anc = LV.anchors[x.secid];
+        var anc = pickAnchor(x.secid);
         if (!anc || !(anc.hi > anc.lo) || !anchorFresh(anc)) return null;
         var j = judge(x.secid, x.name, x.bk, pr.pre, pr.pts, fl, endTM, anc);
         if (j) { j.winEndHM = hmOf(endTM + 570); j.good = isGood(j); }
@@ -11309,7 +11355,7 @@ rzStart();
         (gg.rows || []).forEach(function (r) { allRows.push(r); });
       });
       allRows.forEach(function (r) {
-        r.anc = LV.anchors[r.secid] || null;
+        r.anc = pickAnchor(r.secid);
         if (r._ser && r.anc) { var a = serToArr(r._ser); r.P = a.P; r.F = a.F; }
         delete r._ser;
       });
@@ -11875,7 +11921,8 @@ rzStart();
     loadAnchors();
     bindEvents();
     render();
-    LV.run(true);
+    /* 先拿服务端锚，拿到再跑；拉取失败也照常跑（退回自建锚，不会卡住） */
+    srvLoad().then(function () { LV.run(true); });
     schedule();
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) return;
@@ -11897,6 +11944,10 @@ rzStart();
     snapRowHTML: snapRowHTML, daysOld: daysOld, chartCtlHTML: chartCtlHTML,
     curRows: curRows, snapGroups: snapGroups, snapTotal: snapTotal,
     tabsHTML: tabsHTML, fetchQuotes: fetchQuotes,
+    srvLoad: srvLoad, srvAnchor: srvAnchor, pickAnchor: pickAnchor,
+    anchorDayOf: anchorDayOf,
+    setSrv: function (v) { LV.srv = v; LV.srvTs = Date.now(); },
+    setAnchors: function (v) { LV.anchors = v || {}; },
     setTab: function (i) { LV.tab = i | 0; render(); }
   };
 
