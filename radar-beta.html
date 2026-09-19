@@ -10826,8 +10826,11 @@ rzStart();
   }
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
   function dayKeyOf(dt) { return dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate()); }
-  function todayKey() { return dayKeyOf(new Date()); }
-  function nowMin() { var d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+  /* 可注入时钟：便于用确定性的「交易日/周末」时间做验证 */
+  var nowDate = function () { return new Date(); };
+  function todayKey() { return dayKeyOf(nowDate()); }
+  function nowMin() { var d = nowDate(); return d.getHours() * 60 + d.getMinutes(); }
+  function isWeekend() { var w = nowDate().getDay(); return w === 0 || w === 6; }
   function hmOf(m) { return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60); }
   function tmin(t) {
     var a = String(t).split(':'), m = (+a[0]) * 60 + (+a[1]);
@@ -10836,6 +10839,7 @@ rzStart();
     return m - 660;
   }
   function isTrading() {
+    if (isWeekend()) return false;
     var m = nowMin();
     return (m >= 570 && m <= 690) || (m >= 780 && m <= 900);
   }
@@ -11055,8 +11059,8 @@ rzStart();
   LV.run = function (force) {
     if (LV.busy) return Promise.resolve();
     var trading = isTrading();
-    if (!trading && !force) {
-      setSt('rest', '休市');
+    if (!trading && (isWeekend() || !force)) {
+      setSt('rest', isWeekend() ? '周末休市' : '休市');
       render();
       return Promise.resolve();
     }
@@ -11291,7 +11295,7 @@ rzStart();
     var tsEl = $('rzLiveTs');
     if (tsEl) {
       if (s.phase === 'load') tsEl.textContent = s.msg || '\u53d6\u6570\u4e2d\u2026';
-      else if (s.phase === 'rest') tsEl.textContent = '\u4f11\u5e02\uff08\u5f85\u5f00\u76d8\uff09';
+      else if (s.phase === 'rest') tsEl.textContent = (s.msg && s.msg !== '\u4f11\u5e02') ? s.msg : '\u4f11\u5e02\uff08\u5f85\u5f00\u76d8\uff09';
       else if (s.phase === 'err') tsEl.textContent = '\u53d6\u6570\u5931\u8d25';
       else if (s.ts) {
         var d = new Date(s.ts);
@@ -11378,7 +11382,9 @@ rzStart();
     tmin: tmin, buildAnchor: buildAnchor, judge: judge, tagOf: tagOf,
     rowHTML: rowHTML, render: render, bindEvents: bindEvents,
     footHTML: footHTML, alreadyAdded: alreadyAdded,
-    saveAnchors: saveAnchors, anchorFresh: anchorFresh, pruneAnchors: pruneAnchors
+    saveAnchors: saveAnchors, anchorFresh: anchorFresh, pruneAnchors: pruneAnchors,
+    isWeekend: isWeekend, isTrading: isTrading,
+    setClock: function (fn) { nowDate = fn || function () { return new Date(); }; }
   };
 
   if (document.readyState === 'loading') {
