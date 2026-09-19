@@ -754,20 +754,21 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
 .rzwtname{font-weight:700;white-space:nowrap}
 .rzwtname em{font-style:normal;font-weight:400;font-size:11px;color:var(--txt3)}
 .rzwtfv{font-weight:700}
-.rzwtfv.up{color:#c62828}      /* 资金数值为正（净流入） */
-.rzwtfv.down{color:#1b8a3a}    /* 资金数值为负（净流出） */
+.rzwtfv.up{color:#c62828}      /* 资金数值为正（净流入）→ 红 */
+.rzwtfv.down{color:#1b8a3a}    /* 资金数值为负（净流出）→ 绿 */
 .rzwtcap{font-weight:400;font-size:9px;color:#94a3b8;display:block;margin-top:1px;line-height:1.2}
+/* 趋势配色统一为 A 股惯例：红＝资金增多/改善，绿＝资金减少/恶化（2026-09-19 晚用户拍板） */
 .rzwtarrow{font-weight:700;margin-left:2px}
-.rzwtarrow.up{color:#1b8a3a}    /* 趋势：增多/改善 ↑ 绿 */
-.rzwtarrow.dn{color:#c62828}   /* 趋势：减少/恶化 ↓ 红 */
-.rzwtarrow.flat{color:#9aa1ab} /* 趋势：走平 → */
+.rzwtarrow.up{color:#c62828}   /* 趋势：增多/改善 ↑ 红 */
+.rzwtarrow.dn{color:#1b8a3a}   /* 趋势：减少/恶化 ↓ 绿 */
+.rzwtarrow.flat{color:#9aa1ab} /* 趋势：走平 → 灰 */
 .rzwtdelta{font-weight:700;font-size:11px}
-.rzwtdelta.up{color:#1b8a3a}   /* 升幅：改善 绿 */
-.rzwtdelta.dn{color:#c62828}   /* 降幅：恶化 红 */
+.rzwtdelta.up{color:#c62828}   /* 升幅/改善 红 */
+.rzwtdelta.dn{color:#1b8a3a}   /* 降幅/恶化 绿 */
 .rzwtdelta.flat{color:#9aa1ab}
 .rzwtslope{font-size:10px;font-weight:600;color:#9aa1ab}
-.rzwtslope.up{color:#1b8a3a}   /* 斜率>0：整段上行（资金在进） */
-.rzwtslope.dn{color:#c62828}   /* 斜率<0：整段下行（资金在出） */
+.rzwtslope.up{color:#c62828}   /* 斜率>0：整段上行（资金在进）→ 红 */
+.rzwtslope.dn{color:#1b8a3a}   /* 斜率<0：整段下行（资金在出）→ 绿 */
 .rzwtslope.flat{color:#9aa1ab}
 .rzwthint{text-align:left;font-size:11px;color:#334155}
 .rzwthint.warn{color:#c62828;font-weight:600}
@@ -12217,7 +12218,8 @@ rzStart();
     return { curSeg: curSeg, prevSeg: prevSeg, pct: pct, mom: mom,
              full: (Tj >= TREND_WIN), slope: slopeOf(arr, tMid, Tj) };
   }
-  /* 趋势方向：增多(↑,改善,绿) / 减少(↓,恶化,红) / 走平(→)；dn=红(恶化) up=绿(改善) flat=灰 */
+  /* 趋势方向：增多(↑,改善) / 减少(↓,恶化) / 走平(→)；类名 up＝数值上升、dn＝数值下降、flat＝走平；
+     配色按 A 股惯例：up→红、dn→绿、flat→灰（2026-09-19 晚用户拍板统一，与「红=净流入」一致） */
   function trendCls(d) {
     if (d === null) return 'flat';
     if (d > TREND_EPS) return 'up';
@@ -12225,7 +12227,7 @@ rzStart();
     return 'flat';
   }
   /* ⚠️ 原 recentDelta 已合并进 fundTrend（2026-09-19 晚）：同一份滑动窗口逻辑只保留一份，勿再镜像 */
-  /* 趋势箭头：增多(↑,改善,绿) / 减少(↓,恶化,红) / 走平(→) —— 仅看数值随时间变化，不看正负 */
+  /* 趋势箭头：增多(↑) / 减少(↓) / 走平(→) —— 仅看数值随时间变化，不看正负；配色 up(增)→红、dn(减)→绿 */
   function arrowOf(delta) {
     if (delta === null) return '';
     if (delta > TREND_EPS) return '<span class="rzwtarrow up">\u2191</span>';
