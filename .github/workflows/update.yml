@@ -49,7 +49,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     # 市场休市时段(周末/节假日)跑出来的数据无意义，直接跳过
-    timeout-minutes: 10
+    timeout-minutes: 40
     steps:
       - name: 检出仓库
         uses: actions/checkout@v4
@@ -129,3 +129,41 @@ jobs:
         run: |
           echo "::warning::本轮数据未通过校验，已保留上一版：${{ steps.check.outputs.why }}"
           git checkout -- data.json data.js timeline.json timeline.js || true
+
+
+      # ---------- 次日用的「尺子」(锚)：收盘后构建 ----------
+      # 背景：页面的「前 30 分钟不交叉」判定需要「上一交易日全天区间」当尺子。
+      #       东财分钟资金流只保留最近 1 个交易日，页面自己盘中再也拿不到昨天的数据，
+      #       所以原先必须由用户在每个交易日开盘前先打开一次页面。
+      #       改成服务端在收盘后算好写进 snap/anchor.json，页面同源直读 —— 前置条件消失。
+      # 口径与页面 buildAnchor() 逐字段一致（已用 09-18 数据 10/10 对账通过）。
+      # 脚本自带门禁：CST 未到 15:05 直接跳过；当天已构建过也跳过。
+      - name: 构建次日推荐用的锚
+        run: |
+          python3 anchor_build.py --out snap/anchor.json --target 1200 --workers 12 --max-seconds 1500
+
+      - name: 提交锚（仅有变化时）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add snap/anchor.json
+          if git diff --cached --quiet; then
+            echo "锚无变化，跳过提交"
+          else
+            git commit -m "chore: 自动更新推荐锚 $(TZ=Asia/Shanghai date +'%Y-%m-%d %H:%M')"
+            for i in 1 2 3; do
+              if ! git pull --rebase --no-edit origin main; then
+                echo "rebase 失败，第 $i 次"
+                sleep 5
+                continue
+              fi
+              if git push origin main; then
+                echo "锚 push 成功（第 $i 次尝试）"
+                exit 0
+              fi
+              echo "锚 push 被拒，第 $i 次重试..."
+              sleep 8
+            done
+            echo "::error::锚 push 连续 3 次失败（保留上一版尺子）"
+            exit 1
+          fi
