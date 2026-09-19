@@ -718,6 +718,7 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
 .rzwtsumts{margin-left:auto;font-size:10px;color:var(--txt3);font-variant-numeric:tabular-nums}
 .rzwtcnt{border-radius:6px;padding:1px 6px;font-weight:600;border:1px solid transparent;white-space:nowrap}
 .rzwtcnt.sell,.rzwtcnt.attack{background:#fdecec;color:#c62828;border-color:#f3c4c4}
+.rzwtcnt.wash{background:#e0f2f7;color:#0e7490;border-color:#b7e0ec}
 .rzwtcnt.lure{background:#f3e8ff;color:#6d28d9;border-color:#ddd0f5}
 .rzwtcnt.out{background:#e9f7ee;color:#1b8a3a;border-color:#c8e6d3}
 .rzwtcnt.weak{background:#fff4e5;color:#b26a00;border-color:#f0d6ab}
@@ -731,6 +732,7 @@ body.rzrec-hide .rzlvbar,body.rzrec-hide .rzreclist,body.rzrec-hide .rzrecft,bod
 .rzwtnm em{font-style:normal;font-weight:400;font-size:11px;color:var(--txt3)}
 .rzwttag{flex:0 0 auto;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;border:1px solid transparent;white-space:nowrap}
 .rzwttag.attack{background:#fdecec;color:#c62828;border-color:#f3c4c4}
+.rzwttag.wash{background:#e0f2f7;color:#0e7490;border-color:#b7e0ec}
 .rzwttag.weak{background:#fff4e5;color:#b26a00;border-color:#f0d6ab}
 .rzwttag.sell{background:#c62828;color:#fff;border-color:#a91f1f}
 .rzwttag.out{background:#e9f7ee;color:#1b8a3a;border-color:#c8e6d3}
@@ -11987,15 +11989,16 @@ rzStart();
                个股资金（实线，净流入段红 / 净流出段绿）
                板块资金（细虚线，同色规则）
      · 判读只看同一时刻的 Y 高低：蓝线在资金线「上方」⟺ yP < yF
-   六态（优先级 sell > lure > out > weak > attack > watch；2026-09-19 用户补充口径）：
+   六态 + 洗盘（优先级 sell > lure > out > weak > wash > attack > watch；2026-09-19 用户补充口径）：
      sell   卖点        蓝线被压制 ≥5 分钟 ＋ 蓝线/资金线两线均向下（近 5 分钟负增长）
-     lure   诱多嫌疑    股价为红 ＋ 个股资金仍为正但 5 分钟递减 ＋ 蓝线在资金线下方，且蓝线也向下
+     lure   诱多嫌疑    聚焦开盘 0–5 分钟冲高回落：价红 ＋ 资金仍正但 5 分钟递减 ＋ 蓝线在资金线下方且向下
      out    净流出清出  蓝线在下方 ＋ 资金为负 ＋ 仍在递减（窗口内即如此）
      weak   转弱预警    蓝线被压制 3–4 分钟 ＋ 两线均向下
+     wash   洗盘企稳    绿开下砸 → 早段蓝线被资金线压 → 蓝线上穿资金线 → 资金线在下承托、两者共向上
      attack 进攻中      蓝线在两资金线上方 ＋ 价 / 个股资金 / 板块资金三者近 5 分钟都上行
-     watch  观察        其余（含「蓝线在上但未同步上行」「压制但两线未同步向下」）
-   判定原则（用户原话）：蓝线有资金线承托（蓝在上）且两线趋势向上 = 稳健信号；
-     蓝线被资金线压制（蓝在下）较难突破；两线皆向上 = 积极，皆向下 = 消极。
+     watch  观察        其余（含「两线纠缠向上，待分辨承托/压制」「压制但两线未同步向下」）
+   判定原则（用户原话）：核心看资金线是「向上承托蓝线」还是「向下压制蓝线」；
+     承托（蓝在上、两线同向上）= 稳健；压制（蓝在下、两线同向下）= 消极；纠缠向上 = 待分辨。
    判定窗口（2026-09-19 用户拍板）：固定开市前 30 分钟（09:30–10:00），
      10:00 后判读定格不再变化（之后的走势自行观察）；图仍画全天，10:00 有橙色虚线分界。
    刷新：小提示＝每分钟一次；大提示＝每 5 分钟一次（跟随主模块的 5 分钟节奏）。
@@ -12280,16 +12283,38 @@ rzStart();
     var everAbove = false;
     for (i = 0; i <= Tj; i++) if (dI[i] !== null && dI[i] < 0) { everAbove = true; break; }
 
+    /* 开盘冲高（全天高点出现在 0–5 分钟，且之后回落）——诱多的典型形态 */
+    var peak05 = null, hiWin = null;
+    for (i = 0; i <= Tj; i++) {
+      if (P[i] === null) continue;
+      if (hiWin === null || P[i] > hiWin) hiWin = P[i];
+      if (i <= 5 && (peak05 === null || P[i] > peak05)) peak05 = P[i];
+    }
+    var openSpike = (hiWin !== null && peak05 !== null && P[0] !== null && P[Tj] !== null
+      && (hiWin - peak05) < 1e-9          /* 全天高点出现在开盘 0–5 分钟 */
+      && hiWin > P[0]                     /* 相对开盘价冲高 */
+      && P[Tj] < hiWin);                  /* 已从高点回落 */
+    /* 绿开（低于昨收）＋ 蓝线上穿资金线事件（洗盘：早段被压 → 上穿 → 承托） */
+    var lowOpen = (P[0] !== null && pre > 0 && P[0] < pre);
+    var crossUp = false, crossAt = -1, everBelow = false, dipLow = false;
+    for (i = 1; i <= Tj; i++) {
+      if (P[i] !== null && crossAt < 0 && P[i] < P[0]) dipLow = true;   /* 上穿前价格先砸低过 */
+      if (dI[i] === null || dI[i - 1] === null) continue;
+      if (dI[i - 1] > 0) everBelow = true;
+      if (dI[i - 1] > 0 && dI[i] < 0) { crossUp = true; if (crossAt < 0) crossAt = i; }
+    }
+    var wash = lowOpen && dipLow && crossUp && aboveI && pSlope > 0 && fSlope > 0;
+
     var st, why;
     /* 用户补充（2026-09-19）：卖/转弱需两线同步向下（负增长）才算确认；
-       诱多需蓝线也向下；两线皆向上=积极、皆向下=消极。 */
+       诱多聚焦开盘 0–5 分钟冲高回落；核心看资金线是承托还是压制。 */
     var down2 = (pSlope < 0 && fSlope < 0);
     if (below >= DASH_MIN && down2) {
       st = 'sell';
       why = '\u84dd\u7ebf\u88ab' + byWhich + '\u538b\u5236 ' + below + ' \u5206\u949f\uff0c\u4e24\u7ebf\u540c\u6b65\u5411\u4e0b\uff08\u8d1f\u589e\u957f\uff09';
-    } else if (chgPreW > 0 && curBelow && wfCur > 0 && fSlope < 0 && pSlope < 0) {
+    } else if (openSpike && chgPreW > 0 && curBelow && wfCur > 0 && fSlope < 0 && pSlope < 0) {
       st = 'lure';
-      why = '\u80a1\u4ef7\u4e3a\u7ea2\uff0c\u8d44\u91d1\u4ecd\u6b63\u4f46 5 \u5206\u949f\u9012\u51cf ' + fmtYi(fSlope) + '\uff0c\u84dd\u7ebf\u5728\u8d44\u91d1\u7ebf\u4e0b\u4e14\u5411\u4e0b';
+      why = '\u5f00\u76d8\u51b2\u9ad8\u8bf1\u591a\uff1a\u4ef7\u7ea2\u3001\u8d44\u91d1\u4ecd\u6b63\u4f46 5 \u5206\u949f\u9012\u51cf ' + fmtYi(fSlope) + '\uff0c\u84dd\u7ebf\u5728\u8d44\u91d1\u7ebf\u4e0b\u4e14\u5411\u4e0b';
     } else if (curBelow && wfCur < 0 && fSlope < 0) {
       st = 'out';
       why = '\u8d44\u91d1 ' + fmtYi(wfCur) + '\u4e14\u4ecd\u5728\u51cf\uff085 \u5206\u949f ' + fmtYi(fSlope)
@@ -12297,12 +12322,16 @@ rzStart();
     } else if (below >= WEAK_MIN && down2) {
       st = 'weak';
       why = '\u84dd\u7ebf\u88ab' + byWhich + '\u538b\u5236 ' + below + ' \u5206\u949f\uff0c\u4e24\u7ebf\u540c\u6b65\u5411\u4e0b';
+    } else if (wash) {
+      st = 'wash';
+      why = '\u7eff\u5f00\u4e0b\u7838\u540e\u84dd\u7ebf\u4e0a\u7a7f\u8d44\u91d1\u7ebf\uff0c\u8d44\u91d1\u7ebf\u5728\u4e0b\u627f\u6258\u3001\u4e24\u8005\u5171\u5411\u4e0a\uff08\u6d17\u76d8\u4f01\u7a33\uff09';
     } else if (bothAbove && pSlope > 0 && fSlope > 0 && (sSlope === null || sSlope > 0)) {
       st = 'attack';
       why = '\u84dd\u7ebf\u5728\u4e24\u8d44\u91d1\u7ebf\u4e0a\u65b9\uff0c\u4e09\u8005\u5747\u4e0a\u884c';
     } else {
       st = 'watch';
-      why = below >= WEAK_MIN ? '\u84dd\u7ebf\u88ab\u538b\u5236 ' + below + ' \u5206\u949f\uff0c\u4f46\u4e24\u7ebf\u672a\u540c\u6b65\u5411\u4e0b'
+      why = (pSlope > 0 && fSlope > 0 && everBelow && everAbove) ? '\u4e24\u7ebf\u7ea0\u7f20\u5411\u4e0a\uff0c\u5f85\u5206\u8fa8\u627f\u6258/\u538b\u5236'
+        : below >= WEAK_MIN ? '\u84dd\u7ebf\u88ab\u538b\u5236 ' + below + ' \u5206\u949f\uff0c\u4f46\u4e24\u7ebf\u672a\u540c\u6b65\u5411\u4e0b'
         : bothAbove ? '\u84dd\u7ebf\u5728\u4e0a\u65b9\uff0c\u4f46\u672a\u540c\u6b65\u4e0a\u884c'
         : '\u4e24\u7ebf\u7ea0\u7f20\uff0c\u672a\u6210\u5f62\u6001';
     }
@@ -12315,6 +12344,8 @@ rzStart();
     base.fSlope = fSlope; base.sSlope = sSlope;
     base.below = below; base.belowI = belowI; base.belowS = belowS; base.byWhich = byWhich;
     base.aboveI = aboveI; base.aboveS = aboveS; base.everAbove = everAbove;
+    base.everBelow = everBelow; base.crossUp = crossUp; base.crossAt = crossAt;
+    base.openSpike = openSpike; base.lowOpen = lowOpen; base.wash = wash;
     base.P = P; base.FI = FI; base.FS = FS; base.lo = lo; base.hi = hi; base.rI = rI; base.rS = rS;
     return base;
   }
@@ -12400,6 +12431,7 @@ rzStart();
 
   /* ---------- 文案 ---------- */
   var ST_META = {
+    wash: { cls: 'wash', icon: '\uD83D\uDD35', lbl: '\u6d17\u76d8 \u00b7 \u4f01\u7a33\u56de\u5347' },
     attack: { cls: 'attack', icon: '\uD83D\uDD34', lbl: '\u8fdb\u653b\u4e2d \u00b7 \u53ef\u6b63T / \u7ee7\u7eed\u6301\u6709' },
     weak: { cls: 'weak', icon: '\u26A0\uFE0F', lbl: '\u8f6c\u5f31\u9884\u8b66 \u00b7 \u51c6\u5907' },
     sell: { cls: 'sell', icon: '\uD83D\uDD3B', lbl: '\u5356\u70b9 \u00b7 \u5efa\u8bae\u51cf\u6301' },
@@ -12446,7 +12478,7 @@ rzStart();
 
   function sumHTML(big) {
     if (!WT.list.length) return '';
-    var c = { attack: 0, weak: 0, sell: 0, out: 0, lure: 0, watch: 0, wait: 0, err: 0 }, i;
+    var c = { attack: 0, weak: 0, sell: 0, out: 0, lure: 0, wash: 0, watch: 0, wait: 0, err: 0 }, i;
     for (i = 0; i < WT.list.length; i++) {
       var r = WT.res[WT.list[i].secid];
       var k = r ? r.st : 'err';
@@ -12454,7 +12486,7 @@ rzStart();
       c[k]++;
     }
     var order = [['sell', '\u5356\u70b9'], ['lure', '\u8bf1\u591a'], ['out', '\u51c0\u6d41\u51fa'],
-      ['weak', '\u8f6c\u5f31'], ['attack', '\u8fdb\u653b'], ['watch', '\u89c2\u5bdf'], ['wait', '\u5f85\u5f00\u76d8']];
+      ['weak', '\u8f6c\u5f31'], ['wash', '\u6d17\u76d8'], ['attack', '\u8fdb\u653b'], ['watch', '\u89c2\u5bdf'], ['wait', '\u5f85\u5f00\u76d8']];
     var parts = [];
     order.forEach(function (p) {
       if (c[p[0]]) parts.push('<span class="rzwtcnt ' + p[0] + '">' + ST_META[p[0]].icon + ' ' + p[1] + ' <b>' + c[p[0]] + '</b></span>');
