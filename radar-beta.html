@@ -856,19 +856,41 @@ body.rzrec-hide .rzcx{display:none}
 .rzcxbuyR.up{color:#c62828}.rzcxbuyR.down{color:#1b8a3a}.rzcxbuyR.flat{color:#9aa1ab}
 .rzcxbsumm{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin:0 0 6px;padding:5px 6px;background:#f8fafc;border:1px solid #eef2f7;border-radius:8px}
 .rzcxbsummL{font-size:10.5px;font-weight:700;color:#334155;margin-right:3px}
-.rzholdbar{display:flex;gap:6px;align-items:center;margin:6px 0;padding:5px 7px;background:#f8fbff;border:1px dashed #d4e3f7;border-radius:8px}
+.rzholdbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:8px 0 6px;padding:7px 9px;background:#f8fbff;border:1px dashed #d4e3f7;border-radius:8px}
 .rzholdinp{width:84px;border:1px solid #cdd9ea;background:#fff;border-radius:6px;padding:4px 6px;font-size:12px;color:#1e293b}
 .rzholdadd{border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
 .rzholdadd:active{background:#dbeafe}
 .rzholdhint{font-size:11px;color:#64748b}
-.rzholdsig{font-weight:700;font-size:11px;padding:1px 7px;border-radius:6px;margin-left:6px;line-height:1.5;white-space:nowrap}
+.rzholdsig{font-weight:700;font-size:12px;padding:3px 9px;border-radius:6px;line-height:1.5;white-space:nowrap}
+.rzholdrw{padding:8px 9px;gap:9px}
+.rzholdrw .rzrecside{gap:4px}
+.rzholdrw .rzrecbtn,.rzholdrw .rzrecadd{padding:4px 9px;font-size:11.5px}
+.rzholdline1{display:flex;align-items:center;gap:5px;min-width:0;flex-wrap:wrap}
+.rzholdline2{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px}
+.rzholdname{font-size:13.5px;line-height:1.3;font-weight:700;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.rzholdpct{font-size:12px;font-variant-numeric:tabular-nums}
+.rzholdmsg{font-size:11px;color:#b23c3c}
 .sig-signal{color:#c62828;background:#fdecea}   /* 红=好（A股惯例） */
 .sig-hold{color:#e65100;background:#fff3e0}
 .sig-neutral{color:#3b5bae;background:#eef2fb}
 .sig-clear{color:#2e7d32;background:#e8f5e9}     /* 绿=清出（A股惯例） */
 .rzholderr{opacity:.85}
-.rzholdmsg{font-size:11px;color:#c62828;margin-left:6px}
 .rzcxgraytag{color:#94a3b8;font-size:11px;font-weight:600}
+/* —— 穿线承托区：三 tab 等宽铺满整行 + 字号/图标放大（不影响 9/18 名单 tab） —— */
+.rzcx .rzrectabs{gap:6px;flex-wrap:nowrap;margin-bottom:8px}
+.rzcx .rzrectab{flex:1 1 0;min-width:0;justify-content:center;padding:8px 6px;font-size:13px;font-weight:700;border-radius:9px}
+.rzcx .rzrecnm{font-size:14px}
+.rzcx .rzreccd{font-size:12px}
+.rzcx .rzrecpx{font-size:12px}
+.rzcx .rzrecpx i{font-size:10.5px}
+.rzcx .rzrecbtn{padding:5px 10px;font-size:12px}
+.rzcx .rzrecadd{padding:5px 11px;font-size:13px}
+.rzcx .rzcxtag{font-size:11px;padding:1px 5px;line-height:1.7}
+.rzcx .rzcxtier{font-size:11px;padding:1px 5px;line-height:1.7}
+.rzcx .rzcxcxok{font-size:17px}
+.rzcx .rzcxbsummL{font-size:11.5px}
+.rzcx .rzcxbuy{font-size:11.5px;padding:3px 8px}
+.rzcx .rzrecside{gap:5px}
 </style>
 
 <script>
@@ -13332,7 +13354,8 @@ rzStart();
         var box = $('rzCross');
         if (!box) return;
         var hid = box.className.indexOf('collapsed') >= 0;
-        box.className = hid ? 'rzrec' : 'rzrec collapsed';
+        /* 只增删 collapsed，切勿覆盖 className —— 会丢掉 rzcx 作用域类，导致样式全失效 */
+        box.className = hid ? box.className.replace(/\s*collapsed/g, '') : (box.className + ' collapsed');
         tg.textContent = hid ? '收起 ▴' : '展开 ▾';
       });
     }
@@ -13469,10 +13492,11 @@ rzStart();
   }
   function holdRowHTML(r) {
     if (r.err) {
-      return '<div class="rzrecbox rzholderr" data-cxr="' + esc(r.code) + '"><div class="rzrecrow">'
-        + '<div class="rzrecmain"><div class="rzrecline1"><span class="rzrecnm">' + esc(r.code) + '</span>'
-        + '<span class="rzholdmsg">' + esc(r.err) + '</span></div></div>'
-        + holdBtns(r) + '</div></div>';
+      return '<div class="rzrecbox rzholderr" data-cxr="' + esc(r.code) + '"><div class="rzrecrow rzholdrw">'
+        + '<div class="rzrecmain"><div class="rzholdline1"><span class="rzrecnm rzholdname">' + esc(r.code) + '</span></div>'
+        + '<div class="rzholdline2"><span class="rzholdmsg">' + esc(r.err) + '</span></div></div>'
+        + '<div class="rzrecside"><span class="rzrecbtns">' + holdBtns(r) + '</span></div>'
+        + '</div></div>';
     }
     var pctCls = r.pct > 0 ? 'up' : (r.pct < 0 ? 'down' : 'flat');
     var sig = r.sig || 'neutral';
@@ -13483,17 +13507,25 @@ rzStart();
     else if (emoji) sub = '<span class="rzcxcxok" title="👌＝板块资金线承托　👍＝个股资金线承托">' + emoji + '</span>';
     else sub = '<span class="rzcxgraytag">板块线未知</span>';
     var open = !!openCharts[r.code];
+    var pxLabel = (typeof isTrading === 'function' && isTrading()) ? '现价' : '收盘';
+    var pctStr = (r.pct > 0 ? '+' : '') + num(r.pct, 0).toFixed(2) + '%';
+    var side = '';
+    if (r.px != null) {
+      side += '<span class="rzrecpx"><i>' + pxLabel + '</i> <b>¥' + r.px.toFixed(2) + '</b>'
+        + ' <b class="rzrecpct ' + pctCls + '">' + pctStr + '</b></span>';
+    } else {
+      side += '<span class="rzrecpct rzholdpct ' + pctCls + '">' + pctStr + '</span>';
+    }
     return '<div class="rzrecbox' + (r.gray ? ' rzcxgray' : '') + '" data-cxr="' + esc(r.code) + '">'
-      + '<div class="rzrecrow"><div class="rzrecmain">'
-      + '<div class="rzrecline1"><span class="rzrecnm">' + esc(r.name) + '</span>'
-      + '<span class="rzreccd">' + esc(r.code) + '</span>'
+      + '<div class="rzrecrow rzholdrw"><div class="rzrecmain">'
+      + '<div class="rzholdline1"><span class="rzrecnm rzholdname">' + esc(r.name) + '</span>'
       + (r.etf ? '<span class="rzcxtag">ETF</span>' : '')
-      + '<span class="rzholdsig sig-' + sig + '">' + sigTxt + '</span>'
-      + (r.px != null ? '<span class="rzrecpr">¥' + r.px.toFixed(2) + '</span>' : '')
-      + '<span class="rzrecsc rzrecpct ' + pctCls + '">' + (r.pct > 0 ? '+' : '') + num(r.pct, 0).toFixed(2) + '%</span>'
       + '</div>'
-      + '<div class="rzrecsub">' + sub + '</div></div>'
-      + holdBtns(r)
+      + '<div class="rzholdline2"><span class="rzreccd">' + esc(r.code) + '</span>'
+      + '<span class="rzholdsig sig-' + sig + '">' + sigTxt + '</span>'
+      + sub + '</div>'
+      + '</div>'
+      + '<div class="rzrecside">' + side + '<span class="rzrecbtns">' + holdBtns(r) + '</span></div>'
       + '</div>'
       + '<div class="rzcxchart"' + (open ? '' : ' hidden') + '>' + (open ? cxChartHTML(r) : '') + '</div>'
       + '</div>';
