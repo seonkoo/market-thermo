@@ -821,6 +821,7 @@ body.rzrec-hide .rzwttabs,body.rzrec-hide .rzwtpane{display:none}
 .rzcxgray .rzrecnm,.rzcxgray .rzreccd,.rzcxgray .rzrecpr,.rzcxgray .rzrecpx{color:#9aa1ab}
 .rzcxgray .rzrecpct.up,.rzcxgray .rzrecpct.down{color:#9aa1ab}
 .rzcxgray .rzrecsub{color:#b9c0ca}
+.rzholdnote{font-size:10.5px;color:#94a3b8}
 .rzcxgray .rzcxtag{color:#94a3b8;background:#f1f5f9;border-color:#e2e8f0}
 /* ETF 角标：候选里混入了 ETF 时一眼可辨（2026-09-20 用户要求纳入 ETF） */
 .rzcxtag{flex:0 0 auto;align-self:center;font-size:9.5px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:1px solid #cfe0fb;border-radius:4px;padding:0 4px;line-height:1.6}
@@ -870,6 +871,16 @@ body.rzrec-hide .rzcx{display:none}
 .rzholdname{font-size:13.5px;line-height:1.3;font-weight:700;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 .rzholdpct{font-size:12px;font-variant-numeric:tabular-nums}
 .rzholdmsg{font-size:11px;color:#b23c3c}
+.rzholdline3{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:4px}
+.rzholdnf{display:inline-flex;align-items:baseline;gap:3px;font-size:11.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rzholdnf i{font-style:normal;color:#64748b;font-size:10.5px;font-weight:600}
+.rzholdnf b{font-weight:700;font-size:12px}
+.rzholdnf b.up{color:#c62828}
+.rzholdnf b.down{color:#1b8a3a}
+.rzholdnf b.flat{color:#9aa1ab}
+.rzholdnf em{font-style:normal;color:#94a3b8;font-size:10px}
+.rzcxgray .rzholdnf i,.rzcxgray .rzholdnf em{color:#b9c0ca}
+.rzcxgray .rzholdnf b{color:#9aa1ab}
 .sig-signal{color:#c62828;background:#fdecea}   /* 红=好（A股惯例） */
 .sig-hold{color:#e65100;background:#fff3e0}
 .sig-neutral{color:#3b5bae;background:#eef2fb}
@@ -1099,6 +1110,7 @@ body.rzrec-hide .rzcx{display:none}
           <input class="rzholdinp" id="rzHoldInp" placeholder="6位代码" maxlength="6" inputmode="numeric" autocomplete="off"/>
           <button class="rzholdadd" id="rzHoldAdd" type="button">添加</button>
           <span class="rzholdhint" id="rzHoldHint"></span>
+          <span class="rzholdnote">净流入＝主力净流入（累计）· 红进绿出 · 非交易日为上一交易日收盘值</span>
         </div>
         <div class="rzreclist" id="rzCrossList"></div>
       </div>
@@ -12516,6 +12528,11 @@ rzStart();
     for (i = T + 1; i <= SPAN; i++) arr[i] = null;
     return arr;
   }
+  /* 取序列最后一个非空值（≤T）——持仓行的实时累计净流入读数 */
+  function lastVal(arr, T) {
+    for (var i = T; i >= 0; i--) { if (arr[i] != null && isFinite(arr[i])) return arr[i]; }
+    return null;
+  }
   function span(vals, force0) {
     var lo = Infinity, hi = -Infinity, i, v;
     for (i = 0; i < vals.length; i++) {
@@ -12614,6 +12631,16 @@ rzStart();
       A = { brd: brd, ind: ind, minGapB: Math.min.apply(null, gB) };
     }
 
+    /* 两线破线时刻（无条件计算）——Mode A 不成立时，用它给出真实的「破线时间」，
+       避免把「开盘即破」误标成「未知」。索引从 0 起：开盘就在线下 → 记 0（即 09:30）。
+       纯增量字段，不改 A/B 语义（扫描/复盘快照仍只认 A/B，行为零变化）。 */
+    var pBrd = null, pInd = null;
+    for (i = 0; i < N; i++) {
+      if (pBrd === null && gB[i] <= 0) pBrd = idx[i];
+      if (pInd === null && gS[i] <= 0) pInd = idx[i];
+    }
+    var probe = { brd: pBrd, ind: pInd, openOK: (gS[0] > 0 && gB[0] > 0) };
+
     /* Mode B · 走出承托（2026-09-20 改）：不再以「干净上穿」为前置条件——
        开盘纠缠/被压都行，只要盘中出现「蓝线在个股资金线上方 ≥ SUPPORT_MIN 分钟」的承托段即算。
        取段规则（正在承托优先 / 否则最长段）不变；买点＝段起点，失效＝段末或收盘。
@@ -12663,7 +12690,7 @@ rzStart();
         };
       }
     }
-    return { A: A, B: B, last: SPAN,
+    return { A: A, B: B, probe: probe, last: SPAN,
              /* 三个轴的实际取值区间（与判定同源）→ 曲线直接拿来画，保证「图」与「判定」严丝合缝 */
              rng: { plo: rP[0], phi: rP[1], ilo: rI[0], ihi: rI[1], blo: rB[0], bhi: rB[1],
                     pre: pre, T: idx[N - 1] } };
@@ -13414,18 +13441,20 @@ rzStart();
       return bk;   /* {code, name, flow} 或 null */
     }).catch(function () { CX.holdBoard[c] = { bk: null, nm: c, ts: Date.now() }; return null; });
   }
-  /* 信号映射（与 👌/👍 两轴口径一致）：双承托→信号；板块承托个股破→持有；
-     板块破但个股仍在承托(走出承托)→中性；双破→清出；无数据→中性(不冒充) */
-  function sigOf(res) {
-    if (res.A) {
-      var brd = res.A.brd, ind = res.A.ind;
-      if (brd === null && ind === null) return 'signal';
-      if (brd === null) return 'hold';
-      if (res.B && res.B.group === 'hold') return 'neutral';
-      return 'clear';
-    }
-    if (res.B) return res.B.group === 'hold' ? 'neutral' : 'clear';
-    return 'neutral';
+  /* 信号映射（与 👌/👍 两轴口径一致，全行统一）：
+     👌+👍 双线全程承托 → 信号；仅👌（个股线曾破）→ 持有；
+     仅👍（板块线破但个股线仍在承托 = 走出承托）→ 中性；双破 → 清出。
+     Mode A 不成立（开盘未站上双线）时退回 probe 的无条件破线时刻。 */
+  function axesOf(res) {
+    var src = res.A ? { brd: res.A.brd, ind: res.A.ind }
+                    : (res.probe ? { brd: res.probe.brd, ind: res.probe.ind } : { brd: null, ind: null });
+    return { okB: src.brd === null, okI: src.ind === null, brd: src.brd, ind: src.ind, hasA: !!res.A };
+  }
+  function sigOf(ax) {
+    if (ax.okB && ax.okI) return 'signal';
+    if (ax.okB) return 'hold';
+    if (ax.okI) return 'neutral';
+    return 'clear';
   }
   function evalHold() {
     var list = (RZ.hold || []).map(function (x) { return x.c; }).filter(Boolean);
@@ -13448,6 +13477,7 @@ rzStart();
           var P = fillPts(pr.pts, T), FI = fillSer(fl, T), FB = fillSer(bf, T);
           var res = judgeCore(P, pr.pre, FI, FB, T);
           if (!res) return { code: code, err: '样本不足' };
+          var ax = axesOf(res);
           var last = 0, i;
           for (i = T; i >= 0; i--) { if (P[i] != null) { last = i; break; } }
           var px = P[last];
@@ -13455,21 +13485,16 @@ rzStart();
           var nm = (CX.holdBoard[code] && CX.holdBoard[code].nm) || code;
           var row = { code: code, name: nm, bk: bk.code, bkName: bk.name, pct: pct, px: px,
                       etf: isEtf(code) ? 1 : 0, P: P, FS: FI, FB: FB, rng: res.rng, pre: pr.pre, T: T,
-                      okB: false, okI: false, gray: false, sig: sigOf(res) };
-          if (res.A) {
-            row.brd = res.A.brd;
-            row.brdClock = res.A.brd === null ? '' : idxToClock(res.A.brd);
-            row.ind = res.A.ind;
-            row.indClock = res.A.ind === null ? '' : idxToClock(res.A.ind);
-            row.okB = (res.A.brd === null);
-            row.okI = (res.A.ind === null);
-            if (row.sig === 'clear') { row.gray = true; row.brkClock = row.brdClock || ''; }
-          }
+                      stNf: lastVal(FI, T), bkNf: lastVal(FB, T),
+                      hasA: ax.hasA, brd: ax.brd, ind: ax.ind,
+                      brdClock: ax.brd === null ? '' : idxToClock(ax.brd),
+                      indClock: ax.ind === null ? '' : idxToClock(ax.ind),
+                      okB: ax.okB, okI: ax.okI, gray: false, sig: sigOf(ax) };
+          if (row.sig === 'clear') { row.gray = true; row.brkClock = row.brdClock || ''; }
           if (res.B) {
             row.cross = idxToClock(res.B.crossIdx);
             row.mins = res.B.mins; row.tier = res.B.tier; row.ret = res.B.ret;
             if (res.B.rebrkIdx !== null) { row.rebrk = idxToClock(res.B.rebrkIdx); row.xret = res.B.xret; }
-            if (row.sig === 'neutral') row.okI = true;   /* 板块破、个股仍在承托 → 👍 */
             if (row.sig === 'clear' && !row.brkClock) row.brkClock = row.rebrk || '';
           }
           return row;
@@ -13490,6 +13515,24 @@ rzStart();
     else h += '<button class="rzrecadd rzcxdel" type="button" data-cxah="' + esc(r.code) + '">删除</button>';
     return h;
   }
+  /* 资金净流入读数：页面统一口径＝主力净流入（原始值单位「元」，已 /1e8 → 亿元），累计至当前分钟。
+     |值| < 0.1亿 时改用万元显示，避免出现「+0.00亿」这种看着像零的读数。 */
+  function nfHTML(label, v, title) {
+    if (v == null || !isFinite(v)) return '<span class="rzholdnf" title="' + esc(title) + '"><i>' + label + '</i> <b class="flat">—</b></span>';
+    var c = v > 0 ? 'up' : (v < 0 ? 'down' : 'flat');
+    var s, u;
+    if (Math.abs(v) < 0.1) { u = '万'; s = (v * 10000).toFixed(0); } else { u = '亿'; s = v.toFixed(2); }
+    if (v > 0) s = '+' + s;
+    return '<span class="rzholdnf" title="' + esc(title) + '"><i>' + label + '</i> <b class="' + c + '">' + s + '</b><em>' + u + '</em></span>';
+  }
+  function nfLineHTML(r) {
+    if (r.stNf == null && r.bkNf == null) return '';
+    var stLabel = r.etf ? 'ETF主力' : '个股主力';
+    return '<div class="rzholdline3">'
+      + nfHTML('板块主力', r.bkNf, '所属板块主力净流入（亿元，累计至当前分钟）')
+      + nfHTML(stLabel, r.stNf, (r.etf ? '该ETF' : '该个股') + '主力净流入（亿元，累计至当前分钟）')
+      + '</div>';
+  }
   function holdRowHTML(r) {
     if (r.err) {
       return '<div class="rzrecbox rzholderr" data-cxr="' + esc(r.code) + '"><div class="rzrecrow rzholdrw">'
@@ -13505,7 +13548,7 @@ rzStart();
     var sub;
     if (r.gray) sub = '<span class="rzcxbgray">破线 ' + esc(r.brkClock || '') + '</span>';
     else if (emoji) sub = '<span class="rzcxcxok" title="👌＝板块资金线承托　👍＝个股资金线承托">' + emoji + '</span>';
-    else sub = '<span class="rzcxgraytag">板块线未知</span>';
+    else sub = '<span class="rzcxgraytag" title="开盘时价格未站上两条资金线（非承托候选）">开盘未承托</span>';
     var open = !!openCharts[r.code];
     var pxLabel = (typeof isTrading === 'function' && isTrading()) ? '现价' : '收盘';
     var pctStr = (r.pct > 0 ? '+' : '') + num(r.pct, 0).toFixed(2) + '%';
@@ -13524,6 +13567,7 @@ rzStart();
       + '<div class="rzholdline2"><span class="rzreccd">' + esc(r.code) + '</span>'
       + '<span class="rzholdsig sig-' + sig + '">' + sigTxt + '</span>'
       + sub + '</div>'
+      + nfLineHTML(r)
       + '</div>'
       + '<div class="rzrecside">' + side + '<span class="rzrecbtns">' + holdBtns(r) + '</span></div>'
       + '</div>'
@@ -13605,6 +13649,8 @@ rzStart();
             setClock: function (f) { nowDate = f; },   // 回归用：注入假时钟
             boardOK: boardOK, tierOf: tierOf, tierChip: tierChip,
             pctAxis: pctAxis, toPct: toPct,
+            /* 持仓信号映射（T20 / 浏览器回归用）：两轴口径的唯一所有者 */
+            axesOf: axesOf, sigOf: sigOf, lastVal: lastVal, nfHTML: nfHTML,
             _cfg: { TOP_BK: TOP_BK, PER_BK: PER_BK, PER_BK_ETF: PER_BK_ETF, ETF_MIN_AMT: ETF_MIN_AMT,
                     B_MAX_DISPLAY: B_MAX_DISPLAY,
                     SUPPORT_MIN: SUPPORT_MIN, TIER_STEADY: TIER_STEADY, TIER_CONFIRM: TIER_CONFIRM,
