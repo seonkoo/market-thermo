@@ -814,7 +814,14 @@ body.rzrec-hide .rzwttabs,body.rzrec-hide .rzwtpane{display:none}
 .rzcxsec2{margin-top:9px;background:#fdecec;color:#c62828}
 .rzcxsec2 .rzcxmore{color:#c62828;border-color:#f3c4c4}
 .rzcxbrk{color:#c62828;font-weight:700}
-.rzcxcxok{color:#1a56c4;font-weight:700}
+/* 承托行手势（2026-09-20 化繁为简）：👌＝板块资金线承托中，👍＝个股资金线承托中 */
+.rzcxcxok{font-size:13px;letter-spacing:3px;line-height:1.3}
+/* 破线行：无手势、整行置灰，下方只留灰字「破线 HH:MM」（变灰时间） */
+.rzcxbgray{color:#9aa1ab;font-weight:600}
+.rzcxgray .rzrecnm,.rzcxgray .rzreccd,.rzcxgray .rzrecpr,.rzcxgray .rzrecpx{color:#9aa1ab}
+.rzcxgray .rzrecpct.up,.rzcxgray .rzrecpct.down{color:#9aa1ab}
+.rzcxgray .rzrecsub{color:#b9c0ca}
+.rzcxgray .rzcxtag{color:#94a3b8;background:#f1f5f9;border-color:#e2e8f0}
 /* ETF 角标：候选里混入了 ETF 时一眼可辨（2026-09-20 用户要求纳入 ETF） */
 .rzcxtag{flex:0 0 auto;align-self:center;font-size:9.5px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:1px solid #cfe0fb;border-radius:4px;padding:0 4px;line-height:1.6}
 /* 承托段阶梯档位（2026-09-20 用户要求 10-20-30 层层筛选）：确认 ≥30 分 / 较稳 20-29 / 观察 10-19 */
@@ -12370,12 +12377,29 @@ rzStart();
       if (el && el.textContent) {
         var o = JSON.parse(el.textContent);
         if (o && o.A) {
+          hydrateA(o.A);
           CX.snap = { d: o.d, boards: o.boards || [], A: o.A,
                       B: o.B || [], Bbrk: o.Bbrk || o.B_brk || [] };
         }
       }
     } catch (e) { CX.snap = null; }
   })();
+
+  /* 复盘快照 A 行补齐 brd/ind（2026-09-20：👌＝板块线承托、👍＝个股资金线承托需要 ind）。
+     行上已带 P/FS/FB → 用【同一个 judgeCore】重算（单一引擎，不另写 Python 口径）；
+     重算不出结果的行保留内嵌 brd/brdClock 兜底，绝不因补齐失败丢行。 */
+  function hydrateA(rows) {
+    for (var i = 0; i < (rows || []).length; i++) {
+      var r = rows[i];
+      if (!r || !r.P || !r.FS || !r.FB) continue;
+      var res = judgeCore(r.P, num(r.pre, 0), r.FS, r.FB, num(r.T, SPAN));
+      if (!(res && res.A)) continue;
+      r.brd = res.A.brd;
+      r.brdClock = res.A.brd === null ? '' : idxToClock(res.A.brd);
+      r.ind = res.A.ind;
+      r.indClock = res.A.ind === null ? '' : idxToClock(res.A.ind);
+    }
+  }
 
   /* ---------------- 工具（自包含，不依赖 _live.js 私有函数） ---------------- */
   function $(id) { return document.getElementById(id); }
@@ -12858,7 +12882,8 @@ rzStart();
     var pr = priceOf(r);
     var sub;
     if (kind === 'brk') {
-      sub = '<span class="rzcxbrk">破板块线 ' + esc(r.brdClock) + '</span>';
+      /* 破线：无手势、整行置灰（rzcxgray），下方只留变灰（破线）时间 */
+      sub = '<span class="rzcxbgray">破线 ' + esc(r.brdClock) + '</span>';
     } else if (kind === 'cxbrk') {
       sub = '买点 <b>' + esc(r.cross) + '</b> · 承托 <b>' + num(r.mins, 0) + '</b> 分'
         + tierChip(r.tier || tierOf(r.mins))
@@ -12871,10 +12896,14 @@ rzStart();
         + '<span class="rzrecpct ' + (r.ret > 0 ? 'up' : (r.ret < 0 ? 'down' : 'flat')) + '">'
         + (r.ret > 0 ? '+' : '') + num(r.ret, 0).toFixed(2) + '%</span>';
     } else {
-      sub = '<span class="rzcxcxok">承托中（全天未破两条资金线）</span>';
+      /* 承托中：👌＝板块资金线有承托，👍＝个股资金线有承托（ind 缺失＝未知 → 不冒充） */
+      var okB = (r.brd === null || r.brd === undefined);
+      var okI = r.ind === null;
+      sub = '<span class="rzcxcxok" title="👌＝板块资金线承托中　👍＝个股资金线承托中">'
+        + (okB ? '👌' : '') + (okI ? '👍' : '') + '</span>';
     }
     var open = !!openCharts[r.code];
-    return '<div class="rzrecbox" data-cxr="' + esc(r.code) + '">'
+    return '<div class="rzrecbox' + (kind === 'brk' ? ' rzcxgray' : '') + '" data-cxr="' + esc(r.code) + '">'
       + '<div class="rzrecrow">'
       + '<div class="rzrecmain">'
       + '<div class="rzrecline1"><span class="rzrecnm">' + esc(r.name) + '</span>'
@@ -12883,7 +12912,7 @@ rzStart();
       + (pr != null ? '<span class="rzrecpr">¥' + pr.toFixed(2) + '</span>' : '')
       + '<span class="rzrecsc rzrecpct ' + pctCls + '">' + (r.pct > 0 ? '+' : '') + num(r.pct, 0).toFixed(2) + '%</span>'
       + '</div>'
-      + '<div class="rzrecsub">' + sub + ' · ' + esc(r.bk || '') + '</div>'
+      + '<div class="rzrecsub">' + sub + '</div>'
       + '</div>'
       + btnsHTML(r)
       + '</div>'
@@ -13032,7 +13061,8 @@ rzStart();
       var d = todayKey();
       var mapA = function (r) {
         return { code: r.code, name: r.name, bk: r.bk, etf: r.etf ? 1 : 0,
-                 status: r.brd === null ? 'hold' : 'brk', brd: r.brdClock };
+                 status: r.brd === null ? 'hold' : 'brk', brd: r.brdClock,
+                 ind: r.ind === null ? '' : (r.indClock || '') };
       };
       var mapB = function (r) {
         return { code: r.code, name: r.name, bk: r.bk, etf: r.etf ? 1 : 0,
@@ -13178,6 +13208,8 @@ rzStart();
             if (res.A) {
               row.brd = res.A.brd;
               row.brdClock = res.A.brd === null ? '' : idxToClock(res.A.brd);
+              row.ind = res.A.ind;
+              row.indClock = res.A.ind === null ? '' : idxToClock(res.A.ind);
               A.push(row);
               if (res.A.brd !== null) Abrk.push(row);
             }
