@@ -856,6 +856,19 @@ body.rzrec-hide .rzcx{display:none}
 .rzcxbuyR.up{color:#c62828}.rzcxbuyR.down{color:#1b8a3a}.rzcxbuyR.flat{color:#9aa1ab}
 .rzcxbsumm{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin:0 0 6px;padding:5px 6px;background:#f8fafc;border:1px solid #eef2f7;border-radius:8px}
 .rzcxbsummL{font-size:10.5px;font-weight:700;color:#334155;margin-right:3px}
+.rzholdbar{display:flex;gap:6px;align-items:center;margin:6px 0;padding:5px 7px;background:#f8fbff;border:1px dashed #d4e3f7;border-radius:8px}
+.rzholdinp{width:84px;border:1px solid #cdd9ea;background:#fff;border-radius:6px;padding:4px 6px;font-size:12px;color:#1e293b}
+.rzholdadd{border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
+.rzholdadd:active{background:#dbeafe}
+.rzholdhint{font-size:11px;color:#64748b}
+.rzholdsig{font-weight:700;font-size:11px;padding:1px 7px;border-radius:6px;margin-left:6px;line-height:1.5;white-space:nowrap}
+.sig-signal{color:#c62828;background:#fdecea}   /* 红=好（A股惯例） */
+.sig-hold{color:#e65100;background:#fff3e0}
+.sig-neutral{color:#3b5bae;background:#eef2fb}
+.sig-clear{color:#2e7d32;background:#e8f5e9}     /* 绿=清出（A股惯例） */
+.rzholderr{opacity:.85}
+.rzholdmsg{font-size:11px;color:#c62828;margin-left:6px}
+.rzcxgraytag{color:#94a3b8;font-size:11px;font-weight:600}
 </style>
 
 <script>
@@ -1058,6 +1071,12 @@ body.rzrec-hide .rzcx{display:none}
         <div class="rzrectabs" id="rzCrossTab">
           <button class="rzrectab on" type="button" data-cxt="hold">&#9312; 承托</button>
           <button class="rzrectab" type="button" data-cxt="cross">&#9313; 走出承托</button>
+          <button class="rzrectab" type="button" data-cxt="holdp">&#9314; 我的持仓</button>
+        </div>
+        <div class="rzholdbar" id="rzHoldBar" hidden>
+          <input class="rzholdinp" id="rzHoldInp" placeholder="6位代码" maxlength="6" inputmode="numeric" autocomplete="off"/>
+          <button class="rzholdadd" id="rzHoldAdd" type="button">添加</button>
+          <span class="rzholdhint" id="rzHoldHint"></span>
         </div>
         <div class="rzreclist" id="rzCrossList"></div>
       </div>
@@ -12347,6 +12366,7 @@ rzStart();
 
   var CX = window.RZCX = {
     tab: 'hold', activeBoard: null, busy: false, A: [], Abrk: [], B: [], Bbrk: [],
+    hold: [], holdBusy: false, holdBoard: {},
     st: { phase: 'idle', msg: '等待开盘', ts: 0 },
     boards: [], skipped: 0, lastRun: 0, lastMs: 0, snap: null
   };
@@ -12750,7 +12770,8 @@ rzStart();
 
   /* ---------------- 行内操作：加自选 / 删除（二次确认） / 曲线 ---------------- */
   var openCharts = {};     // 展开曲线的代码（内存态；重绘后保持展开，避免内容跳动）
-  var cfCode = '';         // 待二次确认删除的代码
+  var cfCode = '';         // 待二次确认删除的代码（自选）
+  var cfHold = '';         // 待二次确认删除的代码（我的持仓）
 
   /* 「自选个股」就是页面本体的那份自选（window.RZ.list，与「添加个股」同一份） */
   function inWatch(code) {
@@ -12957,6 +12978,7 @@ rzStart();
   }
 
   function listHTML() {
+    if (CX.tab === 'holdp') return holdHTML();
     if (CX.busy) return '<div class="rzlvempty">' + esc(CX.st.msg || '取数中…') + '</div>';
     var live = hasLive();
     var useSnap = !live && snapOn();
@@ -13028,9 +13050,11 @@ rzStart();
   function render() {
     try {
       if (!$('rzCross')) return;
+      var hb = $('rzHoldBar'); if (hb && hb.style) hb.style.display = (CX.tab === 'holdp') ? '' : 'none';
       var useSnap = useSnapNow();
       var n;
-      if (useSnap) n = CX.tab === 'hold' ? CX.snap.A.length : (CX.snap.B.length + CX.snap.Bbrk.length);
+      if (CX.tab === 'holdp') n = CX.hold.length;
+      else if (useSnap) n = CX.tab === 'hold' ? CX.snap.A.length : (CX.snap.B.length + CX.snap.Bbrk.length);
       else n = CX.tab === 'hold' ? CX.A.length : (CX.B.length + CX.Bbrk.length);
       var ts = $('rzCrossTs');
       if (ts) {
@@ -13041,6 +13065,7 @@ rzStart();
                 : '更新 ' + hmOf(nowMin()) + (CX.lastMs ? ' · ' + (CX.lastMs / 1000).toFixed(1) + 's' : '')
                   + ' · ' + boardLine())));
       }
+      if (CX.tab === 'holdp' && ts) ts.textContent = CX.holdBusy ? '持仓判定中…' : ('持仓 ' + CX.hold.length + ' 只 · 每30s复评');
       var cnt = $('rzCrossN'); if (cnt) cnt.textContent = n;
       var list = $('rzCrossList'); if (list) list.innerHTML = listHTML();
       var tabs = $('rzCrossTab');
@@ -13260,6 +13285,7 @@ rzStart();
         while (t && t !== tabs && !t.getAttribute('data-cxt')) t = t.parentNode;
         if (!t || t === tabs) return;
         CX.tab = t.getAttribute('data-cxt');
+        if (CX.tab === 'holdp') { try { evalHold(); } catch (e) {} }
         render();
       });
     }
@@ -13285,6 +13311,8 @@ rzStart();
         }
         var a = up('data-cxa');
         if (a) { onAdd(a.getAttribute('data-cxa')); return; }
+        var ah = up('data-cxah');
+        if (ah) { onHoldDel(ah.getAttribute('data-cxah')); return; }
         var b = up('data-cxb');
         if (b) {
           CX.activeBoard = b.getAttribute('data-cxb');
@@ -13308,6 +13336,12 @@ rzStart();
         tg.textContent = hid ? '收起 ▴' : '展开 ▾';
       });
     }
+    /* 我的持仓：输入框 + 添加（与列表/渲染分离，避免重绘丢焦点） */
+    var hi = $('rzHoldInp'), ha = $('rzHoldAdd');
+    if (hi && ha) {
+      ha.addEventListener('click', function () { rzHoldAdd(hi.value); hi.value = ''; });
+      hi.addEventListener('keydown', function (e) { if (e.key === 'Enter') { rzHoldAdd(hi.value); hi.value = ''; } });
+    }
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState !== 'visible') { lastVis = Date.now(); return; }
       if (Date.now() - lastVis > 120000) { lastVis = Date.now(); try { CX.run(); } catch (e) {} }
@@ -13328,12 +13362,199 @@ rzStart();
     })();
   }
 
+  /* ---------------- 我的持仓：用同一套穿线承托引擎判定强弱 ---------------- */
+  function isEtf(c) { return /^(5|15)/.test(String(c || '')); }
+  function boardNameOf(bk) {
+    for (var bi = 0; bi < CX.boards.length; bi++) if (CX.boards[bi].code === bk) return CX.boards[bi].name;
+    return '';
+  }
+  /* 个股/ETF → 所属行业板块（f127 是行业「名」，不是 code；用与扫描同源的板块榜匹配回 code）。
+     股票走 rzMatchBoard(名→code)；ETF 的 f127 为空，改走 rzETFSector(名称关键词→code)。
+     板块榜 rzBoard(false) 自带 5min 缓存，多只持仓只取一次。结果按代码缓存 1h。 */
+  function boardCodeOf(code) {
+    var c = String(code || '');
+    if (CX.holdBoard.hasOwnProperty(c) && CX.holdBoard[c].ts > Date.now() - 3600000) {
+      return Promise.resolve(CX.holdBoard[c].bk);
+    }
+    var secid = secidOf(c);
+    if (!secid) return Promise.resolve(null);
+    var nmP = rzGet('/api/qt/stock/get?secid=' + secid + '&fields=f57,f58,f127&invt=2', function (d) {
+      var v = d && d.data;
+      return { name: v ? String(v.f58 || '') : c, ind: v ? String(v.f127 || '').trim() : '' };
+    }, 8000).catch(function () { return { name: c, ind: '' }; });
+    return Promise.all([nmP, rzBoard(false)]).then(function (r) {
+      var nm = r[0].name, ind = r[0].ind, idx = r[1];
+      var bk = null;
+      if (ind && typeof rzMatchBoard === 'function') bk = rzMatchBoard(idx, ind);
+      if (!bk && isEtf(c) && typeof rzETFSector === 'function') bk = rzETFSector(nm, idx);
+      CX.holdBoard[c] = { bk: bk, nm: nm, ts: Date.now() };
+      return bk;   /* {code, name, flow} 或 null */
+    }).catch(function () { CX.holdBoard[c] = { bk: null, nm: c, ts: Date.now() }; return null; });
+  }
+  /* 信号映射（与 👌/👍 两轴口径一致）：双承托→信号；板块承托个股破→持有；
+     板块破但个股仍在承托(走出承托)→中性；双破→清出；无数据→中性(不冒充) */
+  function sigOf(res) {
+    if (res.A) {
+      var brd = res.A.brd, ind = res.A.ind;
+      if (brd === null && ind === null) return 'signal';
+      if (brd === null) return 'hold';
+      if (res.B && res.B.group === 'hold') return 'neutral';
+      return 'clear';
+    }
+    if (res.B) return res.B.group === 'hold' ? 'neutral' : 'clear';
+    return 'neutral';
+  }
+  function evalHold() {
+    var list = (RZ.hold || []).map(function (x) { return x.c; }).filter(Boolean);
+    if (!list.length) { CX.hold = []; render(); return Promise.resolve(); }
+    if (CX.holdBusy) return Promise.resolve();
+    if (typeof apiTrends !== 'function' || typeof rzStockFlow !== 'function') return Promise.resolve();
+    CX.holdBusy = true;
+    var T = isTrading() ? Math.min(tmin(hmOf(nowMin())), SPAN) : SPAN;
+    if (T < 6) { CX.holdBusy = false; setHoldHint('开盘数据不足，稍后自动重试'); render(); return Promise.resolve(); }
+    return pool(list, CONC, function (code) {
+      var secid = secidOf(code);
+      if (!secid) return Promise.resolve({ code: code, err: '代码无效' });
+      return Promise.all([getPrice(secid), getFlow(secid), boardCodeOf(code)]).then(function (r) {
+        var pr = r[0], fl = r[1], bk = r[2];
+        if (!pr) return { code: code, err: '行情缺失' };
+        if (!fl) return { code: code, err: '个股资金线缺失' };
+          if (!bk) return { code: code, err: '板块缺失' };
+          return getBoardFlow(bk.code).then(function (bf) {
+          if (!bf) return { code: code, err: '板块资金线缺失' };
+          var P = fillPts(pr.pts, T), FI = fillSer(fl, T), FB = fillSer(bf, T);
+          var res = judgeCore(P, pr.pre, FI, FB, T);
+          if (!res) return { code: code, err: '样本不足' };
+          var last = 0, i;
+          for (i = T; i >= 0; i--) { if (P[i] != null) { last = i; break; } }
+          var px = P[last];
+          var pct = pr.pre > 0 ? (px / pr.pre - 1) * 100 : 0;
+          var nm = (CX.holdBoard[code] && CX.holdBoard[code].nm) || code;
+          var row = { code: code, name: nm, bk: bk.code, bkName: bk.name, pct: pct, px: px,
+                      etf: isEtf(code) ? 1 : 0, P: P, FS: FI, FB: FB, rng: res.rng, pre: pr.pre, T: T,
+                      okB: false, okI: false, gray: false, sig: sigOf(res) };
+          if (res.A) {
+            row.brd = res.A.brd;
+            row.brdClock = res.A.brd === null ? '' : idxToClock(res.A.brd);
+            row.ind = res.A.ind;
+            row.indClock = res.A.ind === null ? '' : idxToClock(res.A.ind);
+            row.okB = (res.A.brd === null);
+            row.okI = (res.A.ind === null);
+            if (row.sig === 'clear') { row.gray = true; row.brkClock = row.brdClock || ''; }
+          }
+          if (res.B) {
+            row.cross = idxToClock(res.B.crossIdx);
+            row.mins = res.B.mins; row.tier = res.B.tier; row.ret = res.B.ret;
+            if (res.B.rebrkIdx !== null) { row.rebrk = idxToClock(res.B.rebrkIdx); row.xret = res.B.xret; }
+            if (row.sig === 'neutral') row.okI = true;   /* 板块破、个股仍在承托 → 👍 */
+            if (row.sig === 'clear' && !row.brkClock) row.brkClock = row.rebrk || '';
+          }
+          return row;
+        });
+      }).catch(function () { return { code: code, err: '取数异常' }; });
+    }).then(function (rows) {
+      CX.hold = rows;
+      CX.holdBusy = false;
+      render();
+      try { saveLog(); } catch (e) {}
+    }).catch(function () { CX.holdBusy = false; render(); });
+  }
+  function setHoldHint(t) { var e = $('rzHoldHint'); if (e) e.textContent = t || ''; }
+  function holdBtns(r) {
+    var h = '';
+    if (hasSer(r)) h += '<button class="rzrecbtn" type="button" data-cxc="' + esc(r.code) + '">曲线</button>';
+    if (cfHold === r.code) h += '<button class="rzrecadd rzcxdel rzcxcf" type="button" data-cxah="' + esc(r.code) + '">确认删除</button>';
+    else h += '<button class="rzrecadd rzcxdel" type="button" data-cxah="' + esc(r.code) + '">删除</button>';
+    return h;
+  }
+  function holdRowHTML(r) {
+    if (r.err) {
+      return '<div class="rzrecbox rzholderr" data-cxr="' + esc(r.code) + '"><div class="rzrecrow">'
+        + '<div class="rzrecmain"><div class="rzrecline1"><span class="rzrecnm">' + esc(r.code) + '</span>'
+        + '<span class="rzholdmsg">' + esc(r.err) + '</span></div></div>'
+        + holdBtns(r) + '</div></div>';
+    }
+    var pctCls = r.pct > 0 ? 'up' : (r.pct < 0 ? 'down' : 'flat');
+    var sig = r.sig || 'neutral';
+    var sigTxt = { signal: '信号', hold: '持有', neutral: '中性', clear: '清出' }[sig] || '中性';
+    var emoji = (r.okB ? '👌' : '') + (r.okI ? '👍' : '');
+    var sub;
+    if (r.gray) sub = '<span class="rzcxbgray">破线 ' + esc(r.brkClock || '') + '</span>';
+    else if (emoji) sub = '<span class="rzcxcxok" title="👌＝板块资金线承托　👍＝个股资金线承托">' + emoji + '</span>';
+    else sub = '<span class="rzcxgraytag">板块线未知</span>';
+    var open = !!openCharts[r.code];
+    return '<div class="rzrecbox' + (r.gray ? ' rzcxgray' : '') + '" data-cxr="' + esc(r.code) + '">'
+      + '<div class="rzrecrow"><div class="rzrecmain">'
+      + '<div class="rzrecline1"><span class="rzrecnm">' + esc(r.name) + '</span>'
+      + '<span class="rzreccd">' + esc(r.code) + '</span>'
+      + (r.etf ? '<span class="rzcxtag">ETF</span>' : '')
+      + '<span class="rzholdsig sig-' + sig + '">' + sigTxt + '</span>'
+      + (r.px != null ? '<span class="rzrecpr">¥' + r.px.toFixed(2) + '</span>' : '')
+      + '<span class="rzrecsc rzrecpct ' + pctCls + '">' + (r.pct > 0 ? '+' : '') + num(r.pct, 0).toFixed(2) + '%</span>'
+      + '</div>'
+      + '<div class="rzrecsub">' + sub + '</div></div>'
+      + holdBtns(r)
+      + '</div>'
+      + '<div class="rzcxchart"' + (open ? '' : ' hidden') + '>' + (open ? cxChartHTML(r) : '') + '</div>'
+      + '</div>';
+  }
+  function holdHTML() {
+    var list = (RZ.hold || []).map(function (x) { return x.c; }).filter(Boolean);
+    if (!list.length) return '<div class="rzlvempty">我的持仓为空 · 在上方输入 6 位代码点「添加」。</div>';
+    if (CX.holdBusy && !CX.hold.length) return '<div class="rzlvempty">取数中…</div>';
+    var rows = CX.hold.slice();
+    var order = { signal: 0, hold: 1, neutral: 2, clear: 3 };
+    rows.sort(function (a, b) {
+      var sa = order[a.sig] != null ? order[a.sig] : 4, sb = order[b.sig] != null ? order[b.sig] : 4;
+      if (sa !== sb) return sa - sb;
+      return (b.pct || 0) - (a.pct || 0);
+    });
+    var h = '', i;
+    for (i = 0; i < rows.length; i++) h += holdRowHTML(rows[i]);
+    return h;
+  }
+  /* ---------------- 持仓持久化（独立列表，不混自选） ---------------- */
+  function loadHold() {
+    try { RZ.hold = JSON.parse(localStorage.getItem('rz_hold') || 'null'); } catch (e) { RZ.hold = null; }
+    if (!Array.isArray(RZ.hold)) {
+      RZ.hold = [
+        { c: '600667', _at: Date.now() - 5000 }, { c: '600015', _at: Date.now() - 4000 },
+        { c: '588170', _at: Date.now() - 3000 }, { c: '515880', _at: Date.now() - 2000 },
+        { c: '000333', _at: Date.now() - 1000 }
+      ];
+      saveHold();
+    }
+  }
+  function saveHold() { try { if (RZ.hold) localStorage.setItem('rz_hold', JSON.stringify(RZ.hold)); } catch (e) {} }
+  function rzHoldAdd(raw) {
+    var c = String(raw || '').trim();
+    var m = c.match(/^(sh|sz|bj)?(\d{6})$/i);
+    if (!m) { setHoldHint('格式不对：请输入 6 位数字（如 600667 / 588170）。'); return; }
+    c = m[2];
+    if ((RZ.hold || []).some(function (x) { return x.c === c; })) { setHoldHint(c + ' 已在持仓中。'); return; }
+    RZ.hold = RZ.hold || [];
+    RZ.hold.push({ c: c, _at: Date.now() });
+    saveHold(); setHoldHint(''); evalHold();
+  }
+  function rzHoldRemove(code) {
+    RZ.hold = (RZ.hold || []).filter(function (x) { return x.c !== code; });
+    saveHold(); evalHold();
+  }
+  function onHoldDel(code) {
+    if (cfHold === code) { cfHold = ''; rzHoldRemove(code); }
+    else { cfHold = code; render(); }
+  }
+
   CX.init = function () {
+    loadHold();
     bind();
     render();
     setTimeout(function () { try { CX.run(); } catch (e) {} }, 3000);
     schedule();
+    /* 持仓：仅在看该 tab 时每 30s 复评，避免无谓请求（小参考） */
+    setInterval(function () { if (CX.tab === 'holdp' && !CX.holdBusy) { try { evalHold(); } catch (e) {} } }, 30000);
   };
+  CX.evalHold = evalHold;   /* 暴露：切 tab / 外部触发 / 测试可用 */
 
   /* 测试钩子（回归用） */
   CX._t = { judgeCore: judgeCore, tmin: tmin, fillSer: fillSer, fillPts: fillPts,
