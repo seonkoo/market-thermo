@@ -555,6 +555,20 @@ html[data-theme="dark"] .rzselpk{background:#1e2b3f;border-color:#3b6ea8;color:#
 
 .topbar .tb-load{color:var(--txt3)}
 
+/* 大市信号灯：吸顶栏最右一只小圆点，support=绿(承托) / press=红(压制) / na=灰(数据不足)，零文字 */
+.topbar .tbmkt{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
+  background:var(--card);border:1px solid var(--line);cursor:default;margin-left:2px}
+.topbar .tbmkt-light{display:block;width:11px;height:11px;border-radius:50%;background:#c2cad6;transition:background .15s,box-shadow .15s}
+.topbar .tbmkt-light.support{background:#2bd67b;box-shadow:0 0 6px rgba(43,214,123,.75)}
+.topbar .tbmkt-light.press{background:#e5484d;box-shadow:0 0 6px rgba(229,72,77,.75)}
+.topbar .tbmkt-light.na{background:#c2cad6}
+/* 自选面板内的「导航行」：跳到三体共振等卡片 */
+.rzselnav{display:flex;align-items:center;gap:7px;padding:9px 10px;font-size:13px;font-weight:800;color:#1d6fd0;
+  background:#eef4ff;border-bottom:1px solid var(--line2);cursor:pointer}
+.rzselnav:active{background:#e2edff}
+.rzselnav .rzselnav-ic{font-style:normal}
+.rzselnav .rzselnav-go{margin-left:auto;font-weight:600;font-size:11.5px;color:var(--txt3)}
+
 /* 窄屏（手机看盘）恢复换行：桌面 nowrap 的稳定性在窄屏会让标题行溢出裁切 */
 
 @media (max-width:640px){
@@ -7497,10 +7511,52 @@ function renderRzIndexTop(){
     '<div class="rztl-wrap">' + flowHtml + '<div class="rzchartcap">上证分线（蓝）＋主力净流入（红涨/绿跌·亿）· 同框</div></div>' +
 
   '</div>';
+  rzMktLightPaint();   // 吸顶栏大市信号灯（坐标法，数据同源）
 
 }
 
 
+
+// 大市信号灯：用「坐标法」复刻组合图（rzIndexComboSVG）同一套坐标系 —— 价格(蓝)与主力净流入
+// 各自映射到同一竖向像素带，比较两者「归一高度」：蓝线(上证价)归一更高 = 承托(绿)／反之资金线在上方 = 压制(红)。
+// 数据同源（RZ.mktTop.trends / RZ.idxFlow），零镜像、零重复计算。
+function rzMktLightPaint(){
+  var el = document.getElementById('tbMkt');
+  if(!el) return;
+  var m = RZ.mktTop, ser = RZ.idxFlow, mode = 'na';
+  if(m && m.trends && m.trends.today && m.trends.today.length && ser && ser.length){
+    function _pm(t){ var p = String(t).split(':'); if(p.length < 2) return NaN; var x = parseInt(p[0],10)*60 + parseInt(p[1],10); return isFinite(x) ? x : NaN; }
+    function _tm(cm){ if(!isFinite(cm)) return 0; if(cm < 690) return Math.max(0, cm - 570); return Math.min(240, Math.max(120, cm - 660)); }
+    var lo = Infinity, hi = -Infinity, pts = [];
+    m.trends.today.forEach(function(o){
+      var cm = _pm(o.t); if(!isFinite(cm)) return;
+      var v = (o.close > 0) ? o.close : (o.open > 0 ? o.open : NaN); if(!isFinite(v)) return;
+      pts.push([_tm(cm), v]); lo = Math.min(lo, v); hi = Math.max(hi, v);
+    });
+    if(pts.length && pts[0][0] > 0) pts.unshift([0, pts[0][1]]);
+    if(isFinite(m.trends.preClose)){ lo = Math.min(lo, m.trends.preClose); hi = Math.max(hi, m.trends.preClose); }
+    if(!isFinite(lo) || !isFinite(hi) || hi === lo){ lo -= 1; hi += 1; }
+    var pp = (hi - lo) * 0.1; lo -= pp; hi += pp;
+    var flo = Infinity, fhi = -Infinity, fpts = [];
+    ser.forEach(function(s){ var cm = _pm(s[0]); if(!isFinite(cm)) return; fpts.push([_tm(cm), s[1]]); flo = Math.min(flo, s[1]); fhi = Math.max(fhi, s[1]); });
+    if(fpts.length){ if(fpts[0][0] > 0) fpts.unshift([0, fpts[0][1]]); flo = Math.min(flo, 0); fhi = Math.max(fhi, 0); }
+    else { flo = -1; fhi = 1; }
+    var fp = (fhi - flo) * 0.1; flo -= fp; fhi += fp;
+    var lastP = pts.length ? pts[pts.length - 1][1] : NaN;
+    var lastF = fpts.length ? fpts[fpts.length - 1][1] : NaN;
+    if(isFinite(lastP) && isFinite(lastF) && (hi - lo) > 0 && (fhi - flo) > 0){
+      var np = (lastP - lo) / (hi - lo);   // 0=底 1=顶（值越高越靠上）
+      var nf = (lastF - flo) / (fhi - flo);
+      mode = (np > nf) ? 'support' : 'press';   // 蓝线(价)在上方 = 承托
+    }
+  }
+  var tip = mode === 'support' ? '大市信号灯·承托：蓝线(上证价)在资金净流入线上方，顺势'
+           : mode === 'press'   ? '大市信号灯·压制：资金净流入线在蓝线上方，警惕'
+           : '大市信号灯：上证价 / 资金线数据不足';
+  el.className = 'tbmkt';
+  el.title = tip;
+  el.innerHTML = '<i class="tbmkt-light ' + mode + '"></i>';
+}
 
 // a = analyzeFlow() 结果；传入后在曲线上标出峰值与翻空点
 
@@ -9400,6 +9456,8 @@ function rzOverview(){
 
   if(tbp && tbp.style.display === 'block') tbSelPlace();   // 吸顶栏换行高度变了，面板跟着挪，不跑位
 
+  rzMktLightPaint();   // 吸顶栏大市信号灯（无数据时显灰，等 renderRzIndexTop 补真实判定）
+
 }
 
 function rzOne(code, force){
@@ -9683,7 +9741,8 @@ function rzSelRender(force){
 
   RZ._selSig = sig;
 
-  box.innerHTML = codes.length ? rzSelRowsHTML(codes, cf) : '<div class="rzselempty">还没有自选，输入 6 位代码点「添加」</div>';
+  var navRow = '<div class="rzselnav" data-jump="rzRoot"><span class="rzselnav-ic">◎</span>三体共振<span class="rzselnav-go">去共振 ›</span></div>';
+  box.innerHTML = navRow + (codes.length ? rzSelRowsHTML(codes, cf) : '<div class="rzselempty">还没有自选，输入 6 位代码点「添加」</div>');
 
 }
 
@@ -9769,6 +9828,17 @@ function rzSelClick(e){
 
   var t = e.target; if(!t) return;
 
+  // 自选面板内的「导航行」：点一下平滑滚到目标卡片（如三体共振）
+  var nav = (t.closest ? t.closest('[data-jump]') : null);
+  if(nav){
+    var id = nav.getAttribute('data-jump');
+    var tar = document.getElementById(id);
+    if(tar) tar.scrollIntoView({behavior:'smooth', block:'start'});
+    try{ tbSelToggle(false); }catch(_e){}
+    try{ rzSelToggle(false); }catch(_e){}
+    return;
+  }
+
   var row = (t.closest ? t.closest('.rzselrow') : null);
 
   if(!row){
@@ -9827,7 +9897,7 @@ function tbSelChipHTML(){
   var open = !!(pop && pop.style.display === 'block');
   var n = RZ.list.length;
   return '<span class="tb-sel' + (n ? '' : ' empty') + (open ? ' on' : '') + '" id="tbSelChip" role="button" tabindex="0"' +
-         ' title="展开自选列表（滚到哪都能点开跳转）"><i class="tbselic">★</i>自选 <b>' + n + '</b><i class="rzselar">' + (open ? '▴' : '▾') + '</i></span>';
+         ' title="展开自选列表（滚到哪都能点开跳转）">自选 <b>' + n + '</b><i class="rzselar">' + (open ? '▴' : '▾') + '</i></span>';
 }
 
 // 面板贴到吸顶栏正下方：topbar 是 sticky、高度会随文字换行变，所以每次开都实测一次
@@ -9893,7 +9963,8 @@ function tbSelRender(force){
             codes.map(function(c){ var o = RZ.state[c]; return (o && o.quote) ? (o.quote.name + ':' + o.quote.pct) : ''; }).join(',');
   if(!force && sig === RZ._tbSig) return;   // 内容没变就不重画，滚动时面板不跳
   RZ._tbSig = sig;
-  pop.innerHTML = (pick ? '<div class="rzslotpicktip">点一只放进第 ' + (RZ._slotPick + 1) + ' 格<b data-slotcancel="1">取消</b></div>' : rzSearchRowHTML()) +
+  var navRow = '<div class="rzselnav" data-jump="rzRoot"><span class="rzselnav-ic">◎</span>三体共振<span class="rzselnav-go">去共振 ›</span></div>';
+  pop.innerHTML = navRow + (pick ? '<div class="rzslotpicktip">点一只放进第 ' + (RZ._slotPick + 1) + ' 格<b data-slotcancel="1">取消</b></div>' : rzSearchRowHTML()) +
     (codes.length ? rzSelRowsHTML(codes, cf, pick) : '<div class="rzselempty">还没有自选：回到页面顶部输入 6 位代码，点「添加」</div>');
   tbSelPlace();
 }
@@ -9923,7 +9994,7 @@ function tbBarEnsure(){
   if(!el) return null;
   var sb = $('rzSelBar');
   if(sb) return sb;
-  el.innerHTML = '<span class="tbslots" id="rzSelBar"></span>' + tbSelChipHTML();
+  el.innerHTML = '<span class="tbslots" id="rzSelBar"></span>' + tbSelChipHTML() + '<span class="tbmkt" id="tbMkt" title="大市信号灯：计算中…"><i class="tbmkt-light na"></i></span>';
   sb = $('rzSelBar');
   tbSelBarBinds();
   // 栏高变化（换行 / 内容变宽 / 字体加载完）时自动刷新 --tbH，卡片 scroll-margin 永远是对的
