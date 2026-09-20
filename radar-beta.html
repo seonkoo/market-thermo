@@ -555,9 +555,9 @@ html[data-theme="dark"] .rzselpk{background:#1e2b3f;border-color:#3b6ea8;color:#
 
 .topbar .tb-load{color:var(--txt3)}
 
-/* 大市信号灯：吸顶栏最右一只小圆点，support=绿(承托) / press=红(压制) / na=灰(数据不足)，零文字 */
+/* 大市信号灯：吸顶栏最左一只小圆点（左对齐），support=绿(承托) / press=红(压制) / na=灰(数据不足)，零文字 */
 .topbar .tbmkt{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
-  background:var(--card);border:1px solid var(--line);cursor:default;margin-left:2px}
+  background:var(--card);border:1px solid var(--line);cursor:default;margin-right:2px}
 .topbar .tbmkt-light{display:block;width:11px;height:11px;border-radius:50%;background:#c2cad6;transition:background .15s,box-shadow .15s}
 .topbar .tbmkt-light.support{background:#2bd67b;box-shadow:0 0 6px rgba(43,214,123,.75)}
 .topbar .tbmkt-light.press{background:#e5484d;box-shadow:0 0 6px rgba(229,72,77,.75)}
@@ -9994,7 +9994,7 @@ function tbBarEnsure(){
   if(!el) return null;
   var sb = $('rzSelBar');
   if(sb) return sb;
-  el.innerHTML = '<span class="tbslots" id="rzSelBar"></span>' + tbSelChipHTML() + '<span class="tbmkt" id="tbMkt" title="大市信号灯：计算中…"><i class="tbmkt-light na"></i></span>';
+  el.innerHTML = '<span class="tbmkt" id="tbMkt" title="大市信号灯：计算中…"><i class="tbmkt-light na"></i></span>' + '<span class="tbslots" id="rzSelBar"></span>' + tbSelChipHTML();
   sb = $('rzSelBar');
   tbSelBarBinds();
   // 栏高变化（换行 / 内容变宽 / 字体加载完）时自动刷新 --tbH，卡片 scroll-margin 永远是对的
