@@ -824,6 +824,26 @@ body.rzrec-hide .rzwttabs,body.rzrec-hide .rzwtpane{display:none}
 .rzcxchart{margin:5px 0 2px;padding:4px 6px 2px;background:#fbfcfe;border:1px solid #eef2f7;border-radius:8px}
 .rzlg.b{background:#0d9488}
 body.rzrec-hide .rzcx{display:none}
+/* 承托板块：固定横向标签条（2026-09-20 改·并排点击切换） */
+.rzcxbtabs{display:flex;gap:5px;position:-webkit-sticky;position:sticky;top:0;z-index:3;background:#fff;padding:3px 0 5px;margin:0 0 6px;border-bottom:1px solid #eef2f7}
+.rzcxbtab{flex:1 1 0;min-width:0;border:1px solid #dbe6f5;background:#fff;color:#334155;border-radius:8px;padding:4px 3px;font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;line-height:1.2}
+.rzcxbtab.on{border-color:#93c5fd;background:#eff6ff;color:#1d4ed8}
+.rzcxbtabnm{max-width:7em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rzcxbtabcnt{font-size:10px;font-weight:400;color:#94a3b8}
+.rzcxbtab.on .rzcxbtabcnt{color:#1d4ed8}
+.rzcxboardhd{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#334155;background:#f1f5f9;border-radius:6px;padding:4px 7px;margin:0 0 5px}
+.rzcxboardflow{font-weight:400;color:#64748b}
+/* 买入→收市/当前 收益条（每5分钟买点；两者都要：行内 mini 条 + 板块均值条） */
+.rzcxbuybar{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin:3px 0 1px}
+.rzcxbuyL{font-size:10px;color:#94a3b8;margin-right:2px}
+.rzcxbuy{flex:0 0 auto;display:inline-flex;flex-direction:column;align-items:center;line-height:1.2;border:1px solid #dbe6f5;background:#fff;color:#334155;border-radius:7px;padding:2px 6px;font-size:10.5px;cursor:pointer}
+.rzcxbuy.on{border-color:#93c5fd;background:#eff6ff}
+.rzcxbuyM{font-size:9.5px;color:#64748b}
+.rzcxbuy.on .rzcxbuyM{color:#1d4ed8;font-weight:700}
+.rzcxbuyR{font-weight:700;font-size:11px}
+.rzcxbuyR.up{color:#c62828}.rzcxbuyR.down{color:#1b8a3a}.rzcxbuyR.flat{color:#9aa1ab}
+.rzcxbsumm{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin:0 0 6px;padding:5px 6px;background:#f8fafc;border:1px solid #eef2f7;border-radius:8px}
+.rzcxbsummL{font-size:10.5px;font-weight:700;color:#334155;margin-right:3px}
 </style>
 
 <script>
@@ -12295,7 +12315,7 @@ rzStart();
   }
 
   var CX = window.RZCX = {
-    tab: 'hold', busy: false, A: [], Abrk: [], B: [], Bbrk: [],
+    tab: 'hold', activeBoard: null, busy: false, A: [], Abrk: [], B: [], Bbrk: [],
     st: { phase: 'idle', msg: '等待开盘', ts: 0 },
     boards: [], skipped: 0, lastRun: 0, lastMs: 0, snap: null
   };
@@ -12828,6 +12848,7 @@ rzStart();
       + '<span class="rzrecsc rzrecpct ' + pctCls + '">' + (r.pct > 0 ? '+' : '') + num(r.pct, 0).toFixed(2) + '%</span>'
       + '</div>'
       + '<div class="rzrecsub">' + sub + ' · ' + esc(r.bk || '') + '</div>'
+      + ((kind === 'hold' || kind === 'brk') ? buyBarHTML(r) : '')
       + '</div>'
       + btnsHTML(r)
       + '</div>'
@@ -12836,6 +12857,47 @@ rzStart();
       + '</div>'
       + '</div>';
   }
+  /* 买入→收市/当前 收益条：每5分钟买点（09:35…10:00＝交易分5…30），持有至末价的收益%
+     两者都要：行内 mini 条（承托/破线行）+ 板块均值条（板头下）。序列取自行上 P[]（实盘/复盘同源）。 */
+  function buyBarHTML(r) {
+    if (!hasSer(r)) return '';
+    var last = r.T || (r.P ? r.P.length - 1 : 0);
+    for (var i = last; i >= 0; i--) { if (r.P[i] != null) { last = i; break; } }
+    var pts = [5, 10, 15, 20, 25, 30].filter(function (m) { return m <= last && r.P[m]; });
+    if (!pts.length) return '';
+    var label = useSnapNow() ? '买入→收市' : '买入→当前';
+    var h = '<div class="rzcxbuybar"><span class="rzcxbuyL">' + label + '</span>';
+    for (var pi = 0; pi < pts.length; pi++) {
+      var m = pts[pi], ret = (r.P[last] / r.P[m] - 1) * 100;
+      var cls = ret > 0 ? 'up' : (ret < 0 ? 'down' : 'flat');
+      h += '<button class="rzcxbuy" type="button" data-cxbuy="' + m + '">'
+        + '<span class="rzcxbuyM">' + idxToClock(m) + '</span>'
+        + '<b class="rzcxbuyR ' + cls + '">' + (ret > 0 ? '+' : '') + ret.toFixed(2) + '%</b></button>';
+    }
+    return h + '</div>';
+  }
+  function boardBuySumm(rows, useSnap) {
+    var pts = [5, 10, 15, 20, 25, 30], any = false;
+    var h = '<div class="rzcxbsumm"><span class="rzcxbsummL">' + (useSnap ? '买入→收市均值' : '买入→当前均值') + '</span>';
+    for (var pi = 0; pi < pts.length; pi++) {
+      var m = pts[pi], sum = 0, n = 0;
+      for (var ri = 0; ri < rows.length; ri++) {
+        var r = rows[ri];
+        if (!hasSer(r)) continue;
+        var last = r.T || (r.P ? r.P.length - 1 : 0);
+        for (var i = last; i >= 0; i--) { if (r.P[i] != null) { last = i; break; } }
+        if (m > last || !r.P[m]) continue;
+        sum += (r.P[last] / r.P[m] - 1) * 100; n++;
+      }
+      if (!n) continue;
+      any = true;
+      var avg = sum / n, cls = avg > 0 ? 'up' : (avg < 0 ? 'down' : 'flat');
+      h += '<span class="rzcxbuy"><span class="rzcxbuyM">' + idxToClock(m)
+        + '</span><b class="rzcxbuyR ' + cls + '">' + (avg > 0 ? '+' : '') + avg.toFixed(2) + '%</b></span>';
+    }
+    return any ? (h + '</div>') : '';
+  }
+
   /* 分组小标题；次级组带「展开/收起」按钮（常态收起，复盘默认展开） */
   function secHTML(title, n, key, cls, snap) {
     var open = isOpen(key, snap);
@@ -12881,33 +12943,35 @@ rzStart();
         .concat(Bbrk.filter(function (r) { return r.bk === bkName; }));
     }
 
-    var h = '', anyBoard = false;
-    for (var bk = 0; bk < bds.length; bk++) {
-      var nm = bds[bk], rs = rowsFor(nm);
-      if (!rs.length) continue;
-      anyBoard = true;
-      var key = 'bk:' + nm;
-      var open = isOpen(key, useSnap ? false : true);   // 复盘默认折叠；实时默认展开
-      var fl = flowOf(nm);
-      var flTxt = fl != null ? (' · ' + (fl >= 0 ? '+' : '') + (fl / 1e8).toFixed(2) + '亿') : '';
-      h += '<div class="rzcxboard">' + '<div class="rzcxboardhd" data-cxb="' + esc(nm) + '">'
-        + '<span class="rzcxboardnm">' + esc(nm) + '</span>'
-        + '<span class="rzcxboardflow">' + esc(flTxt) + '</span>'
-        + '<button class="rzcxmore" type="button" data-cxb="' + esc(nm) + '">'
-        + (open ? '收起 ▴' : '展开 ' + rs.length + ' 只 ▾') + '</button></div>';
-      if (open) {
-        h += '<div class="rzcxboardbody">';
-        for (var ki = 0; ki < rs.length; ki++) {
-          var rr = rs[ki];
-          if (CX.tab === 'hold') h += rowHTML(rr, (rr.brd !== null && rr.brd !== undefined) ? 'brk' : 'hold');
-          else h += rowHTML(rr, rr.rebrk ? 'cxbrk' : 'cxhold');
-        }
-        h += '</div>';
-      }
-      h += '</div>';
+    if (!bds.length) return '<div class="rzlvempty">' + (CX.tab === 'hold' ? '暂无承托标的' : '暂无走出承托标的') + '</div>';
+    /* 活动板块：默认第一个（9/18＝净流入最高的板块）；切走/数据变化则回退 */
+    var active = (CX.activeBoard && bds.indexOf(CX.activeBoard) >= 0) ? CX.activeBoard : bds[0];
+
+    /* 固定横向板块标签条（并排·点击切换；参考 9/18 板块排列＝净流入高→低） */
+    var th = '<div class="rzcxbtabs">';
+    for (var ti = 0; ti < bds.length; ti++) {
+      var tnm = bds[ti], tcnt = rowsFor(tnm).length;
+      th += '<button class="rzcxbtab' + (tnm === active ? ' on' : '') + '" type="button" data-cxb="' + esc(tnm) + '">'
+        + '<span class="rzcxbtabnm">' + esc(tnm) + '</span>'
+        + '<span class="rzcxbtabcnt">' + tcnt + ' 只</span></button>';
     }
-    if (!anyBoard) return '<div class="rzlvempty">' + (CX.tab === 'hold' ? '暂无承托标的' : '暂无走出承托标的') + '</div>';
-    return '<div class="rzcxboards">' + h + '</div>';
+    th += '</div>';
+
+    var rs = rowsFor(active);
+    var fl = flowOf(active);
+    var flTxt = fl != null ? (' · ' + (fl >= 0 ? '+' : '') + (fl / 1e8).toFixed(2) + '亿') : '';
+    var bh = '<div class="rzcxboardhd"><span class="rzcxboardnm">' + esc(active) + '</span>'
+      + '<span class="rzcxboardflow">' + esc(flTxt) + '</span></div>';
+    var summ = boardBuySumm(rs, useSnap);
+    var body = '<div class="rzcxboardbody">';
+    if (!rs.length) body += '<div class="rzlvempty">' + (CX.tab === 'hold' ? '该板块暂无承托标的' : '该板块暂无走出承托标的') + '</div>';
+    else for (var ki = 0; ki < rs.length; ki++) {
+      var rr = rs[ki];
+      if (CX.tab === 'hold') body += rowHTML(rr, (rr.brd !== null && rr.brd !== undefined) ? 'brk' : 'hold');
+      else body += rowHTML(rr, rr.rebrk ? 'cxbrk' : 'cxhold');
+    }
+    body += '</div>';
+    return th + '<div class="rzcxboard">' + bh + summ + body + '</div>';
   }
   /* 板块来源（一行，随扫描结果变化） */
   function boardLine() {
@@ -13172,10 +13236,16 @@ rzStart();
         }
         var a = up('data-cxa');
         if (a) { onAdd(a.getAttribute('data-cxa')); return; }
+        var by = up('data-cxbuy');
+        if (by) {
+          var bar = by.parentNode, sibs = bar ? bar.getElementsByClassName('rzcxbuy') : [];
+          for (var si = 0; si < sibs.length; si++) sibs[si].className = 'rzcxbuy';
+          by.className = 'rzcxbuy on';
+          return;
+        }
         var b = up('data-cxb');
         if (b) {
-          var bk = b.getAttribute('data-cxb');
-          setOpen('bk:' + bk, !isOpen('bk:' + bk, useSnapNow() ? false : true));
+          CX.activeBoard = b.getAttribute('data-cxb');
           render();
           return;
         }
