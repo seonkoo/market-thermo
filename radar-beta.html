@@ -683,6 +683,7 @@ html[data-theme="dark"] svg text[stroke="#fff"]{stroke:#141b24}
 .rzrecnm{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rzreccd{flex:0 0 auto;font-size:11px;color:var(--txt3);font-variant-numeric:tabular-nums}
 .rzrecsc{flex:0 0 auto;font-size:10.5px;color:#2563eb;font-weight:700}
+    .rzrecpr{flex:0 0 auto;font-size:11px;color:#334155;font-weight:600;margin-left:auto}
 .rzrecsub{font-size:10.5px;color:var(--txt3);line-height:1.45;word-break:break-word}
 .rzrecpct{font-weight:700}
 .rzrecpct.up{color:#c62828}
@@ -12751,6 +12752,16 @@ rzStart();
 
   /* 行上有没有可画的序列：实时＝判定时留下的 P/FS/FB；复盘＝内嵌的 P/FS/FB */
   function hasSer(r) { return !!(r && r.P && r.FS && r.FB); }
+  /* 当前/收盘价：复盘行有 close；实时行取 P[末]（与买→收市收益同源） */
+  function priceOf(r) {
+    if (!r) return null;
+    if (r.close != null && r.close !== '') { var c = num(r.close, 0); if (c > 0) return c; }
+    if (r.P && r.P.length) {
+      var last = num(r.T, 0) || (r.P.length - 1), i;
+      for (i = last; i >= 0; i--) if (r.P[i] != null && r.P[i] !== undefined && isFinite(r.P[i]) && r.P[i] > 0) return r.P[i];
+    }
+    return null;
+  }
   /* 三个轴的取值区间：实时行直接用判定时算好的（严格同源）；复盘行现算 */
   function rangesOf(r) {
     if (r.rng) return r.rng;
@@ -12821,6 +12832,7 @@ rzStart();
 
   function rowHTML(r, kind) {
     var pctCls = r.pct > 0 ? 'up' : (r.pct < 0 ? 'down' : 'flat');
+    var pr = priceOf(r);
     var sub;
     if (kind === 'brk') {
       sub = '<span class="rzcxbrk">破板块线 ' + esc(r.brdClock) + '</span>';
@@ -12845,10 +12857,10 @@ rzStart();
       + '<div class="rzrecline1"><span class="rzrecnm">' + esc(r.name) + '</span>'
       + '<span class="rzreccd">' + esc(r.code) + '</span>'
       + (r.etf ? '<span class="rzcxtag">ETF</span>' : '')
+      + (pr != null ? '<span class="rzrecpr">¥' + pr.toFixed(2) + '</span>' : '')
       + '<span class="rzrecsc rzrecpct ' + pctCls + '">' + (r.pct > 0 ? '+' : '') + num(r.pct, 0).toFixed(2) + '%</span>'
       + '</div>'
       + '<div class="rzrecsub">' + sub + ' · ' + esc(r.bk || '') + '</div>'
-      + ((kind === 'hold' || kind === 'brk') ? buyBarHTML(r) : '')
       + '</div>'
       + btnsHTML(r)
       + '</div>'
@@ -12857,25 +12869,7 @@ rzStart();
       + '</div>'
       + '</div>';
   }
-  /* 买入→收市/当前 收益条：每5分钟买点（09:35…10:00＝交易分5…30），持有至末价的收益%
-     两者都要：行内 mini 条（承托/破线行）+ 板块均值条（板头下）。序列取自行上 P[]（实盘/复盘同源）。 */
-  function buyBarHTML(r) {
-    if (!hasSer(r)) return '';
-    var last = r.T || (r.P ? r.P.length - 1 : 0);
-    for (var i = last; i >= 0; i--) { if (r.P[i] != null) { last = i; break; } }
-    var pts = [5, 10, 15, 20, 25, 30].filter(function (m) { return m <= last && r.P[m]; });
-    if (!pts.length) return '';
-    var label = useSnapNow() ? '买入→收市' : '买入→当前';
-    var h = '<div class="rzcxbuybar"><span class="rzcxbuyL">' + label + '</span>';
-    for (var pi = 0; pi < pts.length; pi++) {
-      var m = pts[pi], ret = (r.P[last] / r.P[m] - 1) * 100;
-      var cls = ret > 0 ? 'up' : (ret < 0 ? 'down' : 'flat');
-      h += '<button class="rzcxbuy" type="button" data-cxbuy="' + m + '">'
-        + '<span class="rzcxbuyM">' + idxToClock(m) + '</span>'
-        + '<b class="rzcxbuyR ' + cls + '">' + (ret > 0 ? '+' : '') + ret.toFixed(2) + '%</b></button>';
-    }
-    return h + '</div>';
-  }
+  /* 行内买点条已移除：买入→收市收益仅保留「板块均值汇总」（rzcxbsumm，板头下），化繁为简 */
   function boardBuySumm(rows, useSnap) {
     var pts = [5, 10, 15, 20, 25, 30], any = false;
     var h = '<div class="rzcxbsumm"><span class="rzcxbsummL">' + (useSnap ? '买入→收市均值' : '买入→当前均值') + '</span>';
@@ -13236,13 +13230,6 @@ rzStart();
         }
         var a = up('data-cxa');
         if (a) { onAdd(a.getAttribute('data-cxa')); return; }
-        var by = up('data-cxbuy');
-        if (by) {
-          var bar = by.parentNode, sibs = bar ? bar.getElementsByClassName('rzcxbuy') : [];
-          for (var si = 0; si < sibs.length; si++) sibs[si].className = 'rzcxbuy';
-          by.className = 'rzcxbuy on';
-          return;
-        }
         var b = up('data-cxb');
         if (b) {
           CX.activeBoard = b.getAttribute('data-cxb');
