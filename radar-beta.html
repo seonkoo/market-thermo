@@ -852,10 +852,12 @@ body.rzrec-hide .rzwttabs,body.rzrec-hide .rzwtpane{display:none}
 .rzlg.b{background:#0d9488}
 body.rzrec-hide .rzcx{display:none}
 /* 承托板块：固定横向标签条（2026-09-20 改·并排点击切换） */
-.rzcxbtabs{display:flex;gap:5px;position:-webkit-sticky;position:sticky;top:0;z-index:3;background:#fff;padding:3px 0 5px;margin:0 0 6px;border-bottom:1px solid #eef2f7}
-.rzcxbtab{flex:1 1 0;min-width:0;border:1px solid #dbe6f5;background:#fff;color:#334155;border-radius:8px;padding:4px 3px;font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;line-height:1.2}
+.rzcxbtabs{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;position:-webkit-sticky;position:sticky;top:0;z-index:3;background:#fff;padding:5px 0 7px;margin:0 0 6px;border-bottom:1px solid #eef2f7}
+.rzcxbtabs::-webkit-scrollbar{height:5px}
+.rzcxbtabs::-webkit-scrollbar-thumb{background:#cdd9ea;border-radius:3px}
+.rzcxbtab{flex:0 0 auto;min-width:84px;max-width:none;border:1px solid #dbe6f5;background:#fff;color:#334155;border-radius:8px;padding:6px 7px;font-size:12px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;line-height:1.25;white-space:nowrap}
 .rzcxbtab.on{border-color:#93c5fd;background:#eff6ff;color:#1d4ed8}
-.rzcxbtabnm{max-width:7em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rzcxbtabnm{max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rzcxbtabcnt{font-size:10px;font-weight:400;color:#94a3b8}
 .rzcxbtab.on .rzcxbtabcnt{color:#1d4ed8}
 .rzcxboardhd{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#334155;background:#f1f5f9;border-radius:6px;padding:4px 7px;margin:0 0 5px}
@@ -917,6 +919,8 @@ body.rzrec-hide .rzcx{display:none}
 .rzcx .rzcxbsummL{font-size:11.5px}
 .rzcx .rzcxbuy{font-size:11.5px;padding:3px 8px}
 .rzcx .rzrecside{gap:5px}
+/* 前30分钟放大按钮：默认隐藏（固定全天，同稳定版）。方案保留——删此行即恢复「放大前30分钟」按钮 */
+.rzrecbtn[data-a="zoom"]{display:none}
 </style>
 
 <script>
@@ -1664,7 +1668,9 @@ var CFG = {
   // 15 分钟放大 16×（斜率 6%），10 分钟放大 24×（斜率 4%，反而更平），30 分钟放大 8×（斜率 13%）最接近全天观感。
   AXIS: {
 
-    EARLY_MIN: 30       // 开盘放大窗口（分钟）：09:30–09:59 铺满宽度，10:00 起恢复全天
+    EARLY_MIN: 30,      // 开盘放大窗口（分钟）：09:30–09:59 铺满宽度，10:00 起恢复全天（仅 EARLY_ZOOM=true 时生效）
+
+    EARLY_ZOOM: false   // 前30分钟放大总开关：false=固定全天(同稳定版)；true=开启开盘窗口放大（方案保留，随时可开）
 
   },
   // tooltip 交互（beta）：点击固定后，若一段时间没有继续操作就自动收起
@@ -7846,6 +7852,8 @@ function comboH(){ return 200; }
 })();
 
 function axisSpanNow(){
+
+  if(!(CFG.AXIS && CFG.AXIS.EARLY_ZOOM)) return TRADE_SPAN;   // 关放大：永远固定全天，与稳定版逐像素一致（EARLY_ZOOM=true 即恢复开盘窗口放大）
 
   var now = new Date();
 
