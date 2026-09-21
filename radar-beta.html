@@ -12541,7 +12541,8 @@ rzStart();
   function loadToday() {
     try {
       var o = JSON.parse(localStorage.getItem(TODAY_KEY) || 'null');
-      CX.today = (o && o.d === todayKey()) ? o : null;   /* 只认「今天」，隔日自动失效 */
+      /* 只认「今天」且结构完整，隔日 / 脏数据自动失效 */
+      CX.today = (o && o.d === todayKey() && o.boards && o.A && o.B && o.Bbrk) ? o : null;
     } catch (e) { CX.today = null; }
   }
   function todayOn() { return !!(CX.today && CX.today.d === todayKey()); }
