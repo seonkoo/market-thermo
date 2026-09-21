@@ -851,14 +851,12 @@ body.rzrec-hide .rzwttabs,body.rzrec-hide .rzwtpane{display:none}
 .rzcxchart{margin:5px 0 2px;padding:4px 6px 2px;background:#fbfcfe;border:1px solid #eef2f7;border-radius:8px}
 .rzlg.b{background:#0d9488}
 body.rzrec-hide .rzcx{display:none}
-/* 承托板块：固定横向标签条（2026-09-20 改·并排点击切换） */
-.rzcxbtabs{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;position:-webkit-sticky;position:sticky;top:0;z-index:3;background:#fff;padding:5px 0 7px;margin:0 0 6px;border-bottom:1px solid #eef2f7}
-.rzcxbtabs::-webkit-scrollbar{height:5px}
-.rzcxbtabs::-webkit-scrollbar-thumb{background:#cdd9ea;border-radius:3px}
-.rzcxbtab{flex:0 0 auto;min-width:84px;max-width:none;border:1px solid #dbe6f5;background:#fff;color:#334155;border-radius:8px;padding:6px 7px;font-size:12px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;line-height:1.25;white-space:nowrap}
+/* 承托板块标签条：等宽铺满·自动换行（2026-09-21 用户要求：取消横向滑动，10 板块直接点，字不扎堆） */
+.rzcxbtabs{display:flex;flex-wrap:wrap;gap:5px;position:-webkit-sticky;position:sticky;top:0;z-index:3;background:#fff;padding:5px 0 7px;margin:0 0 6px;border-bottom:1px solid #eef2f7}
+.rzcxbtab{flex:1 1 0;min-width:60px;max-width:none;border:1px solid #dbe6f5;background:#fff;color:#334155;border-radius:8px;padding:5px 4px;font-size:11.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;line-height:1.2}
 .rzcxbtab.on{border-color:#93c5fd;background:#eff6ff;color:#1d4ed8}
-.rzcxbtabnm{max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rzcxbtabcnt{font-size:10px;font-weight:400;color:#94a3b8}
+.rzcxbtabnm{max-width:none;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;line-height:1.15}
+.rzcxbtabcnt{font-size:10px;font-weight:400;color:#94a3b8;line-height:1.1;white-space:nowrap}
 .rzcxbtab.on .rzcxbtabcnt{color:#1d4ed8}
 .rzcxboardhd{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#334155;background:#f1f5f9;border-radius:6px;padding:4px 7px;margin:0 0 5px}
 .rzcxboardflow{font-weight:400;color:#64748b}
@@ -1123,13 +1121,6 @@ body.rzrec-hide .rzcx{display:none}
         <div class="rzrectabs" id="rzCrossTab">
           <button class="rzrectab on" type="button" data-cxt="hold">&#9312; 承托</button>
           <button class="rzrectab" type="button" data-cxt="cross">&#9313; 走出承托</button>
-          <button class="rzrectab" type="button" data-cxt="holdp">&#9314; 我的持仓</button>
-        </div>
-        <div class="rzholdbar" id="rzHoldBar" hidden>
-          <input class="rzholdinp" id="rzHoldInp" placeholder="6位代码" maxlength="6" inputmode="numeric" autocomplete="off"/>
-          <button class="rzholdadd" id="rzHoldAdd" type="button">添加</button>
-          <span class="rzholdhint" id="rzHoldHint"></span>
-          <span class="rzholdnote">净流入＝主力净流入（累计）· 红进绿出 · 非交易日为上一交易日收盘值</span>
         </div>
         <div class="rzreclist" id="rzCrossList"></div>
       </div>
@@ -12482,7 +12473,8 @@ rzStart();
     tab: 'hold', activeBoard: null, busy: false, A: [], Abrk: [], B: [], Bbrk: [],
     hold: [], holdBusy: false, holdBoard: {},
     st: { phase: 'idle', msg: '等待开盘', ts: 0 },
-    boards: [], skipped: 0, lastRun: 0, lastMs: 0, snap: null
+    boards: [], boardTotals: {}, skipped: 0, lastRun: 0, lastMs: 0,
+    snap: null, today: null      /* snap=内嵌上一交易日复盘；today=本机今日实盘快照（见下） */
   };
 
   /* 次级组展开/收起状态：用户显式点过才记住；没点过时 → 复盘默认展开、盘中默认收起 */
@@ -12518,6 +12510,41 @@ rzStart();
       }
     } catch (e) { CX.snap = null; }
   })();
+
+  /* 今日实盘快照（轻量，只存标量、绝不存序列）：
+     非交易时段 / 刷新后，优先显示「今天」扫出来的结果，而不是永远回退到内嵌的
+     上一交易日复盘（_mklive.py 注入的 #rzCxSnapK）。
+     用户 2026-09-21 反馈：收市后页面回到 9/18 旧快照、只剩 3 个板块，误以为系统故障。 */
+  var TODAY_KEY = 'rzcx_today';
+  function snapRowA(r) {
+    return { code: r.code, name: r.name, bk: r.bk, etf: r.etf || 0, pct: num(r.pct, 0), px: r.px,
+             brd: (r.brd === undefined ? null : r.brd), brdClock: r.brdClock || '',
+             ind: (r.ind === undefined ? null : r.ind), indClock: r.indClock || '' };
+  }
+  function snapRowB(r) {
+    return { code: r.code, name: r.name, bk: r.bk, etf: r.etf || 0, pct: num(r.pct, 0), px: r.px,
+             cross: r.cross, mins: r.mins || 0, tier: r.tier || tierOf(r.mins), ret: r.ret,
+             rebrk: r.rebrk || '', xret: r.xret };
+  }
+  function saveToday() {
+    try {
+      var o = { d: todayKey(), ts: Date.now(),
+        boards: CX.boards.map(function (b) { return b.name; }),
+        flows: {}, boardTotals: {},
+        A: CX.A.map(snapRowA), Abrk: CX.Abrk.map(snapRowA),
+        B: CX.B.map(snapRowB), Bbrk: CX.Bbrk.map(snapRowB) };
+      for (var i = 0; i < CX.boards.length; i++) o.flows[CX.boards[i].name] = CX.boards[i].flow;
+      for (var k in CX.boardTotals) if (Object.prototype.hasOwnProperty.call(CX.boardTotals, k)) o.boardTotals[k] = CX.boardTotals[k];
+      localStorage.setItem(TODAY_KEY, JSON.stringify(o));
+    } catch (e) { }
+  }
+  function loadToday() {
+    try {
+      var o = JSON.parse(localStorage.getItem(TODAY_KEY) || 'null');
+      CX.today = (o && o.d === todayKey()) ? o : null;   /* 只认「今天」，隔日自动失效 */
+    } catch (e) { CX.today = null; }
+  }
+  function todayOn() { return !!(CX.today && CX.today.d === todayKey()); }
 
   /* 复盘快照 A 行补齐 brd/ind（2026-09-20：👌＝板块线承托、👍＝个股资金线承托需要 ind）。
      行上已带 P/FS/FB → 用【同一个 judgeCore】重算（单一引擎，不另写 Python 口径）；
@@ -12890,7 +12917,8 @@ rzStart();
   /* ---------------- 状态 / 渲染 ---------------- */
   function setSt(phase, msg) { CX.st = { phase: phase, msg: msg || '', ts: Date.now() }; }
   function hasLive() { return CX.A.length > 0 || CX.B.length > 0 || CX.Bbrk.length > 0; }
-  function useSnapNow() { return !hasLive() && snapOn(); }
+  /* 非实时态：优先今日快照（todayOn），其次内嵌上一交易日复盘（snapOn） */
+  function useSnapNow() { return !hasLive() && (todayOn() || snapOn()); }
   /* 主组＝盘中直接看的那组（A 未破线 / B 未再破线）；另一组常态收起 */
   function mainOf(tab, A, B) {
     if (tab === 'hold') return A.filter(function (r) { return r.brd === null || r.brd === undefined; });
@@ -13107,11 +13135,11 @@ rzStart();
   }
 
   function listHTML() {
-    if (CX.tab === 'holdp') return holdHTML();
     if (CX.busy) return '<div class="rzlvempty">' + esc(CX.st.msg || '取数中…') + '</div>';
     var live = hasLive();
-    var useSnap = !live && snapOn();
-    if (!live && !useSnap) {
+    var useToday = !live && todayOn();
+    var useSnap = !live && !useToday && snapOn();
+    if (!live && !useToday && !useSnap) {
       if (CX.st.phase === 'rest' || CX.st.phase === 'idle') {
         if (preOpen()) return '<div class="rzlvempty">待开盘 · 准备读取实时数据…</div>';
         return '<div class="rzlvempty">' + esc(CX.st.msg || '非交易时段') + '</div>';
@@ -13119,20 +13147,35 @@ rzStart();
       return '<div class="rzlvempty">' + (CX.tab === 'hold'
         ? '暂无符合条件的承托标的' : '暂无「蓝线站上个股资金线 ≥10 分钟」的遗漏标的') + '</div>';
     }
-    var A = useSnap ? CX.snap.A : CX.A;
-    var B = useSnap ? CX.snap.B : CX.B;
-    var Bbrk = useSnap ? CX.snap.Bbrk : CX.Bbrk;
+    var A = useToday ? CX.today.A : (useSnap ? CX.snap.A : CX.A);
+    var B = useToday ? CX.today.B : (useSnap ? CX.snap.B : CX.B);
+    var Bbrk = useToday ? CX.today.Bbrk : (useSnap ? CX.snap.Bbrk : CX.Bbrk);
 
-    /* 板块顺序：实时＝CX.boards（已按净流入降序）；复盘＝CX.snap.boards（快照时顺序） */
-    var rawBoards = useSnap ? CX.snap.boards.slice() : CX.boards.map(function (b) { return b.name; });
+    /* 板块顺序：实时＝CX.boards（已按净流入降序）；今日/复盘快照＝保存时顺序 */
+    var rawBoards = useToday ? CX.today.boards.slice()
+      : (useSnap ? CX.snap.boards.slice() : CX.boards.map(function (b) { return b.name; }));
     var seenB = {}, bds = [];
     for (var bi2 = 0; bi2 < rawBoards.length; bi2++) {
       if (!seenB[rawBoards[bi2]]) { seenB[rawBoards[bi2]] = 1; bds.push(rawBoards[bi2]); }
     }
+    /* 板块净流入：实时/今日快照可拿；内嵌复盘快照没有 → null */
     function flowOf(bkName) {
+      if (useToday) return (CX.today.flows && CX.today.flows[bkName] != null) ? CX.today.flows[bkName] : null;
       if (useSnap) return null;
       for (var fi = 0; fi < CX.boards.length; fi++) if (CX.boards[fi].name === bkName) return CX.boards[fi].flow;
       return null;
+    }
+    /* 承托率分母：本板块扫过的候选总数（个股+ETF）；复盘快照没有 → null（只显承托数） */
+    function totalOf(bkName) {
+      if (useToday) return (CX.today.boardTotals && CX.today.boardTotals[bkName] != null) ? CX.today.boardTotals[bkName] : null;
+      if (useSnap) return null;
+      return (CX.boardTotals && CX.boardTotals[bkName] != null) ? CX.boardTotals[bkName] : null;
+    }
+    /* 该板块承托数（Mode A 承托名单） */
+    function supCnt(bkName) {
+      var c = 0;
+      for (var ai = 0; ai < A.length; ai++) if (A[ai].bk === bkName) c++;
+      return c;
     }
     function rowsFor(bkName) {
       if (CX.tab === 'hold') return A.filter(function (r) { return r.bk === bkName; });
@@ -13141,16 +13184,19 @@ rzStart();
     }
 
     if (!bds.length) return '<div class="rzlvempty">' + (CX.tab === 'hold' ? '暂无承托标的' : '暂无走出承托标的') + '</div>';
-    /* 活动板块：默认第一个（9/18＝净流入最高的板块）；切走/数据变化则回退 */
+    /* 活动板块：默认第一个（＝净流入最高的板块）；切走/数据变化则回退 */
     var active = (CX.activeBoard && bds.indexOf(CX.activeBoard) >= 0) ? CX.activeBoard : bds[0];
 
-    /* 固定横向板块标签条（并排·点击切换；参考 9/18 板块排列＝净流入高→低） */
+    /* 板块标签条：等宽铺满·自动换行（不横向滑动）；每格＝该板块承托率 承托数/候选总数 */
     var th = '<div class="rzcxbtabs">';
     for (var ti = 0; ti < bds.length; ti++) {
-      var tnm = bds[ti], tcnt = rowsFor(tnm).length;
+      var tnm = bds[ti], sc = supCnt(tnm), tot = totalOf(tnm);
+      var ct = (tot != null && tot > 0)
+        ? ('承托 ' + sc + '/' + tot + ' · ' + Math.round(sc / tot * 100) + '%')
+        : ('承托 ' + sc + ' 只');
       th += '<button class="rzcxbtab' + (tnm === active ? ' on' : '') + '" type="button" data-cxb="' + esc(tnm) + '">'
         + '<span class="rzcxbtabnm">' + esc(tnm) + '</span>'
-        + '<span class="rzcxbtabcnt">' + tcnt + ' 只</span></button>';
+        + '<span class="rzcxbtabcnt">' + ct + '</span></button>';
     }
     th += '</div>';
 
@@ -13159,7 +13205,7 @@ rzStart();
     var flTxt = fl != null ? (' · ' + (fl >= 0 ? '+' : '') + (fl / 1e8).toFixed(2) + '亿') : '';
     var bh = '<div class="rzcxboardhd"><span class="rzcxboardnm">' + esc(active) + '</span>'
       + '<span class="rzcxboardflow">' + esc(flTxt) + '</span></div>';
-    var summ = boardBuySumm(rs, useSnap);
+    var summ = boardBuySumm(rs, useToday || useSnap);
     var body = '<div class="rzcxboardbody">';
     if (!rs.length) body += '<div class="rzlvempty">' + (CX.tab === 'hold' ? '该板块暂无承托标的' : '该板块暂无走出承托标的') + '</div>';
     else for (var ki = 0; ki < rs.length; ki++) {
@@ -13179,22 +13225,23 @@ rzStart();
   function render() {
     try {
       if (!$('rzCross')) return;
-      var hb = $('rzHoldBar'); if (hb && hb.style) hb.style.display = (CX.tab === 'holdp') ? '' : 'none';
+      var useToday = !hasLive() && todayOn();
       var useSnap = useSnapNow();
       var n;
-      if (CX.tab === 'holdp') n = CX.hold.length;
+      if (useToday) n = CX.tab === 'hold' ? CX.today.A.length : (CX.today.B.length + CX.today.Bbrk.length);
       else if (useSnap) n = CX.tab === 'hold' ? CX.snap.A.length : (CX.snap.B.length + CX.snap.Bbrk.length);
       else n = CX.tab === 'hold' ? CX.A.length : (CX.B.length + CX.Bbrk.length);
       var ts = $('rzCrossTs');
       if (ts) {
-        ts.textContent = useSnap ? '复盘 ' + CX.snap.d + ' · 非实时'
-          : (preOpen() ? '待开盘 · 准备读取实时数据'
-            : (CX.st.phase === 'load' ? '取数中…'
-              : (CX.st.phase === 'rest' ? (CX.st.msg || '非交易时段')
-                : '更新 ' + hmOf(nowMin()) + (CX.lastMs ? ' · ' + (CX.lastMs / 1000).toFixed(1) + 's' : '')
-                  + ' · ' + boardLine())));
+        var tstxt;
+        if (useToday) tstxt = '今日 ' + CX.today.d + ' 收盘数据 · 非实时';
+        else if (useSnap) tstxt = '复盘 ' + CX.snap.d + ' · 非实时';
+        else if (preOpen()) tstxt = '待开盘 · 准备读取实时数据';
+        else if (CX.st.phase === 'load') tstxt = '取数中…';
+        else if (CX.st.phase === 'rest') tstxt = (CX.st.msg || '非交易时段');
+        else tstxt = '更新 ' + hmOf(nowMin()) + (CX.lastMs ? ' · ' + (CX.lastMs / 1000).toFixed(1) + 's' : '') + ' · ' + boardLine();
+        ts.textContent = tstxt;
       }
-      if (CX.tab === 'holdp' && ts) ts.textContent = CX.holdBusy ? '持仓判定中…' : ('持仓 ' + CX.hold.length + ' 只 · 每30s复评');
       var cnt = $('rzCrossN'); if (cnt) cnt.textContent = n;
       var list = $('rzCrossList'); if (list) list.innerHTML = listHTML();
       var tabs = $('rzCrossTab');
@@ -13273,6 +13320,7 @@ rzStart();
           cands.push({ code: e.code, mk: e.mk, name: e.name, pct: e.pct, bk: b.name, bkCode: b.code, etf: 1 });
           ne++;
         }
+        CX.boardTotals[b.name] = got + ne;   // 本板块候选总数（个股+ETF）→ 承托率分母
         short = got < PER_BK;       // 本板块个股凑不满 → 允许再顺延一个板块
         return nextBoard();
       });
@@ -13296,6 +13344,7 @@ rzStart();
     CX.busy = true; CX.skipped = 0; CX.lastRun = Date.now();
     var t0 = CX.lastRun;        // 本轮耗时（实测，写日志用；明早开盘即可拿到真实数字）
     etfCache = null;            // ETF 池每轮重新取（一次），不跨轮复用（否则名单会定格在旧榜）
+    CX.boardTotals = {};        // 承托率分母：每轮重算
     setSt('load', '扫描中 · 已扫 0/' + TOP_BK + ' 板'); render();
 
     var T;
@@ -13396,6 +13445,7 @@ rzStart();
       CX.A = A; CX.Abrk = Abrk; CX.B = B; CX.Bbrk = Bbrk;
       CX.lastMs = Date.now() - t0;      // 本轮实测耗时（毫秒）
       saveLog();
+      saveToday();                      // 落盘今日实盘快照 → 非交易时段/刷新后优先显示今日
       CX.busy = false;
       setSt('live', '更新 ' + hmOf(nowMin()) + ' · 板' + CX.boards.length
         + ' · 承托' + A.length + ' 走出' + (B.length + Bbrk.length));
@@ -13414,7 +13464,6 @@ rzStart();
         while (t && t !== tabs && !t.getAttribute('data-cxt')) t = t.parentNode;
         if (!t || t === tabs) return;
         CX.tab = t.getAttribute('data-cxt');
-        if (CX.tab === 'holdp') { try { evalHold(); } catch (e) {} }
         render();
       });
     }
@@ -13465,12 +13514,6 @@ rzStart();
         box.className = hid ? box.className.replace(/\s*collapsed/g, '') : (box.className + ' collapsed');
         tg.textContent = hid ? '收起 ▴' : '展开 ▾';
       });
-    }
-    /* 我的持仓：输入框 + 添加（与列表/渲染分离，避免重绘丢焦点） */
-    var hi = $('rzHoldInp'), ha = $('rzHoldAdd');
-    if (hi && ha) {
-      ha.addEventListener('click', function () { rzHoldAdd(hi.value); hi.value = ''; });
-      hi.addEventListener('keydown', function (e) { if (e.key === 'Enter') { rzHoldAdd(hi.value); hi.value = ''; } });
     }
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState !== 'visible') { lastVis = Date.now(); return; }
@@ -13705,15 +13748,14 @@ rzStart();
   }
 
   CX.init = function () {
-    loadHold();
+    loadToday();
     bind();
     render();
     setTimeout(function () { try { CX.run(); } catch (e) {} }, 3000);
     schedule();
-    /* 持仓：仅在看该 tab 时每 30s 复评，避免无谓请求（小参考） */
-    setInterval(function () { if (CX.tab === 'holdp' && !CX.holdBusy) { try { evalHold(); } catch (e) {} } }, 30000);
   };
-  CX.evalHold = evalHold;   /* 暴露：切 tab / 外部触发 / 测试可用 */
+  /* 「我的持仓」按用户要求移除（2026-09-21）：tab / 输入栏 / 触发定时器均已摘除；
+     evalHold·holdHTML·holdRowHTML 等函数仍留在本文件作备选，未接线、不影响主流程。 */
 
   /* 测试钩子（回归用） */
   CX._t = { judgeCore: judgeCore, tmin: tmin, fillSer: fillSer, fillPts: fillPts,
