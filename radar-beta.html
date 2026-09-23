@@ -1900,6 +1900,11 @@ function retry2(fn){
 
 }
 
+// 东财 push2 系多节点 failover 池（资金流/板块/指数/期货/快照用）：实测分钟级资金流仅 push2delay + 数字 LB 节点(82/7/15/31/41/44/62.push2) 有 klt=1 当日累计净额；
+// 纯 push2 / push2his / 112.push2 本机常被 RST，置末作终极兜底；push2test 仅 200 但 klines 空，不纳入。
+// ⚠️ 必须定义在 apiSnap 之前（apiSnap 在下方立即引用它）——var 只提升声明不提升赋值，放后面会导致 undefined。
+var EM_FLOW_HOSTS = ['push2delay.eastmoney.com', '82.push2.eastmoney.com', '7.push2.eastmoney.com', '15.push2.eastmoney.com', '31.push2.eastmoney.com', '41.push2.eastmoney.com', '44.push2.eastmoney.com', '62.push2.eastmoney.com', 'push2.eastmoney.com'];
+
 // 东财实时快照：改用 EM_FLOW_HOSTS 多节点 failover（push2 本机常被 RST，换节点往往能成；解析失败即触发下一主机）
 
 var apiSnap = retry2(function(secid){
@@ -6773,10 +6778,8 @@ function rzSetSort(mode){
 
 // 多主机 jsonp 轮询（东财限流按主机独立）
 
-// 东财 push2 系多节点 failover 池（资金流/板块/指数/期货用）：实测分钟级资金流仅 push2delay + 数字 LB 节点(82/7/15/31/41/44/62.push2) 有 klt=1 当日累计净额；
-// 纯 push2 / push2his / 112.push2 本机常被 RST，置末作终极兜底；push2test 仅 200 但 klines 空，不纳入。
-// 注：分时 trends2 沿用文件上方原 EM_HOSTS（push2his 系），此处独立命名避免覆盖。
-var EM_FLOW_HOSTS = ['push2delay.eastmoney.com', '82.push2.eastmoney.com', '7.push2.eastmoney.com', '15.push2.eastmoney.com', '31.push2.eastmoney.com', '41.push2.eastmoney.com', '44.push2.eastmoney.com', '62.push2.eastmoney.com', 'push2.eastmoney.com'];
+// 注：EM_FLOW_HOSTS 已移至文件上方（apiSnap 之前）定义，此处不再重复声明。
+// 注：分时 trends2 沿用上方原 EM_HOSTS（push2his 系），与资金流池独立。
 
 function rzGet(path, parser, t){
 
