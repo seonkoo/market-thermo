@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-23 17:50:22 GMT+8",
+ "generated_at": "2026-09-23 19:53:29 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [
   "快照有 2 页拉取失败，统计口径会偏小",
@@ -245,9 +245,9 @@
  },
  "liquidity": {
   "top_ratio": 41.8,
-  "hhi": 0.0012,
-  "gini": 0.6851,
-  "risk": 54.8,
+  "hhi": 0.00121,
+  "gini": 0.6855,
+  "risk": 54.9,
   "level": "中风险",
   "note": "资金中度集中，赚钱效应收敛，控制追高",
   "sample": 5010,
@@ -273,14 +273,14 @@
   "parts": {
    "advance": 34.0,
    "ma_breadth": 71.1,
-   "limit_net": 99.2,
+   "limit_net": 99.6,
    "volume": 55.0,
    "margin": 55.0
   },
   "why": {
    "advance": "上涨家数占比 34.0%",
    "ma_breadth": "站上20日均线 71.1%",
-   "limit_net": "涨停 82 / 跌停 24",
+   "limit_net": "涨停 83 / 跌停 24",
    "volume": "沪市量能比 0.92（相对20日均值）",
    "margin": "两融10日变动 +0.08%"
   },
@@ -288,30 +288,30 @@
    "hot": 70.0,
    "cold": 30.0
   },
-  "up": 1704,
-  "down": 3223,
-  "flat": 84,
-  "limit_up": 82,
+  "up": 1705,
+  "down": 3229,
+  "flat": 77,
+  "limit_up": 83,
   "limit_down": 24
  },
  "flow": {
-  "main_net": -393.9,
-  "xlarge_net": -158.9,
-  "large_net": -234.9,
-  "mid_net": 26.1,
-  "small_net": 367.8,
-  "main_pct": -2.24,
+  "main_net": -392.5,
+  "xlarge_net": -158.2,
+  "large_net": -234.4,
+  "mid_net": 25.3,
+  "small_net": 367.2,
+  "main_pct": -2.23,
   "main_in": false,
   "retail_in": true
  },
  "breadth_count": {
-  "up": 1704,
-  "down": 3223,
-  "flat": 84,
-  "limit_up": 82,
+  "up": 1705,
+  "down": 3229,
+  "flat": 77,
+  "limit_up": 83,
   "limit_down": 24,
   "advance_pct": 34.0,
-  "limit_net": 58
+  "limit_net": 59
  },
  "futures_basis": {
   "items": [
@@ -359,8 +359,8 @@
   "confidence": 64,
   "evidence": [
    "上证 -0.39%（绿盘）",
-   "主力净流出 -393.9亿（<-50亿）",
-   "超大单净流出 -158.9亿（<-30亿，机构卖出）",
+   "主力净流出 -392.5亿（<-50亿）",
+   "超大单净流出 -158.2亿（<-30亿，机构卖出）",
    "跌停 24家（≥20家）",
    "期指贴水 -1.51%（<-0.30%，避险情绪）"
   ],
@@ -439,7 +439,7 @@
   "confirms": [
    {
     "metric": "主力资金",
-    "anchor": "今日主力净流入 -393.9亿",
+    "anchor": "今日主力净流入 -392.5亿",
     "good": "明日盘中主力资金净流入转正（>0亿）",
     "then_good": "派发压力缓解，可按计划小仓试错",
     "then_bad": "维持减仓基调，反弹以减为主",
@@ -463,7 +463,7 @@
    },
    {
     "metric": "涨停家数",
-    "anchor": "今日涨停 82家",
+    "anchor": "今日涨停 83家",
     "good": "明日涨停家数 ≥50 且炸板不明显",
     "then_good": "情绪延续，题材可小仓参与",
     "then_bad": "涨停数骤降＝情绪退潮，题材一律不追",
@@ -534,5 +534,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 108.8
+ "elapsed": 101.4
 }
