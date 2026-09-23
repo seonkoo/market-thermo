@@ -1777,51 +1777,52 @@ function windowState(now){
 
 var _seq = 0;
 
-function jsonpCb(url, timeout){
-
+function emFetchJson(url, timeout){
   return new Promise(function(res, rej){
-
-    var name = '__jp' + (++_seq) + '_' + Date.now();
-
-    var s = document.createElement('script');
-
-    var done = false, timer;
-
-    function clean(){
-
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = setTimeout(function(){ if(ctrl) ctrl.abort(); rej(new Error('TIMEOUT')); }, timeout || 9000);
+    var opt = { referrerPolicy: 'no-referrer' };
+    if(ctrl) opt.signal = ctrl.signal;
+    fetch(url, opt).then(function(r){
       clearTimeout(timer);
-
-      try { delete window[name]; } catch(e){ window[name] = undefined; }
-
-      try { if(s.parentNode) s.parentNode.removeChild(s); } catch(e){}
-
-    }
-
-    window[name] = function(d){ if(done) return; done = true; clean(); res(d); };
-
-    s.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'cb=' + name;
-
-    s.onerror = function(){ if(done) return; done = true; clean(); rej(new Error('NETWORK')); };
-
-    // 东财抽风时常返回空 body（非 JSONP），脚本加载成功但回调不被调用 → 快速判失败，避免白等超时
-
-    s.onload = function(){ if(done) return; done = true; clean(); rej(new Error('EMPTY')); };
-
-    timer = setTimeout(function(){ if(done) return; done = true; clean(); rej(new Error('TIMEOUT')); }, timeout || 9000);
-
-    // no-referrer 试验(2026-09-04)：东财历史资金流(fflow)网关对"带第三方 Referer 的浏览器请求"拒连，
-
-    // 而服务端/裸请求放行。给 script 设 referrerPolicy=no-referrer 后不再携带本站域名 → 尝试绕墙。
-
-    // 若仍失败走原有降级链，本行对其它东财接口亦无害。
-
-    try{ s.referrerPolicy = 'no-referrer'; }catch(e){}
-
-    document.head.appendChild(s);
-
+      if(!r.ok){ rej(new Error('HTTP' + r.status)); return; }
+      return r.text();
+    }).then(function(txt){
+      if(typeof txt !== 'string'){ rej(new Error('EMPTY')); return; }
+      var i = txt.indexOf('{'), j = txt.lastIndexOf('}');
+      if(i < 0 || j < i){ rej(new Error('EMPTY')); return; }
+      try { res(JSON.parse(txt.slice(i, j + 1))); } catch(e){ rej(new Error('PARSE')); }
+    }).catch(function(e){ clearTimeout(timer); rej(e); });
   });
-
 }
+
+function emJsonpScript(url, timeout){
+  return new Promise(function(res, rej){
+    var name = '__jp' + (++_seq) + '_' + Date.now();
+    var s = document.createElement('script');
+    var done = false, timer;
+    function clean(){
+      clearTimeout(timer);
+      try { delete window[name]; } catch(e){ window[name] = undefined; }
+      try { if(s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+    }
+    window[name] = function(d){ if(done) return; done = true; clean(); res(d); };
+    s.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'cb=' + name;
+    s.onerror = function(){ if(done) return; done = true; clean(); rej(new Error('NETWORK')); };
+    s.onload = function(){ if(done) return; done = true; clean(); rej(new Error('EMPTY')); };
+    timer = setTimeout(function(){ if(done) return; done = true; clean(); rej(new Error('TIMEOUT')); }, timeout || 9000);
+    try{ s.referrerPolicy = 'no-referrer'; }catch(e){}
+    document.head.appendChild(s);
+  });
+}
+
+// 东财取数：优先 fetch + referrerPolicy:no-referrer（东财按 Referer 拒 JSONP，fetch 免 Referer 稳；
+// github.io 页面下东财回显任意 Origin，CORS 通过）。fetch 因 CORS/网络失败 → 兜底回退 script JSONP。
+function jsonpCb(url, timeout){
+  return emFetchJson(url, timeout).catch(function(){ return emJsonpScript(url, timeout); });
+}
+
+
 
 // 腾讯 _var= 变量式 JSONP
 
@@ -1899,13 +1900,15 @@ function retry2(fn){
 
 }
 
-// 东财实时快照
+// 东财实时快照：改用 EM_FLOW_HOSTS 多节点 failover（push2 本机常被 RST，换节点往往能成；解析失败即触发下一主机）
 
 var apiSnap = retry2(function(secid){
 
   var f = ['f43','f44','f45','f46','f47','f48','f50','f57','f58','f60','f169','f170','f86','f168'].join(',');
 
-  return jsonpCb('https://push2.eastmoney.com/api/qt/stock/get?secid=' + secid + '&fields=' + f + '&fltt=2&invt=2');
+  var path = '/api/qt/stock/get?secid=' + secid + '&fields=' + f + '&fltt=2&invt=2';
+
+  return tryHosts(EM_FLOW_HOSTS, path, function(raw){ var s = parseSnap(raw); if(!s) throw new Error('EMPTY'); return raw; });
 
 });
 
@@ -2307,7 +2310,7 @@ function fetchBreadth(){
 
   // 3) 行业板块资金流（实时）
 
-  jobs.push(jsonpCb(EM_CLIST + '?fid=f62&po=1&pz=200&pn=1&np=1&fltt=2&invt=2&fs=' + encodeURIComponent('m:90+t:2') + '&fields=f12,f14,f62,f184,f3').then(function(j){
+  jobs.push(emHostGet(EM_CLIST + '?fid=f62&po=1&pz=200&pn=1&np=1&fltt=2&invt=2&fs=' + encodeURIComponent('m:90+t:2') + '&fields=f12,f14,f62,f184,f3').then(function(j){
 
     var raw = (((j||{}).data)||{}).diff || [];
 
@@ -6770,15 +6773,20 @@ function rzSetSort(mode){
 
 // 多主机 jsonp 轮询（东财限流按主机独立）
 
+// 东财 push2 系多节点 failover 池（资金流/板块/指数/期货用）：实测分钟级资金流仅 push2delay + 数字 LB 节点(82/7/15/31/41/44/62.push2) 有 klt=1 当日累计净额；
+// 纯 push2 / push2his / 112.push2 本机常被 RST，置末作终极兜底；push2test 仅 200 但 klines 空，不纳入。
+// 注：分时 trends2 沿用文件上方原 EM_HOSTS（push2his 系），此处独立命名避免覆盖。
+var EM_FLOW_HOSTS = ['push2delay.eastmoney.com', '82.push2.eastmoney.com', '7.push2.eastmoney.com', '15.push2.eastmoney.com', '31.push2.eastmoney.com', '41.push2.eastmoney.com', '44.push2.eastmoney.com', '62.push2.eastmoney.com', 'push2.eastmoney.com'];
+
 function rzGet(path, parser, t){
 
-  var hosts = ['push2delay.eastmoney.com', 'push2.eastmoney.com'], i = 0;
+  var i = 0;
 
   function go(){
 
-    if(i >= hosts.length) return Promise.reject(new Error('RZ_HOST_FAIL'));
+    if(i >= EM_FLOW_HOSTS.length) return Promise.reject(new Error('RZ_HOST_FAIL'));
 
-    var h = hosts[i++];
+    var h = EM_FLOW_HOSTS[i++];
 
     return jsonpCb('https://' + h + path, t || 8000).then(function(raw){ return parser(raw); }).catch(function(){ return go(); });
 
@@ -6786,6 +6794,19 @@ function rzGet(path, parser, t){
 
   return go();
 
+}
+
+// 供 EM_ULIST / EM_CLIST 这类完整 URL 接口复用同一多节点 failover 池（板块资金流 / 指数 / 期货）。
+function emHostGet(url, timeout){
+  var m = String(url).match(/^https:\/\/([^\/]+)(\/.*)$/);
+  if(!m) return jsonpCb(url, timeout);
+  var path = m[2], idx = 0;
+  function go(){
+    if(idx >= EM_FLOW_HOSTS.length) return Promise.reject(new Error('EM_HOST_FAIL'));
+    var h = EM_FLOW_HOSTS[idx++];
+    return jsonpCb('https://' + h + path, timeout).catch(function(){ return go(); });
+  }
+  return go();
 }
 
 // 大盘：上证现价/涨跌 + 量能比
