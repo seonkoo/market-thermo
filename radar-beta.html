@@ -1773,11 +1773,81 @@ function windowState(now){
 
 
 
-/* ============ JSONP ============ */
+/* ============ 东财安全取数层（防风控：客户端缓存 + 并发限速 + 单主机冷却 + 全局冷却） ============ */
+/* 根因：原实现每次刷新/轮询都实打东财、失败会把 9 个主机轮一遍 + retry2 翻倍、<script> 带 Referer 触发网关拒连，
+   狂刷即触发东财按 IP 的频率封禁。本层统一收口：
+   - 30s 客户端缓存（localStorage 持久，F5 也命中）→ 狂刷不再重复打东财
+   - fetch + referrerPolicy:'no-referrer'（删掉 <script> 兜底，那是 Referer 指纹来源）
+   - 并发 ≤3；单主机失败进冷却；连续 3 次失败 → 全局指数退避冷却，期间所有东财请求直接降级（不重试、不放大）
+   所有调用点（jsonpCb / tryHosts / rzGet / emHostGet / pzt.jsonp）零改动，统一走本层。 */
 
-var _seq = 0;
+var _seq = 0;                       // jsonpVar(腾讯) 仍用，保留
 
-function emFetchJson(url, timeout){
+var EM_CACHE = {};                    // key -> {t, d}
+var EM_HOST_BAD = {};                 // host -> 冷却截止(ms)
+var EM_COOLDOWN_UNTIL = 0;            // 全局冷却截止
+var EM_FAIL_STREAK = 0;               // 连续失败计数（达阈值触发全局冷却）
+var EM_INFLIGHT = 0;
+var EM_QUEUE = [];
+var EM_MAX_INFLIGHT = 3;
+var EM_CACHE_TTL = 30000;             // 缓存 30s
+var EM_HOST_COOLDOWN = 45000;         // 单主机冷却 45s
+var EM_GLOBAL_COOLDOWN_BASE = 60000;  // 全局冷却起算 60s
+var EM_GLOBAL_COOLDOWN_MAX = 300000;  // 上限 5min
+
+function EM_raiseCooldown(){
+  EM_FAIL_STREAK++;
+  if(EM_FAIL_STREAK >= 3){
+    var d = Math.min(EM_GLOBAL_COOLDOWN_BASE * Math.pow(2, Math.min(EM_FAIL_STREAK - 3, 4)), EM_GLOBAL_COOLDOWN_MAX);
+    EM_COOLDOWN_UNTIL = Date.now() + d;
+    if(typeof window.RZ_EM_ON_COOLDOWN === 'function'){ try{ window.RZ_EM_ON_COOLDOWN(d); }catch(e){} }
+  }
+}
+function EM_noteSuccess(){ EM_FAIL_STREAK = 0; }
+function EM_hostOf(url){ var m = String(url).match(/^https?:\/\/([^\/]+)/); return m ? m[1] : ''; }
+
+function emCacheKey(url){
+  try{
+    var u = new URL(url);
+    ['cb','_var','_','__','timestamp'].forEach(function(k){ try{ u.searchParams.delete(k); }catch(e){} });
+    var parts = u.searchParams.toString().split('&').filter(function(p){
+      if(!p) return false;
+      if(/^(_|=)?\d{9,}$/.test(p)) return false;          // 纯数字缓存炸弹（Date.now 等）
+      if(/=(Date\.now\(\)|\d{13})$/.test(p)) return false;
+      return true;
+    }).sort();
+    return u.origin + u.pathname + '?' + parts.join('&');
+  }catch(e){ return url; }
+}
+function emCacheGet(key){
+  try{
+    var c = EM_CACHE[key];
+    if(c && Date.now() - c.t < EM_CACHE_TTL) return c.d;
+    var ls = localStorage.getItem('emc_' + key);
+    if(ls){ var o = JSON.parse(ls); if(Date.now() - o.t < EM_CACHE_TTL){ EM_CACHE[key] = o; return o.d; } }
+  }catch(e){}
+  return undefined;
+}
+function emCacheSet(key, d){
+  try{ var o = { t: Date.now(), d: d }; EM_CACHE[key] = o; localStorage.setItem('emc_' + key, JSON.stringify(o)); }catch(e){}
+}
+function emDrain(){
+  while(EM_QUEUE.length && EM_INFLIGHT < EM_MAX_INFLIGHT){
+    var job = EM_QUEUE.shift();
+    EM_INFLIGHT++;
+    emRawFetch(job.url, job.timeout).then(function(d){
+      EM_INFLIGHT--; emCacheSet(job.key, d); EM_noteSuccess(); emDrain(); job.res(d);
+    }).catch(function(e){
+      EM_INFLIGHT--; emDrain();
+      var h = EM_hostOf(job.url); if(h) EM_HOST_BAD[h] = Date.now() + EM_HOST_COOLDOWN;
+      EM_raiseCooldown();
+      job.rej(e);
+    });
+  }
+}
+
+// 纯传输：fetch + no-referrer（东财回显任意 Origin → CORS 通过；免 Referer 指纹，避免网关拒连）
+function emRawFetch(url, timeout){
   return new Promise(function(res, rej){
     var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     var timer = setTimeout(function(){ if(ctrl) ctrl.abort(); rej(new Error('TIMEOUT')); }, timeout || 9000);
@@ -1796,30 +1866,38 @@ function emFetchJson(url, timeout){
   });
 }
 
-function emJsonpScript(url, timeout){
+// 公共入口（替换原 jsonpCb，调用点零改动）：缓存 + 全局冷却 + 并发限速
+function jsonpCb(url, timeout){
   return new Promise(function(res, rej){
-    var name = '__jp' + (++_seq) + '_' + Date.now();
-    var s = document.createElement('script');
-    var done = false, timer;
-    function clean(){
-      clearTimeout(timer);
-      try { delete window[name]; } catch(e){ window[name] = undefined; }
-      try { if(s.parentNode) s.parentNode.removeChild(s); } catch(e){}
-    }
-    window[name] = function(d){ if(done) return; done = true; clean(); res(d); };
-    s.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'cb=' + name;
-    s.onerror = function(){ if(done) return; done = true; clean(); rej(new Error('NETWORK')); };
-    s.onload = function(){ if(done) return; done = true; clean(); rej(new Error('EMPTY')); };
-    timer = setTimeout(function(){ if(done) return; done = true; clean(); rej(new Error('TIMEOUT')); }, timeout || 9000);
-    try{ s.referrerPolicy = 'no-referrer'; }catch(e){}
-    document.head.appendChild(s);
+    if(Date.now() < EM_COOLDOWN_UNTIL){ rej(new Error('COOLDOWN')); return; }
+    var key = emCacheKey(url);
+    var hit = emCacheGet(key);
+    if(hit !== undefined){ res(hit); return; }
+    EM_QUEUE.push({ url: url, timeout: timeout, key: key, res: res, rej: function(e){
+      var h = EM_hostOf(url); if(h) EM_HOST_BAD[h] = Date.now() + EM_HOST_COOLDOWN;
+      EM_raiseCooldown();
+      rej(e);
+    }});
+    emDrain();
   });
 }
 
-// 东财取数：优先 fetch + referrerPolicy:no-referrer（东财按 Referer 拒 JSONP，fetch 免 Referer 稳；
-// github.io 页面下东财回显任意 Origin，CORS 通过）。fetch 因 CORS/网络失败 → 兜底回退 script JSONP。
-function jsonpCb(url, timeout){
-  return emFetchJson(url, timeout).catch(function(){ return emJsonpScript(url, timeout); });
+// 全局冷却横幅（若页面已自定义 RZ_EM_ON_COOLDOWN 则不覆盖）
+if(typeof window.RZ_EM_ON_COOLDOWN !== 'function'){
+  window.RZ_EM_ON_COOLDOWN = function(ms){
+    try{
+      var b = document.getElementById('em_cooldown_banner');
+      if(!b){
+        b = document.createElement('div'); b.id = 'em_cooldown_banner';
+        b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#c0392b;color:#fff;font-size:12px;line-height:1.6;padding:6px 10px;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.3)';
+        (document.body || document.documentElement).appendChild(b);
+      }
+      var s = Math.max(1, Math.ceil(ms / 1000));
+      b.textContent = '⚠️ 东方财富触发风控冷却（约 ' + s + 's）：已停止请求、复用缓存/降级数据，请勿狂刷，稍后自动恢复';
+      b.style.display = 'block';
+      clearTimeout(b._t); b._t = setTimeout(function(){ b.style.display = 'none'; }, ms + 1500);
+    }catch(e){}
+  };
 }
 
 
@@ -6435,6 +6513,13 @@ function queryStock(){
 
 function refreshAll(){
 
+  // 全局冷却守卫：东财风控期间直接跳过，避免按钮连点/自动轮询继续打东财放大封禁
+  if(typeof EM_COOLDOWN_UNTIL !== 'undefined' && Date.now() < EM_COOLDOWN_UNTIL){
+    if(typeof window.RZ_EM_ON_COOLDOWN === 'function') window.RZ_EM_ON_COOLDOWN(EM_COOLDOWN_UNTIL - Date.now());
+    setStatus('限流冷却中', 'na');
+    return;
+  }
+
   setStatus('加载中…', 'na');
 
   showErr('globalErr', '');
@@ -10268,29 +10353,8 @@ rzStart();
 
   var _ji=0;
 
-  function jsonp(url){
-
-    return new Promise(function(resolve,reject){
-
-      var cb='__pztsfcb'+(++_ji)+'_'+Date.now();
-
-      var s=document.createElement('script'); var done=false;
-
-      var clean=function(){ try{ delete window[cb]; }catch(e){ window[cb]=undefined; } s.remove(); };
-
-      window[cb]=function(d){ done=true; clean(); resolve(d); };
-
-      s.onerror=function(){ if(!done){ clean(); reject(new Error('网络/跨域失败')); } };
-
-      s.src=url+(url.indexOf('?')>=0?'&':'?')+'cb='+cb;
-
-      setTimeout(function(){ if(!done){ clean(); reject(new Error('超时')); } }, 20000);
-
-      document.body.appendChild(s);
-
-    });
-
-  }
+  // 路由到东财安全取数层（jsonpCb=缓存+冷却+no-referrer），杜绝 <script> 带 Referer 触发风控；返回解析后的对象与原来一致
+  function jsonp(url){ return jsonpCb(url, 20000); }
 
   function fetchAllSectors(industry){
 
