@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-01 21:37:25 GMT+8",
+ "generated_at": "2026-10-02 15:24:50 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [
   "行业资金流失败: Expecting value: line 1 column 1 (char 0)",
@@ -50,65 +50,65 @@
    "name": "恒生指数",
    "group": "亚太",
    "code": "HSI",
-   "price": 24613.27,
-   "pct": 0.37,
-   "change": 89.7
+   "price": 23933.58,
+   "pct": -2.76,
+   "change": -679.69
   },
   {
    "name": "国企指数",
    "group": "亚太",
    "code": "HSCEI",
-   "price": 8220.08,
-   "pct": 0.5,
-   "change": 41.27
+   "price": 8016.69,
+   "pct": -2.47,
+   "change": -203.39
   },
   {
    "name": "日经225",
    "group": "亚太",
    "code": "N225",
-   "price": 68956.72,
-   "pct": 3.3,
-   "change": 2203.0
+   "price": 68309.46,
+   "pct": -0.94,
+   "change": -647.26
   },
   {
    "name": "韩国KOSPI",
    "group": "亚太",
    "code": "KS11",
-   "price": 6971.35,
-   "pct": 1.95,
-   "change": 133.31
+   "price": 7003.74,
+   "pct": 0.46,
+   "change": 32.39
   },
   {
    "name": "道琼斯",
    "group": "欧美",
    "code": "DJIA",
-   "price": 51104.36,
-   "pct": 0.39,
-   "change": 198.31
+   "price": 50926.56,
+   "pct": 0.04,
+   "change": 20.51
   },
   {
    "name": "纳斯达克100",
    "group": "欧美",
    "code": "NDX",
-   "price": 26990.59,
-   "pct": 0.48,
-   "change": 129.53
+   "price": 26871.6,
+   "pct": 0.04,
+   "change": 10.54
   },
   {
    "name": "标普500",
    "group": "欧美",
    "code": "SPX",
-   "price": 7674.94,
-   "pct": 0.31,
-   "change": 23.4
+   "price": 7666.45,
+   "pct": 0.19,
+   "change": 14.91
   },
   {
    "name": "美元指数",
    "group": "欧美",
    "code": "UDI",
-   "price": 101.78,
-   "pct": 0.31,
-   "change": 0.31
+   "price": 101.89,
+   "pct": -0.14,
+   "change": -0.14
   }
  ],
  "breadth": {
@@ -535,5 +535,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 107.4
+ "elapsed": 101.7
 }
