@@ -1,7 +1,8 @@
 {
- "generated_at": "2026-10-08 19:53:40 GMT+8",
+ "generated_at": "2026-10-08 21:47:46 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [
+  "快照有 2 页拉取失败，统计口径会偏小",
   "行业资金流失败: Expecting value: line 1 column 1 (char 0)",
   "ETF 资金流获取失败: Expecting value: line 1 column 1 (char 0)"
  ],
@@ -82,33 +83,33 @@
    "name": "道琼斯",
    "group": "欧美",
    "code": "DJIA",
-   "price": 51179.87,
-   "pct": -0.66,
-   "change": -341.41
+   "price": 51102.57,
+   "pct": -0.15,
+   "change": -77.3
   },
   {
    "name": "纳斯达克100",
    "group": "欧美",
    "code": "NDX",
-   "price": 27538.69,
-   "pct": -0.22,
-   "change": -61.2
+   "price": 27392.05,
+   "pct": -0.53,
+   "change": -146.64
   },
   {
    "name": "标普500",
    "group": "欧美",
    "code": "SPX",
-   "price": 7801.77,
-   "pct": -0.22,
-   "change": -17.16
+   "price": 7778.17,
+   "pct": -0.3,
+   "change": -23.6
   },
   {
    "name": "美元指数",
    "group": "欧美",
    "code": "UDI",
-   "price": 102.42,
-   "pct": 0.15,
-   "change": 0.15
+   "price": 102.27,
+   "pct": 0.0,
+   "change": 0.0
   }
  ],
  "breadth": {
@@ -243,13 +244,13 @@
   "scope": "成交额Top800"
  },
  "liquidity": {
-  "top_ratio": 42.7,
+  "top_ratio": 42.4,
   "hhi": 0.00137,
-  "gini": 0.6807,
-  "risk": 56.9,
+  "gini": 0.6773,
+  "risk": 56.6,
   "level": "中风险",
   "note": "资金中度集中，赚钱效应收敛，控制追高",
-  "sample": 5209,
+  "sample": 5109,
   "top_pct": 5.0
  },
  "margin": {
@@ -287,26 +288,26 @@
    "hot": 70.0,
    "cold": 30.0
   },
-  "up": 1634,
-  "down": 3466,
-  "flat": 110,
+  "up": 1602,
+  "down": 3400,
+  "flat": 108,
   "limit_up": 53,
   "limit_down": 51
  },
  "flow": {
-  "main_net": -480.3,
+  "main_net": -479.7,
   "xlarge_net": -250.4,
-  "large_net": -229.9,
-  "mid_net": 136.3,
-  "small_net": 344.0,
+  "large_net": -229.3,
+  "mid_net": 136.6,
+  "small_net": 343.1,
   "main_pct": -2.86,
   "main_in": false,
   "retail_in": true
  },
  "breadth_count": {
-  "up": 1634,
-  "down": 3466,
-  "flat": 110,
+  "up": 1602,
+  "down": 3400,
+  "flat": 108,
   "limit_up": 53,
   "limit_down": 51,
   "advance_pct": 31.4,
@@ -358,7 +359,7 @@
   "confidence": 88,
   "evidence": [
    "上证 -0.79%（绿盘）",
-   "主力净流出 -480.3亿（<-50亿）",
+   "主力净流出 -479.7亿（<-50亿）",
    "超大单净流出 -250.4亿（<-30亿，机构卖出）",
    "成交额宽度 34.8%（<40%）",
    "情绪 40分（≤42分 转冷/冰点）",
@@ -400,7 +401,7 @@
    "advice": "题材热闹但持续性差，长线账户不追、只看核心。",
    "evidence": [
     "尾部 75% 强于头部 14% → 微盘在冲，投机性高",
-    "资金集中度 43% 偏高 → 抱团核心，宜跟随头部"
+    "资金集中度 42% 偏高 → 抱团核心，宜跟随头部"
    ]
   },
   "timing": {
@@ -439,7 +440,7 @@
   "confirms": [
    {
     "metric": "主力资金",
-    "anchor": "今日主力净流入 -480.3亿",
+    "anchor": "今日主力净流入 -479.7亿",
     "good": "明日盘中主力资金净流入转正（>0亿）",
     "then_good": "派发压力缓解，可按计划小仓试错",
     "then_bad": "维持减仓基调，反弹以减为主",
@@ -534,5 +535,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 105.5
+ "elapsed": 122.9
 }
