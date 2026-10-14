@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-14 18:00:06 GMT+8",
+ "generated_at": "2026-10-14 18:23:28 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [
   "行业资金流失败: Expecting value: line 1 column 1 (char 0)",
@@ -534,5 +534,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 155.2
+ "elapsed": 174.6
 }
