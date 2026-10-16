@@ -1,1 +1,1 @@
-window.THERMO_TIMELINE = {"date": "2026-10-16", "segments": [{"s": "11:01", "e": "11:30", "regime": "共振拉升", "confidence": 77}, {"s": "13:00", "e": "14:16", "regime": "共振拉升", "confidence": 69}, {"s": "14:16", "e": "14:16", "regime": "诱多派发", "confidence": 68}]};
+window.THERMO_TIMELINE = {"date": "2026-10-16", "segments": [{"s": "11:01", "e": "11:30", "regime": "共振拉升", "confidence": 77}, {"s": "13:00", "e": "14:16", "regime": "共振拉升", "confidence": 69}, {"s": "14:16", "e": "15:00", "regime": "诱多派发", "confidence": 68}]};
