@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-26 16:02:07 GMT+8",
+ "generated_at": "2026-10-26 17:55:07 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [
   "行业资金流失败: Expecting value: line 1 column 1 (char 0)",
@@ -50,17 +50,17 @@
    "name": "恒生指数",
    "group": "亚太",
    "code": "HSI",
-   "price": 23219.14,
-   "pct": 0.54,
-   "change": 125.77
+   "price": 23211.81,
+   "pct": 0.51,
+   "change": 118.44
   },
   {
    "name": "国企指数",
    "group": "亚太",
    "code": "HSCEI",
-   "price": 7803.42,
-   "pct": 0.61,
-   "change": 47.17
+   "price": 7802.09,
+   "pct": 0.59,
+   "change": 45.84
   },
   {
    "name": "日经225",
@@ -106,9 +106,9 @@
    "name": "美元指数",
    "group": "欧美",
    "code": "UDI",
-   "price": 101.79,
-   "pct": 0.04,
-   "change": 0.04
+   "price": 101.81,
+   "pct": 0.06,
+   "change": 0.06
   }
  ],
  "breadth": {
@@ -156,85 +156,85 @@
     "g": 7,
     "n": 39,
     "pct_above": 41.0,
-    "avg_amt": 5.62
+    "avg_amt": 5.6
    },
    {
     "g": 8,
     "n": 39,
     "pct_above": 30.8,
-    "avg_amt": 6.35
+    "avg_amt": 6.33
    },
    {
     "g": 9,
     "n": 39,
     "pct_above": 43.6,
-    "avg_amt": 6.95
+    "avg_amt": 6.94
    },
    {
     "g": 10,
     "n": 39,
     "pct_above": 35.9,
-    "avg_amt": 7.56
+    "avg_amt": 7.54
    },
    {
     "g": 11,
     "n": 39,
     "pct_above": 38.5,
-    "avg_amt": 8.35
+    "avg_amt": 8.33
    },
    {
     "g": 12,
     "n": 39,
     "pct_above": 25.6,
-    "avg_amt": 9.22
+    "avg_amt": 9.19
    },
    {
     "g": 13,
     "n": 39,
     "pct_above": 20.5,
-    "avg_amt": 10.19
+    "avg_amt": 10.17
    },
    {
     "g": 14,
     "n": 39,
     "pct_above": 23.1,
-    "avg_amt": 11.35
+    "avg_amt": 11.3
    },
    {
     "g": 15,
     "n": 39,
     "pct_above": 25.6,
-    "avg_amt": 12.64
+    "avg_amt": 12.56
    },
    {
     "g": 16,
     "n": 39,
-    "pct_above": 25.6,
-    "avg_amt": 14.67
+    "pct_above": 23.1,
+    "avg_amt": 14.55
    },
    {
     "g": 17,
     "n": 39,
-    "pct_above": 35.9,
-    "avg_amt": 17.33
+    "pct_above": 38.5,
+    "avg_amt": 17.17
    },
    {
     "g": 18,
     "n": 39,
     "pct_above": 12.8,
-    "avg_amt": 20.73
+    "avg_amt": 20.5
    },
    {
     "g": 19,
     "n": 39,
     "pct_above": 17.9,
-    "avg_amt": 27.77
+    "avg_amt": 27.34
    },
    {
     "g": 20,
     "n": 54,
     "pct_above": 7.4,
-    "avg_amt": 82.4
+    "avg_amt": 53.26
    }
   ],
   "sample": 795,
@@ -535,5 +535,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 247.6
+ "elapsed": 88.3
 }
