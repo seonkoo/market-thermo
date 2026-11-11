@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-11 19:44:10 GMT+8",
+ "generated_at": "2026-11-11 19:59:45 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [
   "快照有 2 页拉取失败，统计口径会偏小",
@@ -107,9 +107,9 @@
    "name": "美元指数",
    "group": "欧美",
    "code": "UDI",
-   "price": 102.51,
-   "pct": 0.25,
-   "change": 0.26
+   "price": 102.52,
+   "pct": 0.26,
+   "change": 0.27
   }
  ],
  "breadth": {
@@ -246,8 +246,8 @@
  "liquidity": {
   "top_ratio": 44.2,
   "hhi": 0.00174,
-  "gini": 0.7051,
-  "risk": 61.9,
+  "gini": 0.7045,
+  "risk": 61.8,
   "level": "中风险",
   "note": "资金中度集中，赚钱效应收敛，控制追高",
   "sample": 5019,
@@ -267,18 +267,18 @@
  "sector": null,
  "volume_ratio": 0.918,
  "emotion": {
-  "score": 67.0,
+  "score": 66.9,
   "level": "偏热",
   "note": "情绪偏乐观，追高性价比下降",
   "parts": {
-   "advance": 64.8,
+   "advance": 64.6,
    "ma_breadth": 71.1,
    "limit_net": 100.0,
    "volume": 55.0,
    "margin": 15.0
   },
   "why": {
-   "advance": "上涨家数占比 64.8%",
+   "advance": "上涨家数占比 64.6%",
    "ma_breadth": "站上20日均线 71.1%",
    "limit_net": "涨停 115 / 跌停 6",
    "volume": "沪市量能比 0.92（相对20日均值）",
@@ -288,29 +288,29 @@
    "hot": 70.0,
    "cold": 30.0
   },
-  "up": 3256,
-  "down": 1583,
-  "flat": 183,
+  "up": 3243,
+  "down": 1593,
+  "flat": 186,
   "limit_up": 115,
   "limit_down": 6
  },
  "flow": {
-  "main_net": 201.2,
-  "xlarge_net": 202.0,
-  "large_net": -0.9,
-  "mid_net": -176.5,
-  "small_net": -24.7,
-  "main_pct": 1.21,
+  "main_net": 200.0,
+  "xlarge_net": 201.9,
+  "large_net": -1.9,
+  "mid_net": -176.8,
+  "small_net": -23.2,
+  "main_pct": 1.2,
   "main_in": true,
   "retail_in": false
  },
  "breadth_count": {
-  "up": 3256,
-  "down": 1583,
-  "flat": 183,
+  "up": 3243,
+  "down": 1593,
+  "flat": 186,
   "limit_up": 115,
   "limit_down": 6,
-  "advance_pct": 64.8,
+  "advance_pct": 64.6,
   "limit_net": 109
  },
  "futures_basis": {
@@ -360,10 +360,10 @@
   "evidence": [
    "上证 +0.46%（红盘）",
    "成交额宽度 71.1%（>60%，多数个股走强）",
-   "主力净流入 +201.2亿（>+50亿）",
-   "超大单净流入 +202.0亿（>+30亿，机构买入）",
+   "主力净流入 +200.0亿（>+50亿）",
+   "超大单净流入 +201.9亿（>+30亿，机构买入）",
    "情绪 67分（≥58分 偏热但未狂热）",
-   "上涨家数占比 64.8%（>60%）",
+   "上涨家数占比 64.6%（>60%）",
    "涨停 115家（≥50家，涨停数偏多）"
   ],
   "posture": "顺势持有，不折腾",
@@ -441,7 +441,7 @@
   "confirms": [
    {
     "metric": "主力资金",
-    "anchor": "今日主力净流入 201.2亿",
+    "anchor": "今日主力净流入 200.0亿",
     "good": "明日盘中主力资金净流入转正（>0亿）",
     "then_good": "派发压力缓解，可按计划小仓试错",
     "then_bad": "维持减仓基调，反弹以减为主",
@@ -536,5 +536,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 110.3
+ "elapsed": 154.0
 }
