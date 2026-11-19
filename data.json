@@ -1,7 +1,8 @@
 {
- "generated_at": "2026-11-19 15:42:26 GMT+8",
+ "generated_at": "2026-11-19 16:14:05 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [
+  "快照有 3 页拉取失败，统计口径会偏小",
   "行业资金流失败: Expecting value: line 1 column 1 (char 0)",
   "ETF 资金流获取失败: Expecting value: line 1 column 1 (char 0)"
  ],
@@ -50,17 +51,17 @@
    "name": "恒生指数",
    "group": "亚太",
    "code": "HSI",
-   "price": 22812.12,
-   "pct": -2.07,
-   "change": -482.63
+   "price": 22841.62,
+   "pct": -1.95,
+   "change": -453.13
   },
   {
    "name": "国企指数",
    "group": "亚太",
    "code": "HSCEI",
-   "price": 7682.96,
-   "pct": -1.96,
-   "change": -153.31
+   "price": 7690.34,
+   "pct": -1.86,
+   "change": -145.93
   },
   {
    "name": "日经225",
@@ -106,9 +107,9 @@
    "name": "美元指数",
    "group": "欧美",
    "code": "UDI",
-   "price": 103.83,
-   "pct": 0.03,
-   "change": 0.03
+   "price": 103.76,
+   "pct": -0.04,
+   "change": -0.04
   }
  ],
  "breadth": {
@@ -198,58 +199,58 @@
     "g": 14,
     "n": 39,
     "pct_above": 23.1,
-    "avg_amt": 11.9
+    "avg_amt": 11.87
    },
    {
     "g": 15,
     "n": 39,
     "pct_above": 30.8,
-    "avg_amt": 13.15
+    "avg_amt": 13.12
    },
    {
     "g": 16,
     "n": 39,
     "pct_above": 23.1,
-    "avg_amt": 14.8
+    "avg_amt": 14.71
    },
    {
     "g": 17,
     "n": 39,
-    "pct_above": 12.8,
-    "avg_amt": 17.34
+    "pct_above": 10.3,
+    "avg_amt": 17.19
    },
    {
     "g": 18,
     "n": 39,
     "pct_above": 28.2,
-    "avg_amt": 20.64
+    "avg_amt": 20.44
    },
    {
     "g": 19,
     "n": 39,
     "pct_above": 15.4,
-    "avg_amt": 25.78
+    "avg_amt": 25.44
    },
    {
     "g": 20,
     "n": 58,
-    "pct_above": 25.9,
-    "avg_amt": 98.06
+    "pct_above": 27.6,
+    "avg_amt": 54.78
    }
   ],
   "sample": 799,
-  "head_pct": 23.2,
+  "head_pct": 23.7,
   "tail_pct": 58.1,
   "scope": "成交额Top800"
  },
  "liquidity": {
-  "top_ratio": 45.3,
-  "hhi": 0.00161,
-  "gini": 0.6918,
-  "risk": 61.2,
+  "top_ratio": 44.8,
+  "hhi": 0.00165,
+  "gini": 0.6916,
+  "risk": 61.3,
   "level": "中风险",
   "note": "资金中度集中，赚钱效应收敛，控制追高",
-  "sample": 5217,
+  "sample": 4917,
   "top_pct": 5.0
  },
  "margin": {
@@ -266,20 +267,20 @@
  "sector": null,
  "volume_ratio": 0.867,
  "emotion": {
-  "score": 23.5,
+  "score": 23.8,
   "level": "恐惧",
   "note": "情绪进入冰点，往往对应机会区",
   "parts": {
-   "advance": 12.2,
+   "advance": 12.6,
    "ma_breadth": 30.8,
-   "limit_net": 1.8,
+   "limit_net": 2.7,
    "volume": 55.0,
    "margin": 35.0
   },
   "why": {
-   "advance": "上涨家数占比 12.2%",
+   "advance": "上涨家数占比 12.6%",
    "ma_breadth": "站上20日均线 30.8%",
-   "limit_net": "涨停 33 / 跌停 109",
+   "limit_net": "涨停 33 / 跌停 106",
    "volume": "沪市量能比 0.87（相对20日均值）",
    "margin": "两融10日变动 -2.81%"
   },
@@ -287,30 +288,30 @@
    "hot": 70.0,
    "cold": 30.0
   },
-  "up": 638,
-  "down": 4532,
-  "flat": 50,
+  "up": 620,
+  "down": 4252,
+  "flat": 48,
   "limit_up": 33,
-  "limit_down": 109
+  "limit_down": 106
  },
  "flow": {
-  "main_net": -311.1,
-  "xlarge_net": -115.0,
-  "large_net": -196.0,
-  "mid_net": -32.8,
-  "small_net": 343.9,
-  "main_pct": -2.38,
+  "main_net": -304.5,
+  "xlarge_net": -112.6,
+  "large_net": -192.0,
+  "mid_net": -34.6,
+  "small_net": 339.1,
+  "main_pct": -2.37,
   "main_in": false,
   "retail_in": true
  },
  "breadth_count": {
-  "up": 638,
-  "down": 4532,
-  "flat": 50,
+  "up": 620,
+  "down": 4252,
+  "flat": 48,
   "limit_up": 33,
-  "limit_down": 109,
-  "advance_pct": 12.2,
-  "limit_net": -76
+  "limit_down": 106,
+  "advance_pct": 12.6,
+  "limit_net": -73
  },
  "futures_basis": {
   "items": [
@@ -358,11 +359,11 @@
   "confidence": 88,
   "evidence": [
    "上证 -0.28%（绿盘）",
-   "主力净流出 -311.1亿（<-50亿）",
-   "超大单净流出 -115.0亿（<-30亿，机构卖出）",
+   "主力净流出 -304.5亿（<-50亿）",
+   "超大单净流出 -112.6亿（<-30亿，机构卖出）",
    "成交额宽度 30.8%（<40%）",
    "情绪 24分（≤42分 转冷/冰点）",
-   "跌停 109家（≥20家）",
+   "跌停 106家（≥20家）",
    "期指贴水 -1.30%（<-0.30%，避险情绪）"
   ],
   "posture": "降仓避险",
@@ -400,7 +401,7 @@
    "label": "小微盘/题材活跃（不追）",
    "advice": "题材热闹但持续性差，长线账户不追、只看核心。",
    "evidence": [
-    "尾部 58% 强于头部 23% → 微盘在冲，投机性高",
+    "尾部 58% 强于头部 24% → 微盘在冲，投机性高",
     "资金集中度 45% 偏高 → 抱团核心，宜跟随头部"
    ]
   },
@@ -438,7 +439,7 @@
   "confirms": [
    {
     "metric": "主力资金",
-    "anchor": "今日主力净流入 -311.1亿",
+    "anchor": "今日主力净流入 -304.5亿",
     "good": "明日盘中主力资金净流入转正（>0亿）",
     "then_good": "派发压力缓解，可按计划小仓试错",
     "then_bad": "维持减仓基调，反弹以减为主",
@@ -533,5 +534,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 382.3
+ "elapsed": 256.6
 }
