@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-20 17:55:02 GMT+8",
+ "generated_at": "2026-11-20 18:20:26 GMT+8",
  "scope_note": "宽度为成交额Top800口径；流动性为全市场口径",
  "warnings": [
   "快照有 1 页拉取失败，统计口径会偏小",
@@ -107,9 +107,9 @@
    "name": "美元指数",
    "group": "欧美",
    "code": "UDI",
-   "price": 103.79,
-   "pct": -0.15,
-   "change": -0.16
+   "price": 103.87,
+   "pct": -0.08,
+   "change": -0.08
   }
  ],
  "breadth": {
@@ -246,8 +246,8 @@
  "liquidity": {
   "top_ratio": 42.8,
   "hhi": 0.0014,
-  "gini": 0.6697,
-  "risk": 57.1,
+  "gini": 0.6686,
+  "risk": 57.0,
   "level": "中风险",
   "note": "资金中度集中，赚钱效应收敛，控制追高",
   "sample": 5116,
@@ -271,14 +271,14 @@
   "level": "恐惧",
   "note": "情绪进入冰点，往往对应机会区",
   "parts": {
-   "advance": 5.7,
+   "advance": 5.8,
    "ma_breadth": 25.4,
    "limit_net": 0.0,
    "volume": 55.0,
    "margin": 15.0
   },
   "why": {
-   "advance": "上涨家数占比 5.7%",
+   "advance": "上涨家数占比 5.8%",
    "ma_breadth": "站上20日均线 25.4%",
    "limit_net": "涨停 33 / 跌停 178",
    "volume": "沪市量能比 1.05（相对20日均值）",
@@ -288,29 +288,29 @@
    "hot": 70.0,
    "cold": 30.0
   },
-  "up": 294,
-  "down": 4800,
+  "up": 297,
+  "down": 4797,
   "flat": 25,
   "limit_up": 33,
   "limit_down": 178
  },
  "flow": {
-  "main_net": -518.0,
-  "xlarge_net": -171.8,
-  "large_net": -346.2,
-  "mid_net": 33.1,
-  "small_net": 484.9,
+  "main_net": -518.8,
+  "xlarge_net": -172.1,
+  "large_net": -346.8,
+  "mid_net": 32.4,
+  "small_net": 486.4,
   "main_pct": -3.66,
   "main_in": false,
   "retail_in": true
  },
  "breadth_count": {
-  "up": 294,
-  "down": 4800,
+  "up": 297,
+  "down": 4797,
   "flat": 25,
   "limit_up": 33,
   "limit_down": 178,
-  "advance_pct": 5.7,
+  "advance_pct": 5.8,
   "limit_net": -145
  },
  "futures_basis": {
@@ -359,8 +359,8 @@
   "confidence": 88,
   "evidence": [
    "上证 -1.23%（绿盘）",
-   "主力净流出 -518.0亿（<-50亿）",
-   "超大单净流出 -171.8亿（<-30亿，机构卖出）",
+   "主力净流出 -518.8亿（<-50亿）",
+   "超大单净流出 -172.1亿（<-30亿，机构卖出）",
    "成交额宽度 25.4%（<40%）",
    "情绪 18分（≤42分 转冷/冰点）",
    "跌停 178家（≥20家）",
@@ -438,7 +438,7 @@
   "confirms": [
    {
     "metric": "主力资金",
-    "anchor": "今日主力净流入 -518.0亿",
+    "anchor": "今日主力净流入 -518.8亿",
     "good": "明日盘中主力资金净流入转正（>0亿）",
     "then_good": "派发压力缓解，可按计划小仓试错",
     "then_bad": "维持减仓基调，反弹以减为主",
@@ -533,5 +533,5 @@
    "cls": "stale"
   }
  },
- "elapsed": 126.0
+ "elapsed": 222.6
 }
